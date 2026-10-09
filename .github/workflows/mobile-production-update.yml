@@ -54,4 +54,9 @@ jobs:
       - name: Publish production update
         env:
           ROLLOUT: ${{ inputs.rollout_percentage }}
-        run: eas update --channel production --environment production --rollout-percentage "$ROLLOUT" --message "${{ github.sha }}" --non-interactive
+        run: |
+          if [[ "$ROLLOUT" == "100" ]]; then
+            eas update --channel production --environment production --message "${{ github.sha }}" --non-interactive
+          else
+            eas update --channel production --environment production --rollout-percentage "$ROLLOUT" --message "${{ github.sha }}" --non-interactive
+          fi
