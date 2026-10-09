@@ -28,10 +28,10 @@
     "testing": {
       "distribution": "store",
       "channel": "testing",
-      "environment": "preview",
+      "environment": "production",
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://testapi-roomora.takosware.com"
+        "EXPO_PUBLIC_API_URL": "https://api-roomora.takosware.com"
       }
     },
     "production": {

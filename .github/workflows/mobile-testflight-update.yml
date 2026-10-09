@@ -43,7 +43,7 @@ jobs:
           for attempt in 1 2 3; do
             eas update \
               --channel testing \
-              --environment preview \
+              --environment production \
               --message "${{ github.sha }}" \
               --non-interactive && exit 0
 
