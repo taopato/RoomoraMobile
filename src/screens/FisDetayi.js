@@ -8,6 +8,8 @@ import { houseApi, receiptsApi } from '../services/api';
 import { useTheme } from '../shared/theme/ThemeProvider';
 import { LoadingState, PageHeader } from '../shared/ui/roomora/CanonicalUI';
 import { BASE_URL } from '../shared/config/env';
+import DateField from '../shared/ui/DateField';
+import eventBus from '../shared/events/bus';
 import {
   calculateItemsTotal,
   extractDetectedTotalFromRawText,
@@ -23,6 +25,7 @@ import {
   toggleReceiptParticipant,
 } from '../utils/receiptAssignments';
 import { getContainedImageMetrics, getContainedOverlayStyle } from '../utils/receiptLayout';
+import { normalizeExpenseCategoryKey } from '../constants/ExpenseEnums';
 
 import { Alert, Text, TextInput } from '../shared/i18n';
 import { getLocale } from '../shared/i18n/runtime';
@@ -63,6 +66,7 @@ function FisDetayiInner({ route, navigation }) {
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const receiptId = route?.params?.receiptId;
   const houseId = route?.params?.houseId || user?.defaultHouseId;
+  const editConverted = route?.params?.editConverted === true;
 
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -87,6 +91,7 @@ function FisDetayiInner({ route, navigation }) {
   const draftSelectionRef = useRef(null);
   const isConverted = String(receipt?.status ?? '').toLowerCase() === 'converted'
     || Number(receipt?.status) === 3;
+  const canEdit = !isConverted || editConverted;
 
   const load = async () => {
     if (!receiptId || !houseId) return;
@@ -151,6 +156,10 @@ function FisDetayiInner({ route, navigation }) {
         normalizedMembers
       ));
       setMembers(normalizedMembers);
+      if (receiptData?.convertedExpense) {
+        setPayerUserId(String(receiptData.convertedExpense.odeyenUserId || ''));
+        setCategory(normalizeExpenseCategoryKey(receiptData.convertedExpense.category) || 'Market');
+      }
       if (!payerUserId && normalizedMembers.length > 0) {
         setPayerUserId(String(normalizedMembers[0].id));
       }
@@ -197,14 +206,14 @@ function FisDetayiInner({ route, navigation }) {
   }, [imageUri, receipt?.imageWidth, receipt?.imageHeight]);
 
   const patchItem = (index, next) => {
-    if (isConverted) return;
+    if (!canEdit) return;
     setItems((prev) => prev.map((item, itemIndex) => (
       itemIndex === index ? { ...item, ...next } : item
     )));
   };
 
   const toggleSelected = (index) => {
-    if (isConverted) return;
+    if (!canEdit) return;
     setSelectedIndexes((prev) => (
       prev.includes(index) ? prev.filter((item) => item !== index) : [...prev, index]
     ));
@@ -216,7 +225,7 @@ function FisDetayiInner({ route, navigation }) {
   };
 
   const addItem = () => {
-    if (isConverted) return;
+    if (!canEdit) return;
     setItems((prev) => [
       ...prev,
       {
@@ -234,7 +243,7 @@ function FisDetayiInner({ route, navigation }) {
   };
 
   const removeItem = (index) => {
-    if (isConverted) return;
+    if (!canEdit) return;
     setItems((prev) => prev
       .filter((_, itemIndex) => itemIndex !== index)
       .map((item, itemIndex) => ({ ...item, sortOrder: itemIndex })));
@@ -243,7 +252,7 @@ function FisDetayiInner({ route, navigation }) {
   };
 
   const openEditor = (index) => {
-    if (isConverted) return;
+    if (!canEdit) return;
     const source = items[index];
     if (!source) return;
 
@@ -342,12 +351,20 @@ function FisDetayiInner({ route, navigation }) {
         extractDetectedTotalFromRawText(receipt?.rawOcrText)
       );
 
-      const response = await receiptsApi.update(receiptId, {
+      const payload = {
         storeName: receipt?.storeName || 'Fiş',
         receiptDate: receipt?.receiptDate,
         detectedTotalAmount: preservedDetectedTotal,
         items: payloadItems,
-      });
+      };
+      const response = isConverted
+        ? await receiptsApi.updateConverted(receiptId, {
+          ...payload,
+          payerUserId: Number(payerUserId),
+          category,
+          note: receipt?.convertedExpense?.note || receipt?.storeName || 'Fişten oluşturuldu',
+        })
+        : await receiptsApi.update(receiptId, payload);
       const nextReceipt = response?.data;
       if (nextReceipt) {
         const normalizedItems = (nextReceipt.items || []).map((item, index) => ({
@@ -379,6 +396,19 @@ function FisDetayiInner({ route, navigation }) {
     } finally {
       setSaving(false);
     }
+  };
+
+  const saveConvertedExpense = async () => {
+    if (!payerUserId) {
+      Alert.alert('Uyarı', 'Önce ödeyen kişiyi seç.');
+      return;
+    }
+    const saved = await saveDraft();
+    if (!saved) return;
+    eventBus.emit('expenses:updated', { houseId: Number(houseId) });
+    Alert.alert('Başarılı', 'Fiş kalemleri ve harcama paylaşımı güncellendi.', [
+      { text: 'Tamam', onPress: () => navigation.goBack() },
+    ]);
   };
 
   const convertToExpense = async () => {
@@ -787,8 +817,8 @@ function FisDetayiInner({ route, navigation }) {
         keyboardShouldPersistTaps="handled"
       >
         <PageHeader
-          title={isConverted ? 'Fiş Detayı' : 'Fiş Tarama Sonucu'}
-          subtitle={isConverted ? 'Kaydedilmiş fiş' : 'Bilgileri kontrol edip kaydet'}
+          title={editConverted ? 'Fiş Harcamasını Düzenle' : (isConverted ? 'Fiş Detayı' : 'Fiş Tarama Sonucu')}
+          subtitle={editConverted ? 'Kalemleri, tarihi ve paylaşımı güncelle' : (isConverted ? 'Kaydedilmiş fiş' : 'Bilgileri kontrol edip kaydet')}
           onBack={() => navigation.goBack()}
         />
         {imageUri ? (
@@ -805,7 +835,7 @@ function FisDetayiInner({ route, navigation }) {
                 <Text style={styles.zoomResetButtonText}>Sıfırla</Text>
               </TouchableOpacity>
             </View>
-            {!isConverted ? (
+            {canEdit ? (
               <>
                 <View style={styles.markerToolbar}>
                   {markerOptions.map((option) => {
@@ -981,14 +1011,14 @@ function FisDetayiInner({ route, navigation }) {
         <View style={styles.section} onTouchStart={deactivateImageInteraction}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Kalemler ve paylaşım</Text>
-            {!isConverted ? (
+            {canEdit ? (
               <TouchableOpacity onPress={addItem}>
                 <Text style={styles.addText}>+ Kalem ekle</Text>
               </TouchableOpacity>
             ) : null}
           </View>
           <Text style={styles.sectionHint}>
-            {isConverted
+            {!canEdit
               ? 'Fiş kalemleri ve paylaşım bilgileri tamamlanan harcama kaydıyla eşleşir.'
               : 'Her kalemde dahil olacak kişileri seç. Bir, birkaç veya tüm ev üyelerini işaretleyebilirsin.'}
           </Text>
@@ -1018,7 +1048,7 @@ function FisDetayiInner({ route, navigation }) {
                       </Text>
                     </View>
                   </View>
-                  {!isConverted ? (
+                  {canEdit ? (
                     <View style={styles.itemActions}>
                       <TouchableOpacity onPress={() => openEditor(index)}>
                         <Text style={styles.editText}>Düzenle</Text>
@@ -1064,7 +1094,7 @@ function FisDetayiInner({ route, navigation }) {
                   )}
                 </View>
 
-                {!isConverted ? <View style={styles.quickAssignRow}>
+                {canEdit ? <View style={styles.quickAssignRow}>
                   <TouchableOpacity
                     style={[styles.quickAssignButton, isWholeHouse && styles.quickAssignButtonActive]}
                     onPress={() => patchItem(index, buildReceiptAssignment(memberIds, members))}
@@ -1120,8 +1150,20 @@ function FisDetayiInner({ route, navigation }) {
           ) : null}
         </View>
 
-        {!isConverted ? (
+        {canEdit ? (
           <>
+            <View style={styles.section} onTouchStart={deactivateImageInteraction}>
+              <Text style={styles.sectionTitle}>Harcama tarihi</Text>
+              <DateField
+                value={receipt?.receiptDate ? String(receipt.receiptDate).slice(0, 10) : ''}
+                onChange={(value) => setReceipt((current) => ({
+                  ...current,
+                  receiptDate: `${value}T12:00:00.000Z`,
+                }))}
+                placeholder="Tarih seç"
+              />
+            </View>
+
             <View style={styles.section} onTouchStart={deactivateImageInteraction}>
               <Text style={styles.sectionTitle}>Ödeyen</Text>
               <View style={styles.chips}>
@@ -1158,15 +1200,23 @@ function FisDetayiInner({ route, navigation }) {
               </View>
             </View>
 
-            <TouchableOpacity style={styles.secondaryButton} onPress={() => saveDraft()} disabled={saving}>
-              <Text style={styles.secondaryButtonText}>{saving ? 'Kaydediliyor...' : 'Taslağı Kaydet'}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.primaryButton} onPress={convertToExpense} disabled={saving}>
-              <Text style={styles.primaryButtonText}>Harcamaya Dönüştür</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.deleteReceiptButton} onPress={deleteReceipt} disabled={saving}>
-              <Text style={styles.deleteReceiptButtonText}>Fişi Sil</Text>
-            </TouchableOpacity>
+            {editConverted ? (
+              <TouchableOpacity style={styles.primaryButton} onPress={saveConvertedExpense} disabled={saving}>
+                <Text style={styles.primaryButtonText}>{saving ? 'Kaydediliyor...' : 'Değişiklikleri Kaydet'}</Text>
+              </TouchableOpacity>
+            ) : (
+              <>
+                <TouchableOpacity style={styles.secondaryButton} onPress={() => saveDraft()} disabled={saving}>
+                  <Text style={styles.secondaryButtonText}>{saving ? 'Kaydediliyor...' : 'Taslağı Kaydet'}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.primaryButton} onPress={convertToExpense} disabled={saving}>
+                  <Text style={styles.primaryButtonText}>Harcamaya Dönüştür</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.deleteReceiptButton} onPress={deleteReceipt} disabled={saving}>
+                  <Text style={styles.deleteReceiptButtonText}>Fişi Sil</Text>
+                </TouchableOpacity>
+              </>
+            )}
           </>
         ) : null}
       </ScrollView>

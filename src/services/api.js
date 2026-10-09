@@ -398,8 +398,10 @@ export const receiptsApi = {
   },
   getByHouse: (houseId) => api.get(`/Receipts/ByHouse/${houseId}`),
   getById: (receiptId) => api.get(`/Receipts/${receiptId}`),
+  getByExpense: (expenseId) => api.get(`/Receipts/ByExpense/${expenseId}`),
   reparse: (receiptId) => api.post(`/Receipts/${receiptId}/Reparse`),
   update: (receiptId, payload) => api.put(`/Receipts/${receiptId}`, payload),
+  updateConverted: (receiptId, payload) => api.put(`/Receipts/${receiptId}/Converted`, payload),
   convertToExpense: (receiptId, payload) => api.post(`/Receipts/${receiptId}/ConvertToExpense`, payload),
   remove: (receiptId) => api.delete(`/Receipts/${receiptId}`),
 };

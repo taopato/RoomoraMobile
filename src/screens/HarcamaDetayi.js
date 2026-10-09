@@ -3,7 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { expensesApi, houseApi, ledgerApi } from '../services/api';
+import { expensesApi, houseApi, ledgerApi, receiptsApi } from '../services/api';
 import { useTheme } from '../shared/theme/ThemeProvider';
 import { EmptyState, LoadingState, PageHeader, PrimaryButton, money } from '../shared/ui/roomora/CanonicalUI';
 import { formatMoneyInput, parseMoneyInput } from '../shared/format/money';
@@ -39,6 +39,7 @@ export default function HarcamaDetayi({ navigation, route }) {
   const [payerId, setPayerId] = useState('');
   const [participantIds, setParticipantIds] = useState([]);
   const [personal, setPersonal] = useState({});
+  const [linkedReceiptId, setLinkedReceiptId] = useState(null);
 
   const hydrateForm = useCallback((item, availableMembers = []) => {
     setTitle(String(pick(item, ['tur', 'Tur', 'description', 'Description'], 'Harcama')));
@@ -72,10 +73,11 @@ export default function HarcamaDetayi({ navigation, route }) {
     }
     if (!initialExpense) setLoading(true);
     try {
-      const [expenseResult, ledgerResult, memberResult] = await Promise.allSettled([
+      const [expenseResult, ledgerResult, memberResult, receiptResult] = await Promise.allSettled([
         expensesApi.getById(expenseId),
         ledgerApi.byExpense(expenseId),
         houseId ? houseApi.getMembers(houseId) : Promise.resolve({ data: [] }),
+        receiptsApi.getByExpense(expenseId),
       ]);
       const item = expenseResult.status === 'fulfilled'
         ? expenseResult.value?.data?.data ?? expenseResult.value?.data
@@ -86,6 +88,9 @@ export default function HarcamaDetayi({ navigation, route }) {
       const memberList = memberResult.status === 'fulfilled'
         ? memberResult.value?.data?.data ?? memberResult.value?.data ?? []
         : [];
+      const linkedReceipt = receiptResult.status === 'fulfilled'
+        ? receiptResult.value?.data?.data ?? receiptResult.value?.data
+        : null;
       const normalizedMembers = (Array.isArray(memberList) ? memberList : []).map((member) => {
         const id = Number(pick(member, ['userId', 'UserId', 'id'], 0));
         return {
@@ -111,6 +116,7 @@ export default function HarcamaDetayi({ navigation, route }) {
         ? normalizedShares
         : Array.from(totals, ([userId, value]) => ({ userId, value })));
       setExpense(item);
+      setLinkedReceiptId(linkedReceipt?.id || null);
       if (item) hydrateForm(item, normalizedMembers);
     } catch {
       setExpense(null);
@@ -303,13 +309,18 @@ export default function HarcamaDetayi({ navigation, route }) {
 
             <TouchableOpacity
               style={styles.editButton}
-              onPress={() => navigation.navigate('HarcamaDuzenle', {
-                expenseId,
-                houseId,
-                houseName: route?.params?.houseName,
-                initialExpense: expense,
-                startEditing: true,
-              })}
+              onPress={() => navigation.navigate(
+                linkedReceiptId ? 'FisDetayi' : 'HarcamaDuzenle',
+                linkedReceiptId
+                  ? { receiptId: linkedReceiptId, houseId, editConverted: true }
+                  : {
+                    expenseId,
+                    houseId,
+                    houseName: route?.params?.houseName,
+                    initialExpense: expense,
+                    startEditing: true,
+                  }
+              )}
             >
               <Ionicons name="pencil-outline" size={19} color={theme.colors.primary[700]} />
               <Text style={styles.editText}>Düzenle</Text>
