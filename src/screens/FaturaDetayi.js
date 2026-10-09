@@ -194,6 +194,7 @@ export default function FaturaDetayi({ route, navigation }) {
   const currentUserId = Number(user?.id || 0);
   const currentShare = shares.find((share) => share.userId === currentUserId);
   const canReportPayment = payerId > 0 && currentUserId > 0 && payerId !== currentUserId && Number(currentShare?.amount || 0) > 0;
+  const payerName = bill.odeyenKullaniciAdi || 'Ödemeyi yapan ev üyesi';
 
   return (
     <View style={styles.screen}>
@@ -223,9 +224,9 @@ export default function FaturaDetayi({ route, navigation }) {
           <Text style={styles.amount}>{formatAmount(bill.tutar ?? bill.amount)}</Text>
           <Text style={styles.heroTitle}>{title} Faturası</Text>
           <Text style={styles.heroSubtitle} numberOfLines={1}>{houseName || 'Aktif ev'}</Text>
-          <View style={styles.datePill}>
-            <Ionicons name="calendar-outline" size={15} color={theme.colors.warning[700]} />
-            <Text style={styles.datePillText}>Son ödeme {formatDate(dueDate)}</Text>
+          <View style={styles.paidPill}>
+            <Ionicons name="checkmark-circle" size={15} color={theme.colors.success[700]} />
+            <Text style={styles.paidPillText}>{payerName} tarafından ödendi</Text>
           </View>
         </View>
 
@@ -273,6 +274,15 @@ export default function FaturaDetayi({ route, navigation }) {
           </View>
         )}
 
+        <View style={styles.paymentInfoCard}>
+          <Ionicons name="information-circle-outline" size={21} color={theme.colors.primary[700]} />
+          <Text style={styles.paymentInfoText}>
+            {canReportPayment
+              ? `Fatura kuruma ${payerName} tarafından ödendi. ${formatAmount(currentShare?.amount)} tutarındaki payını bu kişiye gönderdikten sonra aşağıdan bildirim yap.`
+              : 'Fatura ödenmiş ve grup üyeleri arasında paylaştırılmıştır. Üyelerin açık payları Borç / Alacak ekranından takip edilir.'}
+          </Text>
+        </View>
+
         {canReportPayment && (
           <TouchableOpacity
             style={styles.paymentButton}
@@ -280,11 +290,12 @@ export default function FaturaDetayi({ route, navigation }) {
               houseId: houseId || bill.houseId,
               houseName,
               toUserId: payerId,
+              maxAmount: Number(currentShare?.amount || 0),
             })}
             activeOpacity={0.88}
           >
             <Ionicons name="checkmark-circle-outline" size={20} color={theme.colors.text.onPrimary} />
-            <Text style={styles.paymentButtonText}>Ödeme Bildir</Text>
+            <Text style={styles.paymentButtonText}>Payımı Ödediğimi Bildir</Text>
           </TouchableOpacity>
         )}
 
@@ -362,8 +373,8 @@ const makeStyles = (theme, insets) => StyleSheet.create({
   heroTitle: { color: theme.colors.text.primary, fontSize: 18, fontWeight: '800', marginTop: 7 },
   heroSubtitle: { color: theme.colors.text.secondary, fontSize: 13, marginTop: 3 },
   amount: { color: theme.colors.text.primary, fontSize: 35, fontWeight: '800', marginTop: 18 },
-  datePill: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 13, borderRadius: 16, backgroundColor: theme.colors.warning[50], paddingHorizontal: 11, paddingVertical: 6 },
-  datePillText: { color: theme.colors.warning[700], fontSize: 12, fontWeight: '700' },
+  paidPill: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 13, borderRadius: 16, backgroundColor: theme.colors.success[50], paddingHorizontal: 11, paddingVertical: 6 },
+  paidPillText: { color: theme.colors.success[700], fontSize: 12, fontWeight: '700' },
   detailCard: {
     borderRadius: 8,
     backgroundColor: theme.colors.surface,
@@ -412,6 +423,18 @@ const makeStyles = (theme, insets) => StyleSheet.create({
   noteBody: { flex: 1, marginLeft: 10 },
   noteLabel: { color: theme.colors.success[700], fontSize: 12, fontWeight: '800' },
   noteText: { color: theme.colors.text.primary, fontSize: 14, lineHeight: 20, marginTop: 3 },
+  paymentInfoCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 9,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: theme.colors.primary[100],
+    backgroundColor: theme.colors.primary[50],
+    padding: 13,
+    marginBottom: 12,
+  },
+  paymentInfoText: { flex: 1, color: theme.colors.text.primary, fontSize: 13, lineHeight: 19 },
   paymentButton: {
     minHeight: 52,
     borderRadius: 8,

@@ -24,9 +24,35 @@ const Toast = ({
   const { theme } = useTheme();
   const translateY = useRef(new Animated.Value(-100)).current;
   const opacity = useRef(new Animated.Value(0)).current;
+  const timerRef = useRef(null);
+  const hidingRef = useRef(false);
+
+  const hideToast = () => {
+    if (hidingRef.current) return;
+    hidingRef.current = true;
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    Animated.parallel([
+      Animated.timing(translateY, {
+        toValue: -100,
+        duration: 300,
+        useNativeDriver: Platform.OS !== 'web',
+      }),
+      Animated.timing(opacity, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: Platform.OS !== 'web',
+      }),
+    ]).start(() => {
+      onHide?.();
+    });
+  };
 
   useEffect(() => {
     if (visible) {
+      hidingRef.current = false;
       Animated.parallel([
         Animated.timing(translateY, {
           toValue: 0,
@@ -40,30 +66,16 @@ const Toast = ({
         }),
       ]).start();
 
-      const timer = setTimeout(() => {
+      timerRef.current = setTimeout(() => {
         hideToast();
       }, duration);
 
-      return () => clearTimeout(timer);
+      return () => {
+        if (timerRef.current) clearTimeout(timerRef.current);
+        timerRef.current = null;
+      };
     }
   }, [visible]);
-
-  const hideToast = () => {
-    Animated.parallel([
-      Animated.timing(translateY, {
-        toValue: -100,
-        duration: 300,
-        useNativeDriver: Platform.OS !== 'web',
-      }),
-      Animated.timing(opacity, {
-        toValue: 0,
-        duration: 300,
-        useNativeDriver: Platform.OS !== 'web',
-      }),
-    ]).start(() => {
-      onHide && onHide();
-    });
-  };
 
   const getToastStyle = () => {
     switch (type) {
@@ -96,17 +108,13 @@ const Toast = ({
         },
       ]}
     >
-      <TouchableOpacity
-        style={styles.toastContent}
-        onPress={hideToast}
-        activeOpacity={0.8}
-      >
+      <View style={styles.toastContent}>
         <Ionicons name={toastStyle.icon} size={20} color={textColor} style={styles.icon} />
         <Text style={[styles.message, { color: textColor }]}>{message}</Text>
-        <TouchableOpacity onPress={hideToast} style={styles.closeButton}>
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel="Bildirimi kapat" onPress={hideToast} style={styles.closeButton}>
           <Ionicons name="close" size={18} color={textColor} />
         </TouchableOpacity>
-      </TouchableOpacity>
+      </View>
     </Animated.View>
   );
 };

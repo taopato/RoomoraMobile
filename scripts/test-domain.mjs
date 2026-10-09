@@ -12,6 +12,7 @@ import { formatMoneyInput, parseMoneyInput } from '../src/shared/format/money.js
 import { normalizeExpenseCategoryKey } from '../src/constants/ExpenseEnums.js';
 import { getTokenUserId, isTokenExpired, normalizeAuthUser } from '../src/shared/auth/session.js';
 import { getPaymentOutcome } from '../src/shared/finance/paymentOutcome.js';
+import { extractDetectedTotalFromRawText, resolveReceiptItems } from '../src/utils/receiptParser.js';
 
 assert.equal(getTurkishMobileDigits('0554 361 75 75'), '5543617575');
 assert.equal(getTurkishMobileDigits('+90 (554) 361 75 75'), '5543617575');
@@ -73,5 +74,27 @@ assert.deepEqual(getPaymentOutcome(0, 500), {
   resultingCredit: 500,
   closesDebt: false,
 });
+
+const discountedReceipt = `
+SLEEPY YUZTEM100LU %20.0 *119,00
+BEYPAZARI 200 ML %1.0 *240,00
+DANA KANGAL SUCUK %1.0 *419,00
+URUN INDIRIMLERI:
+BEYPAZARI 200 ML %1.00 *-6,00
+BEYPAZARI 200 ML %1.00 *-6,00
+BEYPAZARI 200 ML %1.00 *-6,00
+DANA KANGAL SUCUK %1.00 *-119,50
+SLEEPY YUZTEM100LU %20.0 *-41,50
+MAL/HIZMET TOPLAM TUTARI *1.381,13
+TOPKDV *29,87
+ODENECEK TUTAR *1.411,00
+`;
+const discountedItems = resolveReceiptItems([], discountedReceipt, 1411);
+const discountedByName = Object.fromEntries(discountedItems.map((item) => [item.name.toUpperCase(), item]));
+assert.equal(discountedByName.BEYPAZARI.lineTotal, 222);
+assert.equal(discountedByName.BEYPAZARI.discountAmount, 18);
+assert.equal(discountedByName['DANA KANGAL SUCUK'].lineTotal, 299.5);
+assert.equal(discountedByName['SLEEPY YUZTEM100LU'].lineTotal, 77.5);
+assert.equal(extractDetectedTotalFromRawText(discountedReceipt), 1411);
 
 console.log('Roomora domain tests passed.');

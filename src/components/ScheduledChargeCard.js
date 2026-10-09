@@ -119,7 +119,7 @@ export default function ScheduledChargeCard({
               activeOpacity={0.82}
               onPress={() => onToggleExternal?.(plan, !cycle?.externalPaid)}
               accessibilityRole="button"
-              accessibilityLabel={cycle?.externalPaid ? 'Ev sahibine ödeme durumunu geri al' : 'Ev sahibine ödendi işaretle'}
+              accessibilityLabel={cycle?.externalPaid ? 'Kurum ödeme durumunu geri al' : 'Kuruma ödendi işaretle'}
             >
               {busy ? (
                 <ActivityIndicator size="small" color={theme.colors.text.onPrimary} />
@@ -127,7 +127,7 @@ export default function ScheduledChargeCard({
                 <Ionicons name={cycle?.externalPaid ? 'checkmark-circle' : 'home-outline'} size={18} color={theme.colors.text.onPrimary} />
               )}
               <Text style={styles.externalButtonText}>
-                {cycle?.externalPaid ? 'Ev sahibine ödendi' : 'Ev sahibine ödendi işaretle'}
+                {cycle?.externalPaid ? 'Kuruma ödendi' : 'Kuruma ödendi işaretle'}
               </Text>
             </TouchableOpacity>
           )}

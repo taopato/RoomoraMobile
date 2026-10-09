@@ -375,14 +375,18 @@ export default function AddExpenseScreen({ navigation, route }) {
           </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.quickList}>
             {quickChoices.map((choice) => (
-              <TouchableOpacity
+              <View
                 key={choice.id}
                 style={styles.quickChoice}
-                onPress={() => selectQuickChoice(choice)}
-                onLongPress={() => removeQuickChoice(choice.id)}
-                delayLongPress={500}
               >
-                <Text style={styles.quickChoiceText}>{choice.label}</Text>
+                <TouchableOpacity
+                  style={styles.quickChoiceSelect}
+                  onPress={() => selectQuickChoice(choice)}
+                  onLongPress={() => removeQuickChoice(choice.id)}
+                  delayLongPress={500}
+                >
+                  <Text style={styles.quickChoiceText}>{choice.label}</Text>
+                </TouchableOpacity>
                 <TouchableOpacity
                   accessibilityLabel={`${choice.label} hızlı seçimini kaldır`}
                   hitSlop={8}
@@ -390,7 +394,7 @@ export default function AddExpenseScreen({ navigation, route }) {
                 >
                   <Ionicons name="close" size={15} color={theme.colors.text.secondary} />
                 </TouchableOpacity>
-              </TouchableOpacity>
+              </View>
             ))}
           </ScrollView>
         </View>
@@ -635,6 +639,7 @@ const makeStyles = (theme) => StyleSheet.create({
   quickAddText: { color: theme.colors.primary[700], fontFamily: theme.typography?.bold, fontSize: 13 },
   quickList: { gap: 7, paddingTop: 4, paddingBottom: 2 },
   quickChoice: { minHeight: 32, flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, borderRadius: 16, backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.neutral[200] },
+  quickChoiceSelect: { minHeight: 30, justifyContent: 'center' },
   quickChoiceText: { color: theme.colors.text.primary, fontFamily: theme.typography?.semibold, fontSize: 12 },
   receiptCard: {
     backgroundColor: theme.colors.surface,

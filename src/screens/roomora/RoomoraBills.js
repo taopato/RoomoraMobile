@@ -181,10 +181,10 @@ export default function RoomoraBills({ navigation }) {
             key={String(item.id)}
             icon={getCategoryIconName(item.key)}
             title={getExpenseDisplayTitle(item)}
-            subtitle={`Tarih: ${getItemDate(item).toLocaleDateString('tr-TR')}`}
+            subtitle={`${item?._raw?.odeyenKullaniciAdi || 'Bir ev üyesi'} ödedi · ${getItemDate(item).toLocaleDateString('tr-TR')}`}
             amount={item.amount}
-            badge="BEKLİYOR"
-            badgeTone="warning"
+            badge="PAYLAŞILDI"
+            badgeTone="success"
             onPress={() => navigation.navigate('BillDetail', {
               billId: item.id,
               houseId: data.houseId,
