@@ -192,6 +192,9 @@ export const normalizeReceiptItems = (items = []) => items.map((item, index) => 
   originalLineTotal: item?.originalLineTotal == null ? undefined : toNumber(item.originalLineTotal),
   isAssigned: item?.isAssigned === true,
   isShared: item?.isShared !== false,
+  participantUserIds: Array.isArray(item?.participantUserIds)
+    ? [...new Set(item.participantUserIds.map(Number).filter((id) => Number.isInteger(id) && id > 0))]
+    : [],
 }));
 
 export const extractDetectedTotalFromRawText = (rawText) => {

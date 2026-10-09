@@ -13,6 +13,12 @@ import { normalizeExpenseCategoryKey } from '../src/constants/ExpenseEnums.js';
 import { getTokenUserId, isTokenExpired, normalizeAuthUser } from '../src/shared/auth/session.js';
 import { getPaymentOutcome } from '../src/shared/finance/paymentOutcome.js';
 import { extractDetectedTotalFromRawText, resolveReceiptItems } from '../src/utils/receiptParser.js';
+import {
+  buildReceiptAssignment,
+  getReceiptItemParticipantIds,
+  toggleReceiptParticipant,
+} from '../src/utils/receiptAssignments.js';
+import { getContainedImageMetrics, getContainedOverlayStyle } from '../src/utils/receiptLayout.js';
 import { getLocale, setActiveLanguage, translate } from '../src/shared/i18n/runtime.js';
 
 setActiveLanguage('tr');
@@ -106,5 +112,66 @@ assert.equal(discountedByName.BEYPAZARI.discountAmount, 18);
 assert.equal(discountedByName['DANA KANGAL SUCUK'].lineTotal, 299.5);
 assert.equal(discountedByName['SLEEPY YUZTEM100LU'].lineTotal, 77.5);
 assert.equal(extractDetectedTotalFromRawText(discountedReceipt), 1411);
+
+const receiptMembers = [{ id: 38 }, { id: 39 }, { id: 40 }];
+assert.deepEqual(
+  getReceiptItemParticipantIds({ isShared: true, participantUserIds: [] }, receiptMembers),
+  [38, 39, 40]
+);
+assert.deepEqual(
+  toggleReceiptParticipant({ isShared: true }, 38, receiptMembers),
+  {
+    isAssigned: true,
+    isShared: false,
+    personalUserId: null,
+    participantUserIds: [39, 40],
+  }
+);
+assert.deepEqual(
+  buildReceiptAssignment([38, 40], receiptMembers),
+  {
+    isAssigned: true,
+    isShared: false,
+    personalUserId: null,
+    participantUserIds: [38, 40],
+  }
+);
+assert.deepEqual(
+  buildReceiptAssignment([39], receiptMembers),
+  {
+    isAssigned: true,
+    isShared: false,
+    personalUserId: 39,
+    participantUserIds: [39],
+  }
+);
+
+const receiptMetrics = getContainedImageMetrics(
+  { width: 335, height: 260 },
+  { width: 2200, height: 2934 }
+);
+assert.ok(receiptMetrics.offsetX > 69 && receiptMetrics.offsetX < 71);
+const sleepyMarkerLeft = receiptMetrics.offsetX + (1303 * receiptMetrics.scale);
+assert.ok(sleepyMarkerLeft > receiptMetrics.offsetX);
+assert.ok(sleepyMarkerLeft < receiptMetrics.offsetX + receiptMetrics.renderedWidth);
+const sleepyOverlay = getContainedOverlayStyle({
+  boxLeft: 1303,
+  boxTop: 675,
+  boxWidth: 213,
+  boxHeight: 67,
+}, receiptMetrics);
+assert.ok(sleepyOverlay.left >= receiptMetrics.offsetX);
+assert.ok(sleepyOverlay.top >= receiptMetrics.offsetY);
+assert.ok(sleepyOverlay.left + sleepyOverlay.width <= receiptMetrics.offsetX + receiptMetrics.renderedWidth);
+assert.ok(sleepyOverlay.top + sleepyOverlay.height <= receiptMetrics.offsetY + receiptMetrics.renderedHeight);
+
+const rightEdgeOverlay = getContainedOverlayStyle({
+  boxLeft: 2190,
+  boxTop: 2920,
+  boxWidth: 300,
+  boxHeight: 100,
+}, receiptMetrics);
+assert.ok(rightEdgeOverlay.left + rightEdgeOverlay.width <= receiptMetrics.offsetX + receiptMetrics.renderedWidth);
+assert.ok(rightEdgeOverlay.top + rightEdgeOverlay.height <= receiptMetrics.offsetY + receiptMetrics.renderedHeight);
 
 console.log('Roomora domain tests passed.');

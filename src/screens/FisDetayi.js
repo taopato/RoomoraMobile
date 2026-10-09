@@ -16,6 +16,13 @@ import {
   normalizeResolvedItems,
   resolveReceiptItems,
 } from '../utils/receiptParser';
+import {
+  buildReceiptAssignment,
+  getMemberIds,
+  getReceiptItemParticipantIds,
+  toggleReceiptParticipant,
+} from '../utils/receiptAssignments';
+import { getContainedImageMetrics, getContainedOverlayStyle } from '../utils/receiptLayout';
 
 import { Alert, Text, TextInput } from '../shared/i18n';
 import { getLocale } from '../shared/i18n/runtime';
@@ -44,27 +51,10 @@ const toNumber = (value, fallback = 0) => {
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
-const getRenderMetrics = (imageFrame, imageSourceSize) => {
-  if (!imageFrame?.width || !imageFrame?.height || !imageSourceSize?.width || !imageSourceSize?.height) {
-    return null;
-  }
-
-  const scale = Math.min(imageFrame.width / imageSourceSize.width, imageFrame.height / imageSourceSize.height);
-  const renderedWidth = imageSourceSize.width * scale;
-  const renderedHeight = imageSourceSize.height * scale;
-  const offsetX = (imageFrame.width - renderedWidth) / 2;
-  const offsetY = (imageFrame.height - renderedHeight) / 2;
-
-  return {
-    scale,
-    renderedWidth,
-    renderedHeight,
-    offsetX,
-    offsetY,
-    centerX: imageFrame.width / 2,
-    centerY: imageFrame.height / 2,
-  };
-};
+const hydrateParticipantAssignments = (items, members) => items.map((item) => ({
+  ...item,
+  ...buildReceiptAssignment(getReceiptItemParticipantIds(item, members), members),
+}));
 
 function FisDetayiInner({ route, navigation }) {
   const { user } = useAuth();
@@ -156,7 +146,10 @@ function FisDetayiInner({ route, navigation }) {
         ...receiptData,
         detectedTotalAmount: correctedDetectedTotal,
       });
-      setItems(resolveReceiptItems(normalizedItems, receiptData?.rawOcrText, correctedDetectedTotal));
+      setItems(hydrateParticipantAssignments(
+        resolveReceiptItems(normalizedItems, receiptData?.rawOcrText, correctedDetectedTotal),
+        normalizedMembers
+      ));
       setMembers(normalizedMembers);
       if (!payerUserId && normalizedMembers.length > 0) {
         setPayerUserId(String(normalizedMembers[0].id));
@@ -179,6 +172,13 @@ function FisDetayiInner({ route, navigation }) {
   useEffect(() => {
     if (!imageUri) return undefined;
 
+    const storedWidth = Number(receipt?.imageWidth);
+    const storedHeight = Number(receipt?.imageHeight);
+    if (storedWidth > 0 && storedHeight > 0) {
+      setImageSourceSize({ width: storedWidth, height: storedHeight });
+      return undefined;
+    }
+
     let cancelled = false;
     Image.getSize(
       imageUri,
@@ -194,7 +194,7 @@ function FisDetayiInner({ route, navigation }) {
     return () => {
       cancelled = true;
     };
-  }, [imageUri]);
+  }, [imageUri, receipt?.imageWidth, receipt?.imageHeight]);
 
   const patchItem = (index, next) => {
     if (isConverted) return;
@@ -215,23 +215,6 @@ function FisDetayiInner({ route, navigation }) {
     setFocusedOverlayIndex(null);
   };
 
-  const applyBulkAssignment = ({ isShared, personalUserId = null }) => {
-    if (isConverted) return;
-    if (!selectedIndexes.length) return;
-    setItems((prev) => prev.map((item, index) => (
-      selectedIndexes.includes(index)
-        ? {
-          ...item,
-          isAssigned: true,
-          isShared,
-          personalUserId: isShared ? null : personalUserId,
-        }
-        : item
-    )));
-    setSelectedIndexes([]);
-    setFocusedOverlayIndex(null);
-  };
-
   const addItem = () => {
     if (isConverted) return;
     setItems((prev) => [
@@ -244,6 +227,7 @@ function FisDetayiInner({ route, navigation }) {
         isAssigned: false,
         isShared: true,
         personalUserId: null,
+        participantUserIds: getMemberIds(members),
         sortOrder: prev.length,
       },
     ]);
@@ -269,8 +253,7 @@ function FisDetayiInner({ route, navigation }) {
       price: String(source.price ?? ''),
       quantity: String(source.quantity ?? 1),
       lineTotal: String(source.lineTotal ?? source.price ?? 0),
-      isShared: source.isShared !== false,
-      personalUserId: source.personalUserId ?? null,
+      participantUserIds: getReceiptItemParticipantIds(source, members),
     });
   };
 
@@ -291,9 +274,7 @@ function FisDetayiInner({ route, navigation }) {
       price,
       quantity,
       lineTotal,
-      isAssigned: true,
-      isShared: Boolean(draftItem.isShared),
-      personalUserId: draftItem.isShared ? null : draftItem.personalUserId,
+      ...buildReceiptAssignment(draftItem.participantUserIds, members),
     });
     closeEditor();
   };
@@ -312,7 +293,8 @@ function FisDetayiInner({ route, navigation }) {
       boxHeight: item.boxHeight ?? null,
       isAssigned: Boolean(item.isAssigned),
       isShared: Boolean(item.isShared),
-      personalUserId: item.isShared ? null : item.personalUserId,
+      personalUserId: item.personalUserId ?? null,
+      participantUserIds: getReceiptItemParticipantIds(item, members),
       sortOrder: index,
     }));
 
@@ -333,6 +315,7 @@ function FisDetayiInner({ route, navigation }) {
         isAssigned: true,
         isShared: true,
         personalUserId: null,
+        participantUserIds: getMemberIds(members),
         sortOrder: normalized.length,
       });
     }
@@ -347,8 +330,8 @@ function FisDetayiInner({ route, navigation }) {
       if (!silent) Alert.alert('Uyarı', 'En az bir fiş kalemi olmalı.');
       return null;
     }
-    if (payloadItems.some((item) => !item.isShared && !item.personalUserId)) {
-      if (!silent) Alert.alert('Uyarı', 'Kişisel işaretlenen her kalem için bir kişi seçmelisin.');
+    if (payloadItems.some((item) => !item.participantUserIds.length)) {
+      if (!silent) Alert.alert('Uyarı', 'Her kalem için en az bir kişi seçmelisin.');
       return null;
     }
 
@@ -356,8 +339,7 @@ function FisDetayiInner({ route, navigation }) {
     try {
       const preservedDetectedTotal = Math.max(
         toNumber(receipt?.detectedTotalAmount),
-        extractDetectedTotalFromRawText(receipt?.rawOcrText),
-        payloadItems.reduce((sum, item) => sum + Number(item.lineTotal || 0), 0)
+        extractDetectedTotalFromRawText(receipt?.rawOcrText)
       );
 
       const response = await receiptsApi.update(receiptId, {
@@ -385,7 +367,10 @@ function FisDetayiInner({ route, navigation }) {
           ...nextReceipt,
           detectedTotalAmount: correctedDetectedTotal,
         });
-        setItems(resolveReceiptItems(normalizedItems, nextReceipt?.rawOcrText, correctedDetectedTotal));
+        setItems(hydrateParticipantAssignments(
+          resolveReceiptItems(normalizedItems, nextReceipt?.rawOcrText, correctedDetectedTotal),
+          members
+        ));
       }
       return nextReceipt;
     } catch {
@@ -452,12 +437,13 @@ function FisDetayiInner({ route, navigation }) {
 
   const explicitTotal = items.reduce((sum, item) => sum + toNumber(item.lineTotal), 0);
   const detectedTotal = toNumber(receipt?.detectedTotalAmount);
-  const total = detectedTotal > 0 ? Math.max(detectedTotal, explicitTotal) : explicitTotal;
+  const total = detectedTotal > 0 ? detectedTotal : explicitTotal;
   const missingAmount = Math.max(Number((total - explicitTotal).toFixed(2)), 0);
-  const personalTotal = items
-    .filter((item) => !item.isShared)
+  const memberIds = getMemberIds(members);
+  const subsetTotal = items
+    .filter((item) => getReceiptItemParticipantIds(item, members).length !== memberIds.length)
     .reduce((sum, item) => sum + toNumber(item.lineTotal), 0);
-  const sharedTotal = Math.max(total - personalTotal, 0);
+  const sharedTotal = Math.max(total - subsetTotal, 0);
 
   const totalZoom = imageZoom * pinchPreviewScale;
   const totalPan = {
@@ -465,10 +451,13 @@ function FisDetayiInner({ route, navigation }) {
     y: panOffset.y + panDrag.y,
   };
   const canPageScroll = !imageInteractionEnabled;
-  const renderMetrics = useMemo(() => getRenderMetrics(imageFrame, imageSourceSize), [imageFrame, imageSourceSize]);
+  const renderMetrics = useMemo(
+    () => getContainedImageMetrics(imageFrame, imageSourceSize),
+    [imageFrame, imageSourceSize]
+  );
 
   const markerOptions = [
-    { key: 'shared', label: 'Ortak', type: 'shared', color: { fill: 'rgba(231, 76, 60, 0.26)', border: '#D64534', badge: '#D64534', text: '#6A1510' } },
+    { key: 'shared', label: 'Tüm ev', type: 'shared', color: { fill: 'rgba(231, 76, 60, 0.26)', border: '#D64534', badge: '#D64534', text: '#6A1510' } },
     ...members.map((member, index) => ({
       key: `user-${member.id}`,
       label: member.fullName,
@@ -494,41 +483,20 @@ function FisDetayiInner({ route, navigation }) {
     return Math.min(max, Math.max(-max, value));
   };
 
-  const overlayStyleFor = (item) => {
-    if (!renderMetrics) return null;
-
-    if (item.boxLeft == null || item.boxTop == null || item.boxWidth == null || item.boxHeight == null) {
-      return null;
-    }
-
-    return {
-      left: renderMetrics.offsetX + (item.boxLeft * renderMetrics.scale),
-      top: renderMetrics.offsetY + (item.boxTop * renderMetrics.scale),
-      width: Math.max(item.boxWidth * renderMetrics.scale, 44),
-      height: Math.max(item.boxHeight * renderMetrics.scale, 26),
-    };
-  };
-
-  const compactPriceOverlayStyleFor = (item) => {
-    const overlay = overlayStyleFor(item);
-    if (!overlay) return null;
-
-    return {
-      ...overlay,
-      width: Math.max(Math.min(overlay.width, 96), 52),
-      height: Math.max(Math.min(overlay.height, 32), 24),
-    };
-  };
+  const compactPriceOverlayStyleFor = (item) => getContainedOverlayStyle(item, renderMetrics);
 
   const getItemMarker = (item) => {
     if (!item.isAssigned) {
       return { fill: 'rgba(231, 76, 60, 0.18)', border: '#D64534', badge: '#FFF0EE', text: '#8F1F16' };
     }
-    if (item.isShared) {
+    const participantIds = getReceiptItemParticipantIds(item, members);
+    if (participantIds.length === memberIds.length) {
       return markerOptions[0].color;
     }
-    const personal = markerOptions.find((option) => option.type === 'personal' && Number(option.userId) === Number(item.personalUserId));
-    return personal?.color || { fill: 'rgba(255,255,255,0.18)', border: '#FFFFFF', badge: '#FFFFFF', text: '#333333' };
+    const personal = participantIds.length === 1
+      ? markerOptions.find((option) => option.type === 'personal' && Number(option.userId) === participantIds[0])
+      : null;
+    return personal?.color || { fill: 'rgba(155, 89, 182, 0.24)', border: '#8E44AD', badge: '#8E44AD', text: '#38104B' };
   };
 
   const framePointToImagePoint = (x, y) => {
@@ -626,6 +594,7 @@ function FisDetayiInner({ route, navigation }) {
       ? `Ortak Kalem ${nextIndex}`
       : `${marker?.label || 'Kişisel'} Kalem ${nextIndex}`;
 
+    const participantIds = marker?.type === 'shared' ? memberIds : [marker?.userId];
     return {
       name: baseName,
       price: 0,
@@ -635,9 +604,7 @@ function FisDetayiInner({ route, navigation }) {
       boxTop: imageBox.boxTop,
       boxWidth: imageBox.boxWidth,
       boxHeight: imageBox.boxHeight,
-      isAssigned: true,
-      isShared: marker?.type === 'shared',
-      personalUserId: marker?.type === 'personal' ? marker.userId : null,
+      ...buildReceiptAssignment(participantIds, members),
       sortOrder: items.length,
     };
   };
@@ -660,9 +627,10 @@ function FisDetayiInner({ route, navigation }) {
         boxTop: imageBox.boxTop,
         boxWidth: imageBox.boxWidth,
         boxHeight: imageBox.boxHeight,
-        isAssigned: true,
-        isShared: activeMarker.type === 'shared',
-        personalUserId: activeMarker.type === 'personal' ? activeMarker.userId : null,
+        ...buildReceiptAssignment(
+          activeMarker.type === 'shared' ? memberIds : [activeMarker.userId],
+          members
+        ),
       });
       setFocusedOverlayIndex(existingIndex);
       setSelectedIndexes([existingIndex]);
@@ -684,9 +652,9 @@ function FisDetayiInner({ route, navigation }) {
 
     const option = activeMarker;
     if (option?.type === 'shared') {
-      patchItem(index, { isAssigned: true, isShared: true, personalUserId: null });
+      patchItem(index, buildReceiptAssignment(memberIds, members));
     } else if (option?.type === 'personal') {
-      patchItem(index, { isAssigned: true, isShared: false, personalUserId: option.userId });
+      patchItem(index, buildReceiptAssignment([option.userId], members));
     }
 
     setFocusedOverlayIndex(index);
@@ -927,7 +895,8 @@ function FisDetayiInner({ route, navigation }) {
                         resizeMode="contain"
                         onLoad={(event) => {
                           const source = event.nativeEvent?.source;
-                          if (source?.width && source?.height) {
+                          const hasStoredDimensions = Number(receipt?.imageWidth) > 0 && Number(receipt?.imageHeight) > 0;
+                          if (!hasStoredDimensions && source?.width && source?.height) {
                             setImageSourceSize({ width: source.width, height: source.height });
                           }
                         }}
@@ -1021,11 +990,15 @@ function FisDetayiInner({ route, navigation }) {
           <Text style={styles.sectionHint}>
             {isConverted
               ? 'Fiş kalemleri ve paylaşım bilgileri tamamlanan harcama kaydıyla eşleşir.'
-              : 'Her kalemin altından `Ortak` veya bir ev arkadaşı seç. Fotoğraftaki numaraya dokunursan ilgili kalem kartı vurgulanır.'}
+              : 'Her kalemde dahil olacak kişileri seç. Bir, birkaç veya tüm ev üyelerini işaretleyebilirsin.'}
           </Text>
 
           {visibleItems.map(({ item, index }) => {
-            const owner = members.find((member) => Number(member.id) === Number(item.personalUserId));
+            const participantIds = getReceiptItemParticipantIds(item, members);
+            const isWholeHouse = memberIds.length > 0 && participantIds.length === memberIds.length;
+            const participantNames = members
+              .filter((member) => participantIds.includes(Number(member.id)))
+              .map((member) => member.fullName);
             const isFocused = focusedOverlayIndex === index;
 
             return (
@@ -1078,31 +1051,33 @@ function FisDetayiInner({ route, navigation }) {
 
                 <View style={styles.assignmentHeader}>
                   <Text style={styles.assignmentLabel}>Bu kalem kime ait?</Text>
-                  {!item.isShared ? (
-                    <View style={styles.personalOwnerBadge}>
-                      <Text style={styles.personalOwnerText}>{owner?.fullName || 'Kişisel'}</Text>
+                  {isWholeHouse ? (
+                    <View style={[styles.personalOwnerBadge, styles.itemOwnerPillShared]}>
+                      <Text style={[styles.personalOwnerText, styles.itemOwnerPillSharedText]}>Tüm ev</Text>
                     </View>
                   ) : (
-                    <View style={[styles.personalOwnerBadge, styles.itemOwnerPillShared]}>
-                      <Text style={[styles.personalOwnerText, styles.itemOwnerPillSharedText]}>Ortak</Text>
+                    <View style={styles.personalOwnerBadge}>
+                      <Text style={styles.personalOwnerText} numberOfLines={1}>
+                        {participantNames.length ? participantNames.join(', ') : 'Kişi seçilmedi'}
+                      </Text>
                     </View>
                   )}
                 </View>
 
                 {!isConverted ? <View style={styles.quickAssignRow}>
                   <TouchableOpacity
-                    style={[styles.quickAssignButton, item.isShared && styles.quickAssignButtonActive]}
-                    onPress={() => patchItem(index, { isAssigned: true, isShared: true, personalUserId: null })}
+                    style={[styles.quickAssignButton, isWholeHouse && styles.quickAssignButtonActive]}
+                    onPress={() => patchItem(index, buildReceiptAssignment(memberIds, members))}
                   >
-                    <Text style={[styles.quickAssignText, item.isShared && styles.quickAssignTextActive]}>Ortak</Text>
+                    <Text style={[styles.quickAssignText, isWholeHouse && styles.quickAssignTextActive]}>Tümü</Text>
                   </TouchableOpacity>
                   {members.map((member) => {
-                    const active = !item.isShared && Number(item.personalUserId) === Number(member.id);
+                    const active = participantIds.includes(Number(member.id));
                     return (
                       <TouchableOpacity
                         key={`assign-${index}-${member.id}`}
                         style={[styles.quickAssignButton, active && styles.quickAssignButtonActive]}
-                        onPress={() => patchItem(index, { isAssigned: true, isShared: false, personalUserId: member.id })}
+                        onPress={() => patchItem(index, toggleReceiptParticipant(item, member.id, members))}
                       >
                         <Text style={[styles.quickAssignText, active && styles.quickAssignTextActive]} numberOfLines={1}>
                           {member.fullName}
@@ -1126,12 +1101,12 @@ function FisDetayiInner({ route, navigation }) {
           </Text>
           <View style={styles.summaryMetaRow}>
             <View style={styles.summaryMetaBadge}>
-              <Text style={styles.summaryMetaLabel}>Ortak</Text>
+              <Text style={styles.summaryMetaLabel}>Tüm ev</Text>
               <Text style={styles.summaryMetaValue}>{sharedTotal.toLocaleString(getLocale(), { style: 'currency', currency: 'TRY' })}</Text>
             </View>
             <View style={styles.summaryMetaBadge}>
-              <Text style={styles.summaryMetaLabel}>Kişisel</Text>
-              <Text style={styles.summaryMetaValue}>{personalTotal.toLocaleString(getLocale(), { style: 'currency', currency: 'TRY' })}</Text>
+              <Text style={styles.summaryMetaLabel}>Seçili kişiler</Text>
+              <Text style={styles.summaryMetaValue}>{subsetTotal.toLocaleString(getLocale(), { style: 'currency', currency: 'TRY' })}</Text>
             </View>
           </View>
           {missingAmount > 0.01 ? (
@@ -1208,7 +1183,7 @@ function FisDetayiInner({ route, navigation }) {
               keyboardOpeningTime={0}
             >
               <Text style={styles.modalTitle}>Kalemi düzenle</Text>
-              <Text style={styles.modalHint}>Ürün adını, fiyatını ve paylaşım tipini burada güncelleyebilirsin.</Text>
+              <Text style={styles.modalHint}>Ürün bilgilerini ve tutarı paylaşacak kişileri güncelleyebilirsin.</Text>
 
               <TextInput
                 style={styles.input}
@@ -1252,35 +1227,42 @@ function FisDetayiInner({ route, navigation }) {
 
               <View style={styles.chips}>
                 <TouchableOpacity
-                  style={[styles.chip, draftItem?.isShared && styles.chipActive]}
-                  onPress={() => setDraftItem((prev) => ({ ...prev, isShared: true, personalUserId: null }))}
+                  style={[
+                    styles.chip,
+                    draftItem?.participantUserIds?.length === memberIds.length && styles.chipActive,
+                  ]}
+                  onPress={() => setDraftItem((prev) => ({
+                    ...prev,
+                    participantUserIds: memberIds,
+                  }))}
                 >
-                  <Text style={[styles.chipText, draftItem?.isShared && styles.chipTextActive]}>Ortak</Text>
+                  <Text style={[
+                    styles.chipText,
+                    draftItem?.participantUserIds?.length === memberIds.length && styles.chipTextActive,
+                  ]}>Tümü</Text>
                 </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.chip, !draftItem?.isShared && styles.chipActive]}
-                  onPress={() => setDraftItem((prev) => ({ ...prev, isShared: false }))}
-                >
-                  <Text style={[styles.chipText, !draftItem?.isShared && styles.chipTextActive]}>Kişisel</Text>
-                </TouchableOpacity>
+                {members.map((member) => {
+                  const active = (draftItem?.participantUserIds || []).includes(Number(member.id));
+                  return (
+                    <TouchableOpacity
+                      key={`draft-${member.id}`}
+                      style={[styles.chip, active && styles.chipActive]}
+                      onPress={() => setDraftItem((prev) => {
+                        const current = prev?.participantUserIds || [];
+                        const userId = Number(member.id);
+                        return {
+                          ...prev,
+                          participantUserIds: current.includes(userId)
+                            ? current.filter((id) => id !== userId)
+                            : [...current, userId],
+                        };
+                      })}
+                    >
+                      <Text style={[styles.chipText, active && styles.chipTextActive]}>{member.fullName}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
-
-              {!draftItem?.isShared ? (
-                <View style={styles.chips}>
-                  {members.map((member) => {
-                    const active = Number(draftItem?.personalUserId) === Number(member.id);
-                    return (
-                      <TouchableOpacity
-                        key={`draft-${member.id}`}
-                        style={[styles.chip, active && styles.chipActive]}
-                        onPress={() => setDraftItem((prev) => ({ ...prev, personalUserId: member.id }))}
-                      >
-                        <Text style={[styles.chipText, active && styles.chipTextActive]}>{member.fullName}</Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              ) : null}
 
               <View style={styles.modalActions}>
                 <TouchableOpacity style={styles.modalSecondaryButton} onPress={closeEditor}>
