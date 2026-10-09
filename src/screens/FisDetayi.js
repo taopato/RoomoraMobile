@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Image, KeyboardAvoidingView, Modal, PanResponder, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { PanGestureHandler, PinchGestureHandler, State as GestureState } from 'react-native-gesture-handler';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -22,7 +23,7 @@ import {
   buildReceiptAssignment,
   getMemberIds,
   getReceiptItemParticipantIds,
-  toggleReceiptParticipant,
+  getReceiptParticipantSummary,
 } from '../utils/receiptAssignments';
 import { getContainedImageMetrics, getContainedOverlayStyle } from '../utils/receiptLayout';
 import { normalizeExpenseCategoryKey } from '../constants/ExpenseEnums';
@@ -88,10 +89,43 @@ function FisDetayiInner({ route, navigation }) {
   const [activeMarkerKey, setActiveMarkerKey] = useState(null);
   const [imageInteractionEnabled, setImageInteractionEnabled] = useState(false);
   const [draftSelection, setDraftSelection] = useState(null);
+  const [assignmentEditor, setAssignmentEditor] = useState(null);
   const draftSelectionRef = useRef(null);
   const isConverted = String(receipt?.status ?? '').toLowerCase() === 'converted'
     || Number(receipt?.status) === 3;
   const canEdit = !isConverted || editConverted;
+
+  const openAssignmentEditor = (index, item) => {
+    setAssignmentEditor({
+      index,
+      participantUserIds: getReceiptItemParticipantIds(item, members),
+    });
+  };
+
+  const closeAssignmentEditor = () => setAssignmentEditor(null);
+
+  const toggleAssignmentEditorMember = (userId) => {
+    setAssignmentEditor((current) => {
+      if (!current) return current;
+      const numericId = Number(userId);
+      const selected = current.participantUserIds || [];
+      return {
+        ...current,
+        participantUserIds: selected.includes(numericId)
+          ? selected.filter((id) => id !== numericId)
+          : [...selected, numericId],
+      };
+    });
+  };
+
+  const saveAssignmentEditor = () => {
+    if (!assignmentEditor || assignmentEditor.participantUserIds.length === 0) return;
+    patchItem(
+      assignmentEditor.index,
+      buildReceiptAssignment(assignmentEditor.participantUserIds, members)
+    );
+    closeAssignmentEditor();
+  };
 
   const load = async () => {
     if (!receiptId || !houseId) return;
@@ -1025,11 +1059,11 @@ function FisDetayiInner({ route, navigation }) {
 
           {visibleItems.map(({ item, index }) => {
             const participantIds = getReceiptItemParticipantIds(item, members);
-            const isWholeHouse = memberIds.length > 0 && participantIds.length === memberIds.length;
-            const participantNames = members
-              .filter((member) => participantIds.includes(Number(member.id)))
-              .map((member) => member.fullName);
+            const participantSummary = getReceiptParticipantSummary(participantIds, members);
             const isFocused = focusedOverlayIndex === index;
+            const quantity = toNumber(item.quantity, 1) || 1;
+            const unitPrice = toNumber(item.price);
+            const lineTotal = toNumber(item.lineTotal);
 
             return (
               <View
@@ -1042,80 +1076,42 @@ function FisDetayiInner({ route, navigation }) {
                       <Text style={styles.itemNumberBadgeText}>{index + 1}</Text>
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.itemName}>{item.name || 'İsimsiz kalem'}</Text>
-                      <Text style={styles.itemSubText}>
-                        {item.boxLeft != null ? 'Fotoğraftan seçildi' : 'Elle eklendi'}
+                      <Text style={styles.itemName} numberOfLines={2}>{item.name || 'İsimsiz kalem'}</Text>
+                      <Text style={styles.itemSubText} numberOfLines={1}>
+                        {quantity.toLocaleString(getLocale())} × {unitPrice.toLocaleString(getLocale(), { style: 'currency', currency: 'TRY' })}
                       </Text>
                     </View>
                   </View>
-                  {canEdit ? (
+                  <View style={styles.itemAmountBlock}>
+                    <Text style={styles.itemAmount}>{lineTotal.toLocaleString(getLocale(), { style: 'currency', currency: 'TRY' })}</Text>
+                    {canEdit ? (
                     <View style={styles.itemActions}>
-                      <TouchableOpacity onPress={() => openEditor(index)}>
-                        <Text style={styles.editText}>Düzenle</Text>
+                      <TouchableOpacity style={styles.itemIconButton} onPress={() => openEditor(index)} accessibilityLabel="Kalemi düzenle">
+                        <Ionicons name="pencil-outline" size={18} color={theme.colors.primary[700]} />
                       </TouchableOpacity>
-                      <TouchableOpacity onPress={() => removeItem(index)}>
-                        <Text style={styles.removeText}>Sil</Text>
+                      <TouchableOpacity style={styles.itemIconButton} onPress={() => removeItem(index)} accessibilityLabel="Kalemi sil">
+                        <Ionicons name="trash-outline" size={18} color={theme.colors.error[600]} />
                       </TouchableOpacity>
                     </View>
-                  ) : null}
-                </View>
-
-                <View style={styles.itemStatsRow}>
-                  <View style={styles.itemStatBox}>
-                    <Text style={styles.itemStatLabel}>Fiyat</Text>
-                    <Text style={styles.itemStatValue}>
-                      {toNumber(item.price).toLocaleString(getLocale(), { style: 'currency', currency: 'TRY' })}
-                    </Text>
-                  </View>
-                  <View style={styles.itemStatBox}>
-                    <Text style={styles.itemStatLabel}>Adet</Text>
-                    <Text style={styles.itemStatValue}>{toNumber(item.quantity, 1).toLocaleString(getLocale())}</Text>
-                  </View>
-                  <View style={styles.itemStatBox}>
-                    <Text style={styles.itemStatLabel}>Toplam</Text>
-                    <Text style={styles.itemStatValue}>
-                      {toNumber(item.lineTotal).toLocaleString(getLocale(), { style: 'currency', currency: 'TRY' })}
-                    </Text>
+                    ) : null}
                   </View>
                 </View>
 
-                <View style={styles.assignmentHeader}>
-                  <Text style={styles.assignmentLabel}>Bu kalem kime ait?</Text>
-                  {isWholeHouse ? (
-                    <View style={[styles.personalOwnerBadge, styles.itemOwnerPillShared]}>
-                      <Text style={[styles.personalOwnerText, styles.itemOwnerPillSharedText]}>Tüm ev</Text>
-                    </View>
-                  ) : (
-                    <View style={styles.personalOwnerBadge}>
-                      <Text style={styles.personalOwnerText} numberOfLines={1}>
-                        {participantNames.length ? participantNames.join(', ') : 'Kişi seçilmedi'}
-                      </Text>
-                    </View>
-                  )}
-                </View>
-
-                {canEdit ? <View style={styles.quickAssignRow}>
-                  <TouchableOpacity
-                    style={[styles.quickAssignButton, isWholeHouse && styles.quickAssignButtonActive]}
-                    onPress={() => patchItem(index, buildReceiptAssignment(memberIds, members))}
-                  >
-                    <Text style={[styles.quickAssignText, isWholeHouse && styles.quickAssignTextActive]}>Tümü</Text>
-                  </TouchableOpacity>
-                  {members.map((member) => {
-                    const active = participantIds.includes(Number(member.id));
-                    return (
-                      <TouchableOpacity
-                        key={`assign-${index}-${member.id}`}
-                        style={[styles.quickAssignButton, active && styles.quickAssignButtonActive]}
-                        onPress={() => patchItem(index, toggleReceiptParticipant(item, member.id, members))}
-                      >
-                        <Text style={[styles.quickAssignText, active && styles.quickAssignTextActive]} numberOfLines={1}>
-                          {member.fullName}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View> : null}
+                <TouchableOpacity
+                  style={styles.assignmentButton}
+                  onPress={() => canEdit && openAssignmentEditor(index, item)}
+                  disabled={!canEdit}
+                  activeOpacity={0.82}
+                >
+                  <View style={styles.assignmentIcon}>
+                    <Ionicons name="people-outline" size={18} color={theme.colors.primary[700]} />
+                  </View>
+                  <View style={styles.assignmentBody}>
+                    <Text style={styles.assignmentLabel}>Paylaşım</Text>
+                    <Text style={styles.assignmentValue} numberOfLines={1}>{participantSummary}</Text>
+                  </View>
+                  {canEdit ? <Ionicons name="chevron-forward" size={19} color={theme.colors.neutral[400]} /> : null}
+                </TouchableOpacity>
               </View>
             );
           })}
@@ -1221,6 +1217,8 @@ function FisDetayiInner({ route, navigation }) {
         ) : null}
       </ScrollView>
 
+      <View pointerEvents="none" style={[styles.statusBarGuard, { height: insets.top }]} />
+
       <Modal visible={editingIndex != null && !!draftItem} transparent animationType="slide" onRequestClose={closeEditor}>
         <Pressable style={styles.modalBackdrop} onPress={closeEditor} />
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={Platform.OS === 'ios' ? 84 : 0}>
@@ -1275,28 +1273,30 @@ function FisDetayiInner({ route, navigation }) {
                 onChangeText={(value) => setDraftItem((prev) => ({ ...prev, lineTotal: value }))}
               />
 
-              <View style={styles.chips}>
+              <View style={styles.memberSelectList}>
                 <TouchableOpacity
-                  style={[
-                    styles.chip,
-                    draftItem?.participantUserIds?.length === memberIds.length && styles.chipActive,
-                  ]}
+                  style={styles.memberSelectRow}
                   onPress={() => setDraftItem((prev) => ({
                     ...prev,
                     participantUserIds: memberIds,
                   }))}
                 >
-                  <Text style={[
-                    styles.chipText,
-                    draftItem?.participantUserIds?.length === memberIds.length && styles.chipTextActive,
-                  ]}>Tümü</Text>
+                  <View style={styles.memberSelectIcon}>
+                    <Ionicons name="people-outline" size={19} color={theme.colors.primary[700]} />
+                  </View>
+                  <Text style={styles.memberSelectName}>Tüm ev</Text>
+                  <Ionicons
+                    name={draftItem?.participantUserIds?.length === memberIds.length ? 'checkmark-circle' : 'ellipse-outline'}
+                    size={23}
+                    color={draftItem?.participantUserIds?.length === memberIds.length ? theme.colors.primary[600] : theme.colors.neutral[400]}
+                  />
                 </TouchableOpacity>
                 {members.map((member) => {
                   const active = (draftItem?.participantUserIds || []).includes(Number(member.id));
                   return (
                     <TouchableOpacity
                       key={`draft-${member.id}`}
-                      style={[styles.chip, active && styles.chipActive]}
+                      style={styles.memberSelectRow}
                       onPress={() => setDraftItem((prev) => {
                         const current = prev?.participantUserIds || [];
                         const userId = Number(member.id);
@@ -1308,7 +1308,15 @@ function FisDetayiInner({ route, navigation }) {
                         };
                       })}
                     >
-                      <Text style={[styles.chipText, active && styles.chipTextActive]}>{member.fullName}</Text>
+                      <View style={styles.memberAvatar}>
+                        <Text style={styles.memberAvatarText}>{String(member.fullName || '?').charAt(0).toUpperCase()}</Text>
+                      </View>
+                      <Text style={styles.memberSelectName} numberOfLines={1}>{member.fullName}</Text>
+                      <Ionicons
+                        name={active ? 'checkmark-circle' : 'ellipse-outline'}
+                        size={23}
+                        color={active ? theme.colors.primary[600] : theme.colors.neutral[400]}
+                      />
                     </TouchableOpacity>
                   );
                 })}
@@ -1325,6 +1333,81 @@ function FisDetayiInner({ route, navigation }) {
             </KeyboardAwareScrollView>
           </View>
         </KeyboardAvoidingView>
+      </Modal>
+
+      <Modal visible={assignmentEditor != null} transparent animationType="slide" onRequestClose={closeAssignmentEditor}>
+        <View style={styles.assignmentModalRoot}>
+          <Pressable style={styles.assignmentModalBackdrop} onPress={closeAssignmentEditor} />
+          <View style={[styles.assignmentModalSheet, { paddingBottom: Math.max(insets.bottom, 16) + 12 }]}>
+            <View style={styles.assignmentModalHandle} />
+            <View style={styles.assignmentModalHeader}>
+              <View style={styles.assignmentModalTitleBlock}>
+                <Text style={styles.modalTitle}>Paylaşımı düzenle</Text>
+                <Text style={styles.modalHint} numberOfLines={2}>
+                  {assignmentEditor != null ? items[assignmentEditor.index]?.name : ''}
+                </Text>
+              </View>
+              <TouchableOpacity style={styles.modalCloseButton} onPress={closeAssignmentEditor} accessibilityLabel="Kapat">
+                <Ionicons name="close" size={22} color={theme.colors.text.primary} />
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity
+              style={styles.selectAllRow}
+              onPress={() => setAssignmentEditor((current) => current ? ({ ...current, participantUserIds: memberIds }) : current)}
+            >
+              <View style={styles.memberSelectIcon}>
+                <Ionicons name="people-outline" size={19} color={theme.colors.primary[700]} />
+              </View>
+              <View style={styles.assignmentBody}>
+                <Text style={styles.memberSelectName}>Tüm ev</Text>
+                <Text style={styles.memberSelectMeta}>{members.length} kişi</Text>
+              </View>
+              <Ionicons
+                name={assignmentEditor?.participantUserIds?.length === memberIds.length ? 'checkmark-circle' : 'ellipse-outline'}
+                size={24}
+                color={assignmentEditor?.participantUserIds?.length === memberIds.length ? theme.colors.primary[600] : theme.colors.neutral[400]}
+              />
+            </TouchableOpacity>
+
+            <ScrollView style={styles.assignmentMemberScroll} contentContainerStyle={styles.assignmentMemberContent}>
+              {members.map((member) => {
+                const active = (assignmentEditor?.participantUserIds || []).includes(Number(member.id));
+                return (
+                  <TouchableOpacity
+                    key={`assignment-modal-${member.id}`}
+                    style={styles.memberSelectRow}
+                    onPress={() => toggleAssignmentEditorMember(member.id)}
+                  >
+                    <View style={styles.memberAvatar}>
+                      <Text style={styles.memberAvatarText}>{String(member.fullName || '?').charAt(0).toUpperCase()}</Text>
+                    </View>
+                    <Text style={styles.memberSelectName} numberOfLines={1}>{member.fullName}</Text>
+                    <Ionicons
+                      name={active ? 'checkmark-circle' : 'ellipse-outline'}
+                      size={24}
+                      color={active ? theme.colors.primary[600] : theme.colors.neutral[400]}
+                    />
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+
+            <View style={styles.assignmentModalFooter}>
+              <View style={styles.assignmentSelectionSummary}>
+                <Text style={styles.assignmentSelectionCount}>{assignmentEditor?.participantUserIds?.length || 0}</Text>
+                <Text style={styles.assignmentSelectionLabel}>kişi seçildi</Text>
+              </View>
+              <TouchableOpacity
+                style={[styles.assignmentSaveButton, !assignmentEditor?.participantUserIds?.length && styles.assignmentSaveButtonDisabled]}
+                onPress={saveAssignmentEditor}
+                disabled={!assignmentEditor?.participantUserIds?.length}
+              >
+                <Text style={styles.assignmentSaveButtonText}>Uygula</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
       </Modal>
     </View>
   );
@@ -1377,6 +1460,7 @@ export default function FisDetayi(props) {
 
 const makeStyles = (theme) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.background },
+  statusBarGuard: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 20, backgroundColor: theme.colors.background },
   content: { paddingHorizontal: 20, paddingBottom: 36 },
   previewFrame: { width: '100%', height: 260, borderRadius: 8, backgroundColor: theme.colors.neutral[100], marginBottom: 14, overflow: 'hidden', position: 'relative' },
   previewCanvas: { position: 'relative', backgroundColor: theme.colors.neutral[100], width: '100%', height: '100%' },
@@ -1640,9 +1724,9 @@ const makeStyles = (theme) => StyleSheet.create({
   },
   filterButtonText: { color: theme.colors.text.primary, fontWeight: '700', textAlign: 'center' },
   filterButtonTextActive: { color: theme.colors.primary[700] },
-  itemCard: { backgroundColor: theme.colors.surface, borderRadius: 16, padding: 14, borderWidth: 1, borderColor: theme.colors.neutral[200], marginBottom: 10 },
+  itemCard: { backgroundColor: theme.colors.surface, borderRadius: 8, padding: 12, borderWidth: 1, borderColor: theme.colors.neutral[200], marginBottom: 10 },
   itemCardSelected: { borderColor: theme.colors.primary[500], backgroundColor: theme.colors.primary[50] },
-  rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 },
   row: { flexDirection: 'row', justifyContent: 'space-between' },
   half: { width: '48%' },
   itemIndex: { color: theme.colors.text.secondary, fontWeight: '700' },
@@ -1657,7 +1741,10 @@ const makeStyles = (theme) => StyleSheet.create({
     marginRight: 10,
   },
   itemNumberBadgeText: { color: theme.colors.text.onPrimary, fontWeight: '900' },
-  itemActions: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  itemAmountBlock: { alignItems: 'flex-end', minWidth: 94, marginLeft: 8 },
+  itemAmount: { color: theme.colors.text.primary, fontWeight: '900', fontSize: 15 },
+  itemActions: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 5 },
+  itemIconButton: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center', borderRadius: 8 },
   itemSubText: { color: theme.colors.text.secondary, fontSize: 12, marginTop: 2 },
   editText: { color: theme.colors.primary[700], fontWeight: '800' },
   itemOwnerPill: {
@@ -1692,19 +1779,25 @@ const makeStyles = (theme) => StyleSheet.create({
   selectButtonText: { color: theme.colors.text.primary, fontWeight: '700', fontSize: 12 },
   selectButtonTextActive: { color: theme.colors.text.onPrimary },
   removeText: { color: theme.colors.error[600], fontWeight: '800' },
-  itemName: { color: theme.colors.text.primary, fontWeight: '800', fontSize: 16, marginBottom: 10 },
+  itemName: { color: theme.colors.text.primary, fontWeight: '800', fontSize: 15 },
   itemStatsRow: { flexDirection: 'row', gap: 8, marginBottom: 10 },
   itemStatBox: { flex: 1, borderRadius: 12, padding: 10, backgroundColor: theme.colors.background, borderWidth: 1, borderColor: theme.colors.neutral[200] },
   itemStatLabel: { color: theme.colors.text.secondary, fontSize: 11, fontWeight: '700', marginBottom: 4 },
   itemStatValue: { color: theme.colors.text.primary, fontWeight: '800', fontSize: 13 },
-  assignmentHeader: {
+  assignmentButton: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 2,
-    marginBottom: 10,
+    minHeight: 52,
+    borderRadius: 8,
+    backgroundColor: theme.colors.background,
+    borderWidth: 1,
+    borderColor: theme.colors.neutral[200],
+    paddingHorizontal: 10,
   },
-  assignmentLabel: { color: theme.colors.text.secondary, fontSize: 13, fontWeight: '700' },
+  assignmentIcon: { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.primary[50], marginRight: 10 },
+  assignmentBody: { flex: 1, minWidth: 0 },
+  assignmentLabel: { color: theme.colors.text.secondary, fontSize: 11, fontWeight: '700' },
+  assignmentValue: { color: theme.colors.text.primary, fontSize: 14, fontWeight: '800', marginTop: 2 },
   quickAssignRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -1740,6 +1833,13 @@ const makeStyles = (theme) => StyleSheet.create({
     backgroundColor: theme.colors.warning[100],
   },
   personalOwnerText: { color: theme.colors.warning[800], fontWeight: '800' },
+  memberSelectList: { borderWidth: 1, borderColor: theme.colors.neutral[200], borderRadius: 8, overflow: 'hidden', marginBottom: 8 },
+  memberSelectRow: { minHeight: 54, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, borderBottomWidth: 1, borderBottomColor: theme.colors.neutral[100], backgroundColor: theme.colors.surface },
+  memberSelectIcon: { width: 34, height: 34, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.primary[50], marginRight: 10 },
+  memberAvatar: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.primary[100], marginRight: 10 },
+  memberAvatarText: { color: theme.colors.primary[700], fontWeight: '900' },
+  memberSelectName: { flex: 1, color: theme.colors.text.primary, fontWeight: '800', fontSize: 14 },
+  memberSelectMeta: { color: theme.colors.text.secondary, fontSize: 12, marginTop: 2 },
   input: { borderWidth: 1, borderColor: theme.colors.neutral[200], borderRadius: 12, paddingHorizontal: 12, paddingVertical: 12, color: theme.colors.text.primary, backgroundColor: theme.colors.background, marginBottom: 10 },
   chips: { flexDirection: 'row', flexWrap: 'wrap' },
   chip: { paddingVertical: 9, paddingHorizontal: 12, borderRadius: 999, backgroundColor: theme.colors.neutral[100], marginRight: 8, marginBottom: 8 },
@@ -1762,4 +1862,21 @@ const makeStyles = (theme) => StyleSheet.create({
   modalSecondaryButtonText: { color: theme.colors.text.primary, fontWeight: '800' },
   modalPrimaryButton: { flex: 1, minHeight: 48, alignItems: 'center', justifyContent: 'center', borderRadius: 14, backgroundColor: theme.colors.primary[600] },
   modalPrimaryButtonText: { color: theme.colors.text.onPrimary, fontWeight: '800' },
+  assignmentModalRoot: { flex: 1, justifyContent: 'flex-end' },
+  assignmentModalBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.38)' },
+  assignmentModalSheet: { maxHeight: '78%', backgroundColor: theme.colors.surface, borderTopLeftRadius: 16, borderTopRightRadius: 16, borderWidth: 1, borderColor: theme.colors.neutral[200], paddingHorizontal: 16, paddingTop: 8 },
+  assignmentModalHandle: { alignSelf: 'center', width: 42, height: 4, borderRadius: 2, backgroundColor: theme.colors.neutral[300], marginBottom: 14 },
+  assignmentModalHeader: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 8 },
+  assignmentModalTitleBlock: { flex: 1, paddingRight: 12 },
+  modalCloseButton: { width: 38, height: 38, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.neutral[100] },
+  selectAllRow: { minHeight: 58, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, borderRadius: 8, borderWidth: 1, borderColor: theme.colors.primary[200], backgroundColor: theme.colors.primary[50], marginBottom: 8 },
+  assignmentMemberScroll: { maxHeight: 320, borderWidth: 1, borderColor: theme.colors.neutral[200], borderRadius: 8 },
+  assignmentMemberContent: { paddingBottom: 1 },
+  assignmentModalFooter: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingTop: 14 },
+  assignmentSelectionSummary: { flex: 1, flexDirection: 'row', alignItems: 'baseline', gap: 5 },
+  assignmentSelectionCount: { color: theme.colors.text.primary, fontSize: 20, fontWeight: '900' },
+  assignmentSelectionLabel: { color: theme.colors.text.secondary, fontSize: 13, fontWeight: '700' },
+  assignmentSaveButton: { minWidth: 132, minHeight: 50, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.primary[700] },
+  assignmentSaveButtonDisabled: { opacity: 0.42 },
+  assignmentSaveButtonText: { color: theme.colors.text.onPrimary, fontWeight: '900', fontSize: 15 },
 });

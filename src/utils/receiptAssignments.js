@@ -34,3 +34,18 @@ export const toggleReceiptParticipant = (item, userId, members = []) => {
   return buildReceiptAssignment(next, members);
 };
 
+export const getReceiptParticipantSummary = (participantUserIds, members = []) => {
+  const memberIds = getMemberIds(members);
+  const selected = normalizeIds(participantUserIds).filter((id) => memberIds.includes(id));
+
+  if (selected.length === 0) return 'Kişi seçilmedi';
+  if (memberIds.length > 0 && selected.length === memberIds.length) return 'Tüm ev';
+
+  const names = members
+    .filter((member) => selected.includes(Number(member.id)))
+    .map((member) => String(member.fullName || member.name || 'Ev arkadaşı'));
+
+  if (names.length === 1) return names[0];
+  return `${names.length} kişi`;
+};
+

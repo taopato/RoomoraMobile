@@ -16,6 +16,7 @@ import { extractDetectedTotalFromRawText, resolveReceiptItems } from '../src/uti
 import {
   buildReceiptAssignment,
   getReceiptItemParticipantIds,
+  getReceiptParticipantSummary,
   toggleReceiptParticipant,
 } from '../src/utils/receiptAssignments.js';
 import { getContainedImageMetrics, getContainedOverlayStyle } from '../src/utils/receiptLayout.js';
@@ -145,6 +146,13 @@ assert.deepEqual(
     participantUserIds: [39],
   }
 );
+assert.equal(getReceiptParticipantSummary([38, 39, 40], receiptMembers), 'Tüm ev');
+assert.equal(getReceiptParticipantSummary([38, 40], receiptMembers), '2 kişi');
+assert.equal(
+  getReceiptParticipantSummary([39], [{ id: 38, fullName: 'Tarik' }, { id: 39, fullName: 'Tufan' }]),
+  'Tufan'
+);
+assert.equal(getReceiptParticipantSummary([], receiptMembers), 'Kişi seçilmedi');
 
 const receiptMetrics = getContainedImageMetrics(
   { width: 335, height: 260 },
