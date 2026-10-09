@@ -561,6 +561,7 @@ const EN = {
   'Düzenli veya taksitli gider ekle': 'Add a recurring or installment expense',
   'Planlı gider': 'Scheduled expense',
   'PAYLAŞILDI': 'SHARED',
+  'Son Fatura': 'Latest Bill',
   'Bir ev üyesi': 'A household member',
   'FATURA TUTARI': 'BILL AMOUNT',
   'Fatura türü': 'Bill type',

@@ -153,17 +153,17 @@ export default function RoomoraHome({ navigation }) {
             {!!upcomingBill && (
               <>
                 <SectionHeader
-                  title="Yaklaşan Faturalar"
+                  title="Son Fatura"
                   action="Tümünü Gör"
                   onAction={() => navigation.navigate('MainTabs', { screen: 'Faturalar' })}
                 />
                 <ListRow
                   icon={getCategoryIconName(upcomingBill.key)}
                   title={getExpenseDisplayTitle(upcomingBill)}
-                  subtitle={`${dayLabel(getItemDate(upcomingBill))} tarihli`}
+                  subtitle={`${upcomingBill.payerName || 'Bir ev üyesi'} ödedi · ${dayLabel(getItemDate(upcomingBill))}`}
                   amount={upcomingBill.amount}
-                  badge="BEKLİYOR"
-                  badgeTone="warning"
+                  badge="PAYLAŞILDI"
+                  badgeTone="success"
                   onPress={() => requireHouse('BillDetail', { billId: upcomingBill.id })}
                 />
               </>

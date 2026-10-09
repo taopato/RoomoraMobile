@@ -11,6 +11,7 @@ import { useTheme } from '../shared/theme/ThemeProvider';
 import { money, PageHeader } from '../shared/ui/roomora/CanonicalUI';
 import Toast from '../components/Toast';
 import { toExpenseCategory } from '../constants/ExpenseEnums';
+import { CATEGORY_ID_TO_KEY } from '../utils/expenseClassifier';
 import { formatMoneyInput, parseMoneyInput } from '../shared/format/money';
 import KeyboardAwareScreen from '../shared/ui/KeyboardAwareScreen';
 import MoneyInput from '../shared/ui/roomora/MoneyInput';
@@ -33,6 +34,11 @@ const DEFAULT_QUICK_CHOICES = [
 ];
 const QUICK_CHOICES_KEY = 'roomora_quick_expense_choices';
 
+const pick = (value, keys, fallback = undefined) =>
+  keys.map((key) => value?.[key]).find((item) => item !== undefined && item !== null) ?? fallback;
+
+const normalizeQuickLabel = (value) => String(value || '').trim().toLocaleLowerCase('tr-TR');
+
 export default function AddExpenseScreen({ navigation, route }) {
   const { user } = useAuth();
   const activeHouseId = Number(route?.params?.houseId || user?.defaultHouseId || 0);
@@ -41,6 +47,7 @@ export default function AddExpenseScreen({ navigation, route }) {
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const scrollRef = useRef(null);
   const noteWrapRef = useRef(null);
+  const quickSelectionRequestRef = useRef(0);
 
   const scrollToNoteField = () => {
     requestAnimationFrame(() => {
@@ -67,6 +74,7 @@ export default function AddExpenseScreen({ navigation, route }) {
   const [quickModalVisible, setQuickModalVisible] = useState(false);
   const [quickLabel, setQuickLabel] = useState('');
   const [quickCategory, setQuickCategory] = useState('Market');
+  const [selectedQuickChoiceId, setSelectedQuickChoiceId] = useState('');
 
   const showToast = (message, type = 'success') => setToast({ visible: true, message, type });
   const hideToast = () => setToast((prev) => ({ ...prev, visible: false }));
@@ -85,9 +93,92 @@ export default function AddExpenseScreen({ navigation, route }) {
     AsyncStorage.setItem(QUICK_CHOICES_KEY, JSON.stringify(next)).catch(() => {});
   };
 
-  const selectQuickChoice = (choice) => {
+  const applyQuickSnapshot = (snapshot) => {
+    if (!snapshot) return;
+    if (Number(snapshot.amount) > 0) setAmount(formatMoneyInput(String(snapshot.amount)));
+    if (snapshot.category) setCategoryKey(snapshot.category);
+    if (snapshot.payerId) setPayerId(String(snapshot.payerId));
+
+    const activeMemberIds = new Set(members.map((member) => String(member.id)));
+    const savedParticipants = (Array.isArray(snapshot.participantIds) ? snapshot.participantIds : [])
+      .map(String)
+      .filter((id) => activeMemberIds.has(id));
+    if (savedParticipants.length) setParticipantIds(savedParticipants);
+
+    const savedPersonal = snapshot.personal && typeof snapshot.personal === 'object'
+      ? Object.fromEntries(
+        Object.entries(snapshot.personal)
+          .filter(([id]) => activeMemberIds.has(String(id)))
+          .map(([id, value]) => [String(id), formatMoneyInput(String(value))])
+      )
+      : {};
+    setPersonal(savedPersonal);
+    setShowPersonal(Object.values(savedPersonal).some((value) => (parseMoneyInput(value) || 0) > 0));
+  };
+
+  const snapshotFromExpense = (expense) => {
+    const shares = pick(expense, ['shares', 'Shares'], []);
+    const personalItems = pick(expense, ['sahsiHarcamalar', 'SahsiHarcamalar'], []);
+    const participantIdsFromExpense = [
+      ...(Array.isArray(shares) ? shares : []),
+      ...(Array.isArray(personalItems) ? personalItems : []),
+    ]
+      .map((entry) => Number(pick(entry, ['userId', 'UserId'], 0)))
+      .filter(Boolean);
+    const categoryValue = pick(expense, ['categoryId', 'CategoryId', 'category', 'Category'], null);
+    const numericCategory = Number(categoryValue);
+    const category = Number.isFinite(numericCategory) && categoryValue !== null && categoryValue !== ''
+      ? CATEGORY_ID_TO_KEY[numericCategory]
+      : Object.keys(CATEGORY_ID_TO_KEY).map((key) => CATEGORY_ID_TO_KEY[key])
+        .find((key) => key.toLowerCase() === String(categoryValue || '').toLowerCase());
+
+    return {
+      amount: Number(pick(expense, ['tutar', 'Tutar', 'amount', 'Amount'], 0)),
+      category,
+      payerId: Number(pick(expense, ['odeyenUserId', 'OdeyenUserId'], 0)),
+      participantIds: [...new Set(participantIdsFromExpense)],
+      personal: (Array.isArray(personalItems) ? personalItems : []).reduce((result, item) => {
+        const memberId = Number(pick(item, ['userId', 'UserId'], 0));
+        const value = Number(pick(item, ['tutar', 'Tutar'], 0));
+        if (memberId && value > 0) result[String(memberId)] = value;
+        return result;
+      }, {}),
+    };
+  };
+
+  const selectQuickChoice = async (choice) => {
+    const requestId = ++quickSelectionRequestRef.current;
+    setSelectedQuickChoiceId(String(choice.id));
     setNote(choice.label);
     setCategoryKey(choice.category);
+    if (choice.lastUsed) {
+      applyQuickSnapshot(choice.lastUsed);
+      return;
+    }
+
+    try {
+      const response = await expensesApi.getByHouse(activeHouseId);
+      const expenses = response?.data?.data ?? response?.data ?? [];
+      const label = normalizeQuickLabel(choice.label);
+      const latest = (Array.isArray(expenses) ? expenses : [])
+        .filter((expense) => normalizeQuickLabel(
+          pick(expense, ['tur', 'Tur', 'note', 'Note', 'description', 'Description'], '')
+        ) === label)
+        .sort((left, right) => new Date(
+          pick(right, ['postDate', 'PostDate', 'kayitTarihi', 'KayitTarihi'], 0)
+        ) - new Date(
+          pick(left, ['postDate', 'PostDate', 'kayitTarihi', 'KayitTarihi'], 0)
+        ))[0];
+      const expenseId = Number(pick(latest, ['id', 'Id', 'expenseId', 'ExpenseId'], 0));
+      if (!expenseId) return;
+
+      const detailResponse = await expensesApi.getById(expenseId);
+      const detail = detailResponse?.data?.data ?? detailResponse?.data;
+      if (requestId !== quickSelectionRequestRef.current) return;
+      applyQuickSnapshot(snapshotFromExpense(detail));
+    } catch {
+      // The quick choice still fills its label and category when history is unavailable.
+    }
   };
 
   const addQuickChoice = () => {
@@ -104,6 +195,7 @@ export default function AddExpenseScreen({ navigation, route }) {
   };
 
   const removeQuickChoice = (id) => {
+    if (String(id) === selectedQuickChoiceId) setSelectedQuickChoiceId('');
     persistQuickChoices(quickChoices.filter((item) => item.id !== id));
   };
 
@@ -240,6 +332,28 @@ export default function AddExpenseScreen({ navigation, route }) {
     try {
       setLoading(true);
       await expensesApi.create(payload);
+      const selectedQuickChoice = quickChoices.find(
+        (choice) => String(choice.id) === selectedQuickChoiceId
+          && normalizeQuickLabel(choice.label) === normalizeQuickLabel(expenseTitle)
+      );
+      if (selectedQuickChoice) {
+        persistQuickChoices(quickChoices.map((choice) => (
+          String(choice.id) === selectedQuickChoiceId
+            ? {
+              ...choice,
+              lastUsed: {
+                amount: amountNum,
+                category: categoryKey,
+                payerId: Number(payerId),
+                participantIds: participantIds.map(Number),
+                personal: Object.fromEntries(
+                  personalItems.map((item) => [String(item.userId), item.tutar])
+                ),
+              },
+            }
+            : choice
+        )));
+      }
       try {
         const bus = (await import('../shared/events/bus')).default;
         bus.emit('expenses:updated', { houseId: activeHouseId });
@@ -369,7 +483,10 @@ export default function AddExpenseScreen({ navigation, route }) {
             {quickChoices.map((choice) => (
               <View
                 key={choice.id}
-                style={styles.quickChoice}
+                style={[
+                  styles.quickChoice,
+                  String(choice.id) === selectedQuickChoiceId && styles.quickChoiceActive,
+                ]}
               >
                 <TouchableOpacity
                   style={styles.quickChoiceSelect}
@@ -377,7 +494,10 @@ export default function AddExpenseScreen({ navigation, route }) {
                   onLongPress={() => removeQuickChoice(choice.id)}
                   delayLongPress={500}
                 >
-                  <Text style={styles.quickChoiceText}>{choice.label}</Text>
+                  <Text style={[
+                    styles.quickChoiceText,
+                    String(choice.id) === selectedQuickChoiceId && styles.quickChoiceTextActive,
+                  ]}>{choice.label}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   accessibilityLabel={`${choice.label} hızlı seçimini kaldır`}
@@ -631,8 +751,10 @@ const makeStyles = (theme) => StyleSheet.create({
   quickAddText: { color: theme.colors.primary[700], fontFamily: theme.typography?.bold, fontSize: 13 },
   quickList: { gap: 7, paddingTop: 4, paddingBottom: 2 },
   quickChoice: { minHeight: 32, flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, borderRadius: 16, backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.neutral[200] },
+  quickChoiceActive: { backgroundColor: theme.colors.primary[50], borderColor: theme.colors.primary[600] },
   quickChoiceSelect: { minHeight: 30, justifyContent: 'center' },
   quickChoiceText: { color: theme.colors.text.primary, fontFamily: theme.typography?.semibold, fontSize: 12 },
+  quickChoiceTextActive: { color: theme.colors.primary[700] },
   receiptCard: {
     backgroundColor: theme.colors.surface,
     padding: 16,
