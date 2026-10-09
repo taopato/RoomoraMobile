@@ -1,0 +1,41 @@
+name: Mobile TestFlight Update
+
+on:
+  push:
+    branches: [development]
+  workflow_dispatch:
+
+concurrency:
+  group: mobile-testflight-update
+  cancel-in-progress: true
+
+jobs:
+  publish-testing:
+    if: vars.MOBILE_OTA_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    environment: mobile-preview
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Setup Expo and EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Test
+        run: npm run release:check
+
+      - name: Publish TestFlight update
+        run: eas update --channel testing --environment preview --message "${{ github.sha }}" --non-interactive
