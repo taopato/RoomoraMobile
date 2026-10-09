@@ -38,4 +38,18 @@ jobs:
         run: npm run release:check
 
       - name: Publish TestFlight update
-        run: eas update --channel testing --environment preview --message "${{ github.sha }}" --non-interactive
+        shell: bash
+        run: |
+          for attempt in 1 2 3; do
+            eas update \
+              --channel testing \
+              --environment preview \
+              --message "${{ github.sha }}" \
+              --non-interactive && exit 0
+
+            if [ "$attempt" -lt 3 ]; then
+              sleep $((attempt * 30))
+            fi
+          done
+
+          exit 1
