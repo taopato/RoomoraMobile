@@ -1,10 +1,14 @@
 import React from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../shared/theme/ThemeProvider';
 import { DEFAULT_PALETTE_KEY, PALETTES } from '../shared/theme/palettes';
 import { shadow } from '../shared/ui/shadow';
+
+import { Text } from '../shared/i18n';
+
+import { TouchableOpacity } from '../shared/i18n';
 
 const options = [
   {

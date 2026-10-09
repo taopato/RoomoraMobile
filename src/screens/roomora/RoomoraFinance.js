@@ -1,15 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  Alert,
-  FlatList,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { FlatList, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
@@ -31,11 +21,16 @@ import {
 } from '../../shared/ui/roomora/CanonicalUI';
 import MoneyInput from '../../shared/ui/roomora/MoneyInput';
 
+import { Alert, Text, TextInput } from '../../shared/i18n';
+import { getLocale } from '../../shared/i18n/runtime';
+
+import { TouchableOpacity } from '../../shared/i18n';
+
 const unwrap = (response) => response?.data?.data ?? response?.data ?? {};
 const arrayOf = (value) => (Array.isArray(value) ? value : []);
 const numberOf = (value) => Number(value || 0);
 const dateText = (value) => value
-  ? new Date(value).toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+  ? new Date(value).toLocaleDateString(getLocale(), { day: '2-digit', month: '2-digit', year: 'numeric' })
   : '-';
 
 function normalizePayment(item) {

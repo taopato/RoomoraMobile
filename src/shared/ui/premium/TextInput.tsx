@@ -1,11 +1,8 @@
 import React, { forwardRef } from 'react';
-import {
-  TextInput as RNTextInput,
-  StyleSheet,
-  TextInputProps,
-  ViewStyle,
-} from 'react-native';
+import { StyleSheet, TextInputProps, ViewStyle } from 'react-native';
 import { useTheme } from '../../theme/ThemeProvider';
+
+import { TextInput as RNTextInput } from '../../i18n';
 
 type Props = Omit<TextInputProps, 'style'> & {
   value: string;
@@ -14,8 +11,10 @@ type Props = Omit<TextInputProps, 'style'> & {
   disabled?: boolean;
 };
 
-export const PremiumTextInput = forwardRef<RNTextInput, Props>(({
-  style,
+export const PremiumTextInput = forwardRef<
+  React.ElementRef<typeof RNTextInput>,
+  Props
+>(({ style,
   disabled,
   ...inputProps
 }, ref) => {

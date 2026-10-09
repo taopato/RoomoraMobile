@@ -1,18 +1,16 @@
 import React from 'react';
-import {
-  ActivityIndicator,
-  Image,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Image, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../theme/ThemeProvider';
 import { shadow, hexToRgba } from '../shadow';
 
+import { Text } from '../../i18n';
+import { getLocale } from '../../i18n/runtime';
+
+import { TouchableOpacity } from '../../i18n';
+
 export const money = (value) =>
-  new Intl.NumberFormat('tr-TR', {
+  new Intl.NumberFormat(getLocale(), {
     style: 'currency',
     currency: 'TRY',
     minimumFractionDigits: 2,

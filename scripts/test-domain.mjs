@@ -13,6 +13,16 @@ import { normalizeExpenseCategoryKey } from '../src/constants/ExpenseEnums.js';
 import { getTokenUserId, isTokenExpired, normalizeAuthUser } from '../src/shared/auth/session.js';
 import { getPaymentOutcome } from '../src/shared/finance/paymentOutcome.js';
 import { extractDetectedTotalFromRawText, resolveReceiptItems } from '../src/utils/receiptParser.js';
+import { getLocale, setActiveLanguage, translate } from '../src/shared/i18n/runtime.js';
+
+setActiveLanguage('tr');
+assert.equal(translate('Faturalar'), 'Faturalar');
+assert.equal(getLocale(), 'tr-TR');
+setActiveLanguage('en');
+assert.equal(translate('Faturalar'), 'Bills');
+assert.equal(translate('Ayşe ödedi · 09.10.2026'), 'Ayşe paid · 09.10.2026');
+assert.equal(getLocale(), 'en-US');
+setActiveLanguage('tr');
 
 assert.equal(getTurkishMobileDigits('0554 361 75 75'), '5543617575');
 assert.equal(getTurkishMobileDigits('+90 (554) 361 75 75'), '5543617575');

@@ -1,15 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import {
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { authApi } from '../../services/api';
@@ -18,6 +8,10 @@ import { useTheme } from '../../shared/theme/ThemeProvider';
 import { isSixDigitCode, isStrongPassword, isValidEmail, normalizeEmail, PASSWORD_RULES_TEXT } from '../../shared/validation/authValidation';
 import { PageHeader, PrimaryButton } from '../../shared/ui/roomora/CanonicalUI';
 import BrandMark from '../../components/BrandMark';
+
+import { Alert, Text, TextInput } from '../../shared/i18n';
+
+import { TouchableOpacity } from '../../shared/i18n';
 
 function AuthLayout({ navigation, title, subtitle, icon, children }) {
   const { theme } = useTheme();

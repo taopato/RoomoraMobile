@@ -1,11 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import {
-  Alert,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
@@ -13,6 +7,8 @@ import { houseApi } from '../services/api';
 import { useTheme } from '../shared/theme/ThemeProvider';
 import { PageHeader, PrimaryButton } from '../shared/ui/roomora/CanonicalUI';
 import KeyboardAwareScreen from '../shared/ui/KeyboardAwareScreen';
+
+import { Alert, Text, TextInput } from '../shared/i18n';
 
 export default function YeniEvGrubu({ navigation }) {
   const { user, setDefaultHouseId } = useAuth();

@@ -1,14 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  Platform,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Platform, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
@@ -17,6 +8,10 @@ import { useTheme } from '../shared/theme/ThemeProvider';
 import { PageHeader } from '../shared/ui/roomora/CanonicalUI';
 import { shadow } from '../shared/ui/shadow';
 import KeyboardAwareScreen from '../shared/ui/KeyboardAwareScreen';
+
+import { Alert, Text, TextInput } from '../shared/i18n';
+
+import { TouchableOpacity } from '../shared/i18n';
 
 const normalizeBoard = (payload) => {
   const sections = Array.isArray(payload?.sections) ? payload.sections : [];

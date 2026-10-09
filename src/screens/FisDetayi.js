@@ -1,20 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  Image,
-  KeyboardAvoidingView,
-  Modal,
-  PanResponder,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Image, KeyboardAvoidingView, Modal, PanResponder, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { PanGestureHandler, PinchGestureHandler, State as GestureState } from 'react-native-gesture-handler';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -31,6 +16,11 @@ import {
   normalizeResolvedItems,
   resolveReceiptItems,
 } from '../utils/receiptParser';
+
+import { Alert, Text, TextInput } from '../shared/i18n';
+import { getLocale } from '../shared/i18n/runtime';
+
+import { TouchableOpacity } from '../shared/i18n';
 
 const CATEGORY_OPTIONS = [
   { key: 'Market', label: 'Market' },
@@ -981,7 +971,7 @@ function FisDetayiInner({ route, navigation }) {
                               </Text>
                             </View>
                             <Text style={styles.imageOverlayPriceText} numberOfLines={1}>
-                              {toNumber(item.lineTotal || item.price).toLocaleString('tr-TR', { maximumFractionDigits: 2 })}
+                              {toNumber(item.lineTotal || item.price).toLocaleString(getLocale(), { maximumFractionDigits: 2 })}
                             </Text>
                           </Pressable>
                         );
@@ -1071,17 +1061,17 @@ function FisDetayiInner({ route, navigation }) {
                   <View style={styles.itemStatBox}>
                     <Text style={styles.itemStatLabel}>Fiyat</Text>
                     <Text style={styles.itemStatValue}>
-                      {toNumber(item.price).toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })}
+                      {toNumber(item.price).toLocaleString(getLocale(), { style: 'currency', currency: 'TRY' })}
                     </Text>
                   </View>
                   <View style={styles.itemStatBox}>
                     <Text style={styles.itemStatLabel}>Adet</Text>
-                    <Text style={styles.itemStatValue}>{toNumber(item.quantity, 1).toLocaleString('tr-TR')}</Text>
+                    <Text style={styles.itemStatValue}>{toNumber(item.quantity, 1).toLocaleString(getLocale())}</Text>
                   </View>
                   <View style={styles.itemStatBox}>
                     <Text style={styles.itemStatLabel}>Toplam</Text>
                     <Text style={styles.itemStatValue}>
-                      {toNumber(item.lineTotal).toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })}
+                      {toNumber(item.lineTotal).toLocaleString(getLocale(), { style: 'currency', currency: 'TRY' })}
                     </Text>
                   </View>
                 </View>
@@ -1129,27 +1119,27 @@ function FisDetayiInner({ route, navigation }) {
         <View style={styles.summaryCard} onTouchStart={deactivateImageInteraction}>
           <Text style={styles.summaryTitle}>{receipt?.storeName || 'Fis Detayi'}</Text>
           <Text style={styles.summarySub}>
-            {receipt?.receiptDate ? new Date(receipt.receiptDate).toLocaleDateString('tr-TR') : 'Tarih seçilmedi'}
+            {receipt?.receiptDate ? new Date(receipt.receiptDate).toLocaleDateString(getLocale()) : 'Tarih seçilmedi'}
           </Text>
           <Text style={styles.summaryAmount}>
-            {total.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })}
+            {total.toLocaleString(getLocale(), { style: 'currency', currency: 'TRY' })}
           </Text>
           <View style={styles.summaryMetaRow}>
             <View style={styles.summaryMetaBadge}>
               <Text style={styles.summaryMetaLabel}>Ortak</Text>
-              <Text style={styles.summaryMetaValue}>{sharedTotal.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })}</Text>
+              <Text style={styles.summaryMetaValue}>{sharedTotal.toLocaleString(getLocale(), { style: 'currency', currency: 'TRY' })}</Text>
             </View>
             <View style={styles.summaryMetaBadge}>
               <Text style={styles.summaryMetaLabel}>Kişisel</Text>
-              <Text style={styles.summaryMetaValue}>{personalTotal.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })}</Text>
+              <Text style={styles.summaryMetaValue}>{personalTotal.toLocaleString(getLocale(), { style: 'currency', currency: 'TRY' })}</Text>
             </View>
           </View>
           {missingAmount > 0.01 ? (
             <View style={styles.missingAmountCard}>
               <Text style={styles.missingAmountTitle}>Eksik okunan tutar var</Text>
               <Text style={styles.missingAmountText}>
-                Fiş toplamı {total.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })}, kalemlerin toplamı ise {explicitTotal.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })}.
-                Kalan {missingAmount.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })} tutar ortak kalacak. İstersen `Kalem ekle` ile eksik ürünü manuel girebilirsin.
+                Fiş toplamı {total.toLocaleString(getLocale(), { style: 'currency', currency: 'TRY' })}, kalemlerin toplamı ise {explicitTotal.toLocaleString(getLocale(), { style: 'currency', currency: 'TRY' })}.
+                Kalan {missingAmount.toLocaleString(getLocale(), { style: 'currency', currency: 'TRY' })} tutar ortak kalacak. İstersen `Kalem ekle` ile eksik ürünü manuel girebilirsin.
               </Text>
             </View>
           ) : null}

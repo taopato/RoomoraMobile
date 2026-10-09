@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -9,8 +9,13 @@ import { paymentsApi } from '../services/api';
 import BrandMark from '../components/BrandMark';
 import { PageHeader } from '../shared/ui/roomora/CanonicalUI';
 
+import { Text } from '../shared/i18n';
+import { getLocale } from '../shared/i18n/runtime';
+
+import { TouchableOpacity } from '../shared/i18n';
+
 const formatCurrency = (amount) =>
-  new Intl.NumberFormat('tr-TR', {
+  new Intl.NumberFormat(getLocale(), {
     style: 'currency',
     currency: 'TRY',
     minimumFractionDigits: 2,

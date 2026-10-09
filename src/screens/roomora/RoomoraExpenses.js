@@ -1,13 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import {
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
@@ -26,6 +18,11 @@ import {
 } from '../../shared/ui/roomora/CanonicalUI';
 import { getCategoryIconName } from '../../constants/ExpenseEnums';
 import { getExpenseDisplayTitle, getItemDate } from '../../utils/expenseHelpers';
+
+import { Text, TextInput } from '../../shared/i18n';
+import { getLocale } from '../../shared/i18n/runtime';
+
+import { TouchableOpacity } from '../../shared/i18n';
 
 const filters = [
   { key: 'all', label: 'Tümü' },
@@ -152,7 +149,7 @@ export default function RoomoraExpenses({ navigation }) {
             key={String(item.id)}
             icon={getCategoryIconName(item.key)}
             title={getExpenseDisplayTitle(item)}
-            subtitle={`${getItemDate(item).toLocaleDateString('tr-TR')}${item.payerName ? ` · ${item.payerName} ödedi` : ''}`}
+            subtitle={`${getItemDate(item).toLocaleDateString(getLocale())}${item.payerName ? ` · ${item.payerName} ödedi` : ''}`}
             amount={item.amount}
             onPress={() => navigation.navigate('HarcamaDetayi', {
               expenseId: item.id,

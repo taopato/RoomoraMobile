@@ -1,13 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  RefreshControl,
-  Image,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { RefreshControl, Image, ScrollView, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
@@ -21,6 +13,10 @@ import {
 } from '../shared/ui/roomora/CanonicalUI';
 import { shadow } from '../shared/ui/shadow';
 import { resolveMediaUrl } from '../shared/config/env';
+
+import { Text } from '../shared/i18n';
+
+import { TouchableOpacity } from '../shared/i18n';
 
 export default function GroupListScreen({ navigation, route }) {
   const { user, setDefaultHouseId } = useAuth();

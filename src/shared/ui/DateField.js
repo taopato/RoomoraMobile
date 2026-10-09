@@ -1,8 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { View, TextInput, TouchableOpacity, Modal, Platform, StyleSheet } from 'react-native';
+import { View, Modal, Platform, StyleSheet } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeProvider';
+
+import { TextInput } from '../i18n';
+import { getLocale } from '../i18n/runtime';
+
+import { TouchableOpacity } from '../i18n';
 
 const toISODate = (d) => {
   const y = d.getFullYear();
@@ -100,7 +105,7 @@ export default function DateField({ value, onChange, placeholder, minimumDate, m
                 onChange={handleChange}
                 minimumDate={minimumDate}
                 maximumDate={maximumDate}
-                locale="tr-TR"
+                locale={getLocale()}
               />
               <TouchableOpacity style={styles.doneBtn} onPress={() => setShow(false)} activeOpacity={0.85}>
                 <Text style={styles.doneBtnText}>Tamam</Text>

@@ -1,13 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import {
-  Alert,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../shared/theme/ThemeProvider';
@@ -29,6 +21,11 @@ import { getExpenseDisplayTitle, getItemDate } from '../../utils/expenseHelpers'
 import ScheduledChargeCard from '../../components/ScheduledChargeCard';
 import { scheduledChargesApi } from '../../services/api';
 import eventBus from '../../shared/events/bus';
+
+import { Alert, Text } from '../../shared/i18n';
+import { getLocale } from '../../shared/i18n/runtime';
+
+import { TouchableOpacity } from '../../shared/i18n';
 
 export default function RoomoraBills({ navigation }) {
   const { user } = useAuth();
@@ -105,7 +102,7 @@ export default function RoomoraBills({ navigation }) {
         <View style={styles.summary}>
           <Text style={styles.summaryLabel}>TOPLAM FATURA</Text>
           <Text style={styles.summaryValue}>
-            {screenError ? '—' : `₺${Number(total || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+            {screenError ? '—' : `₺${Number(total || 0).toLocaleString(getLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
           </Text>
           <View style={styles.summaryStats}>
             <View>
@@ -181,7 +178,7 @@ export default function RoomoraBills({ navigation }) {
             key={String(item.id)}
             icon={getCategoryIconName(item.key)}
             title={getExpenseDisplayTitle(item)}
-            subtitle={`${item?._raw?.odeyenKullaniciAdi || 'Bir ev üyesi'} ödedi · ${getItemDate(item).toLocaleDateString('tr-TR')}`}
+            subtitle={`${item?._raw?.odeyenKullaniciAdi || 'Bir ev üyesi'} ödedi · ${getItemDate(item).toLocaleDateString(getLocale())}`}
             amount={item.amount}
             badge="PAYLAŞILDI"
             badgeTone="success"

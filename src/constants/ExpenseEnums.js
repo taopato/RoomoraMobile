@@ -1,3 +1,4 @@
+import { getLocale } from '../shared/i18n/runtime.js';
 // src/constants/ExpenseEnums.js
 
 export const ExpenseCategory = {
@@ -158,7 +159,7 @@ export const getSplitPolicyOptions = (category) => {
 };
 
 export const formatAmount = (amount) =>
-  new Intl.NumberFormat('tr-TR', {
+  new Intl.NumberFormat(getLocale(), {
     style: 'currency',
     currency: 'TRY',
     minimumFractionDigits: 2,
@@ -168,7 +169,7 @@ export const formatAmount = (amount) =>
 export const formatDate = (dateString) => {
   if (!dateString) return 'Tarih yok';
   try {
-    return new Date(dateString).toLocaleDateString('tr-TR');
+    return new Date(dateString).toLocaleDateString(getLocale());
   } catch {
     return 'Geçersiz tarih';
   }

@@ -1,12 +1,15 @@
 import React, { useMemo, useState } from 'react';
-import { StyleSheet, Text, TextInput, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { useTheme } from '../../theme/ThemeProvider';
+
+import { Text, TextInput } from '../../i18n';
+import { getLocale } from '../../i18n/runtime';
 
 export default function MoneyInput({
   label = 'TUTAR',
   value,
   onChangeText,
-  placeholder = '0,00',
+  placeholder = getLocale() === 'en-US' ? '0.00' : '0,00',
   autoFocus = false,
   inputAccessoryViewID,
   testID,
@@ -35,7 +38,7 @@ export default function MoneyInput({
           selectTextOnFocus
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
-          accessibilityLabel={label.toLocaleLowerCase('tr-TR')}
+          accessibilityLabel={label.toLocaleLowerCase(getLocale())}
         />
       </View>
     </View>

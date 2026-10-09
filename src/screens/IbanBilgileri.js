@@ -1,11 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import {
-  Alert,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 import { authApi } from '../services/api';
@@ -18,6 +12,8 @@ import {
   toCanonicalTurkishIban,
 } from '../shared/validation/profileValidation';
 import KeyboardAwareScreen from '../shared/ui/KeyboardAwareScreen';
+
+import { Alert, Text, TextInput } from '../shared/i18n';
 
 export default function IbanBilgileri({ navigation }) {
   const { user, updateUser } = useAuth();

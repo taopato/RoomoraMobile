@@ -1,13 +1,23 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { setActiveLanguage, translate } from '../shared/i18n/runtime';
 
 const LANGUAGE_KEY = 'appLanguage';
-const SUPPORTED = ['tr'];
+const SUPPORTED = ['tr', 'en'];
+const DEVICE_LANGUAGE = (() => {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().locale?.toLowerCase().startsWith('tr') ? 'tr' : 'en';
+  } catch {
+    return 'tr';
+  }
+})();
+
+setActiveLanguage(DEVICE_LANGUAGE);
 
 const LanguageContext = createContext(null);
 
 export const LanguageProvider = ({ children }) => {
-  const [language, setLanguageState] = useState('tr');
+  const [language, setLanguageState] = useState(DEVICE_LANGUAGE);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -17,6 +27,7 @@ export const LanguageProvider = ({ children }) => {
         const stored = await AsyncStorage.getItem(LANGUAGE_KEY);
         if (mounted && SUPPORTED.includes(stored)) {
           setLanguageState(stored);
+          setActiveLanguage(stored);
         }
       } finally {
         if (mounted) setLoading(false);
@@ -30,6 +41,7 @@ export const LanguageProvider = ({ children }) => {
 
   const setLanguage = useCallback(async (nextLanguage) => {
     const safe = SUPPORTED.includes(nextLanguage) ? nextLanguage : 'tr';
+    setActiveLanguage(safe);
     setLanguageState(safe);
     await AsyncStorage.setItem(LANGUAGE_KEY, safe);
   }, []);
@@ -38,6 +50,7 @@ export const LanguageProvider = ({ children }) => {
     language,
     setLanguage,
     loading,
+    t: (value) => translate(value, language),
   }), [language, setLanguage, loading]);
 
   return <LanguageContext.Provider value={value}>{children}</LanguageContext.Provider>;

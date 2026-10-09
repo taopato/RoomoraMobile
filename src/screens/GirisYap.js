@@ -1,13 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  Alert,
-  Platform,
-  Image,
-} from 'react-native';
+import { View, StyleSheet, Platform, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as AuthSession from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
@@ -25,6 +17,11 @@ import { Button as ThemedButton } from '../shared/ui/Button';
 import { GOOGLE_CLIENT_IDS } from '../shared/config/env';
 import { isValidEmail, normalizeEmail } from '../shared/validation/authValidation';
 import { shadow } from '../shared/ui/shadow';
+import LanguageToggle from '../components/LanguageToggle';
+
+import { Text, Alert } from '../shared/i18n';
+
+import { TouchableOpacity } from '../shared/i18n';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -399,6 +396,7 @@ const GirisYap = ({ navigation, route }) => {
             { backgroundColor: theme.colors.background, paddingTop: insets.top + 12 },
           ]}
         >
+          <LanguageToggle />
           <View style={styles.hero}>
             <View style={[styles.logoTile, shadow(3, 'rgba(23,40,57,0.28)')]}>
               <Image source={require('../assets/icon.png')} style={styles.logoImage} resizeMode="contain" />

@@ -1,7 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import {
-  View, Text, StyleSheet, TouchableOpacity, Alert, TextInput, Modal, Platform,
-} from 'react-native';
+import { View, StyleSheet, Modal, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
@@ -14,6 +12,11 @@ import eventBus from '../shared/events/bus';
 import { getCategoryDisplayName, toExpenseCategory } from '../constants/ExpenseEnums';
 import { formatMoneyInput, parseMoneyInput } from '../shared/format/money';
 import MoneyInput from '../shared/ui/roomora/MoneyInput';
+
+import { Text, Alert, TextInput } from '../shared/i18n';
+import { getLocale } from '../shared/i18n/runtime';
+
+import { TouchableOpacity } from '../shared/i18n';
 
 export default function DuzenliGiderEkle({ navigation, route }) {
   const { user } = useAuth();
@@ -230,7 +233,7 @@ export default function DuzenliGiderEkle({ navigation, route }) {
   const perPersonAmount = participants.length
     ? Number((periodAmount / participants.length).toFixed(2))
     : 0;
-  const formatCurrency = (value) => new Intl.NumberFormat('tr-TR', {
+  const formatCurrency = (value) => new Intl.NumberFormat(getLocale(), {
     style: 'currency',
     currency: 'TRY',
     minimumFractionDigits: 2,
@@ -422,7 +425,7 @@ export default function DuzenliGiderEkle({ navigation, route }) {
             <View style={styles.scheduleDivider} />
             <View style={[styles.scheduleItem, styles.scheduleItemRight]}>
               <Text style={styles.scheduleLabel}>Başlangıç</Text>
-              <Text style={styles.scheduleValue}>{selectedDate.toLocaleDateString('tr-TR', { month: 'long', year: 'numeric' })}</Text>
+              <Text style={styles.scheduleValue}>{selectedDate.toLocaleDateString(getLocale(), { month: 'long', year: 'numeric' })}</Text>
             </View>
           </TouchableOpacity>
           {mode === 'recurring' && (
@@ -461,14 +464,14 @@ export default function DuzenliGiderEkle({ navigation, route }) {
             <View style={styles.selectedDateCard}>
               <Ionicons name="calendar-outline" size={20} color={theme.colors.primary[700]} />
               <Text style={styles.selectedDateText}>
-                {draftDate.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' })}
+                {draftDate.toLocaleDateString(getLocale(), { day: 'numeric', month: 'long', year: 'numeric' })}
               </Text>
             </View>
             <DateTimePicker
               value={draftDate}
               mode="date"
               display="inline"
-              locale="tr-TR"
+              locale={getLocale()}
               themeVariant={theme.mode === 'light' ? 'light' : 'dark'}
               accentColor={theme.colors.primary[600]}
               onChange={handleDateChange}

@@ -1,15 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  Image,
-  Platform,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Image, Platform, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
@@ -30,6 +20,10 @@ import {
   toCanonicalTurkishIban,
   toTurkishMobileE164,
 } from '../shared/validation/profileValidation';
+
+import { Alert, Text, TextInput } from '../shared/i18n';
+
+import { TouchableOpacity } from '../shared/i18n';
 
 const FormField = ({
   icon,

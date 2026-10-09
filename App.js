@@ -19,7 +19,7 @@ import {
 } from '@expo-google-fonts/hanken-grotesk';
 import { ThemeProvider, useTheme } from './src/shared/theme/ThemeProvider';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
-import { LanguageProvider } from './src/context/LanguageContext';
+import { LanguageProvider, useLanguage } from './src/context/LanguageContext';
 import MainTabBar from './src/shared/ui/MainTabBar';
 
 import GirisYap from './src/screens/GirisYap';
@@ -162,6 +162,7 @@ function MainTabs() {
 
 function ThemedNavigator() {
   const { theme } = useTheme();
+  useLanguage();
   const { user, loading } = useAuth();
   const colors = theme.colors;
 

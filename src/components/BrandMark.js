@@ -1,6 +1,8 @@
 import React from 'react';
-import { Image, Text, View } from 'react-native';
+import { Image, View } from 'react-native';
 import { useTheme } from '../shared/theme/ThemeProvider';
+
+import { Text } from '../shared/i18n';
 
 const MARK = require('../assets/mark-navy.png');
 const MARK_WHITE = require('../assets/mark-white.png');

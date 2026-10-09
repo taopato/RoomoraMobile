@@ -1,13 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -16,6 +8,11 @@ import { authApi } from '../services/api';
 import { useTheme } from '../shared/theme/ThemeProvider';
 import { shadow } from '../shared/ui/shadow';
 
+import { Alert, Text, TextInput } from '../shared/i18n';
+
+import { TouchableOpacity } from '../shared/i18n';
+import { getActiveLanguage } from '../shared/i18n/runtime';
+
 export default function HesabiSil({ navigation }) {
   const { user, logout } = useAuth();
   const { theme } = useTheme();
@@ -23,7 +20,8 @@ export default function HesabiSil({ navigation }) {
   const styles = useMemo(() => makeStyles(theme, insets), [theme, insets]);
   const [confirmation, setConfirmation] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const isConfirmed = confirmation.trim().toLocaleUpperCase('tr-TR') === 'SİL';
+  const expectedConfirmation = getActiveLanguage() === 'en' ? 'DELETE' : 'SİL';
+  const isConfirmed = confirmation.trim().toLocaleUpperCase() === expectedConfirmation;
 
   const deleteAccount = () => {
     if (!isConfirmed || submitting) return;

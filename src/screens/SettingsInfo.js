@@ -1,11 +1,15 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Switch, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../shared/theme/ThemeProvider';
 import BrandMark from '../components/BrandMark';
+
+import { Text } from '../shared/i18n';
+
+import { TouchableOpacity } from '../shared/i18n';
 
 const notificationDefaults = {
   payment: true,

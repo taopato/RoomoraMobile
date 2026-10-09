@@ -1,9 +1,13 @@
 import React from 'react';
-import { Text, TouchableOpacity, View, StyleSheet } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeProvider';
 import { useAuth } from '../../context/AuthContext';
 import { shadow } from './shadow';
+
+import { Text } from '../i18n';
+
+import { TouchableOpacity } from '../i18n';
 
 const items = [
   { key: 'home', label: 'Ana Sayfa', icon: 'home-outline', activeIcon: 'home', screen: 'Home' },

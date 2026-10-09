@@ -1,10 +1,15 @@
 import React, { useMemo } from 'react';
-import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../shared/theme/ThemeProvider';
 import { PremiumCard } from '../shared/ui/premium/Card';
 
-const money = (value) => new Intl.NumberFormat('tr-TR', {
+import { Text } from '../shared/i18n';
+import { getLocale } from '../shared/i18n/runtime';
+
+import { TouchableOpacity } from '../shared/i18n';
+
+const money = (value) => new Intl.NumberFormat(getLocale(), {
   style: 'currency',
   currency: 'TRY',
   minimumFractionDigits: 2,

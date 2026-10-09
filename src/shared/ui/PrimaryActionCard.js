@@ -1,8 +1,12 @@
 import React, { useMemo } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeProvider';
 import { shadow } from './shadow';
+
+import { Text } from '../i18n';
+
+import { TouchableOpacity } from '../i18n';
 
 export default function PrimaryActionCard({
   icon = 'add',

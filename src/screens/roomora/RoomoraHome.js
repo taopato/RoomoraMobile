@@ -1,12 +1,5 @@
 import React, { useEffect, useMemo } from 'react';
-import {
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
@@ -31,6 +24,11 @@ import {
 import { getCategoryIconName } from '../../constants/ExpenseEnums';
 import BrandMark from '../../components/BrandMark';
 
+import { Text } from '../../shared/i18n';
+import { getLocale } from '../../shared/i18n/runtime';
+
+import { TouchableOpacity } from '../../shared/i18n';
+
 const dayLabel = (date) => {
   const value = date instanceof Date ? date : new Date(date);
   const today = new Date();
@@ -38,7 +36,7 @@ const dayLabel = (date) => {
   yesterday.setDate(today.getDate() - 1);
   if (value.toDateString() === today.toDateString()) return 'Bugün';
   if (value.toDateString() === yesterday.toDateString()) return 'Dün';
-  return value.toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  return value.toLocaleDateString(getLocale(), { day: '2-digit', month: '2-digit', year: 'numeric' });
 };
 
 export default function RoomoraHome({ navigation }) {

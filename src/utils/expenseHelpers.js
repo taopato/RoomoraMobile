@@ -1,3 +1,4 @@
+import { getLocale } from '../shared/i18n/runtime.js';
 import { NON_BILL_KEYS } from './expenseClassifier';
 import { getCategoryDisplayName, getCategoryIconName, getCategoryColor } from '../constants/ExpenseEnums';
 
@@ -11,7 +12,7 @@ export const getUTCMonthWindow = (date = new Date()) => {
   return { monthStart, monthEnd };
 };
 
-export const formatCurrency = (amount) => new Intl.NumberFormat('tr-TR', {
+export const formatCurrency = (amount) => new Intl.NumberFormat(getLocale(), {
   style: 'currency',
   currency: 'TRY',
   minimumFractionDigits: 2,
@@ -76,7 +77,7 @@ export const formatDate = (date) => {
   const resolved = parseExpenseDate(date);
   if (!Number.isFinite(resolved.getTime()) || resolved.getTime() === 0) return '-';
 
-  return resolved.toLocaleDateString('tr-TR', {
+  return resolved.toLocaleDateString(getLocale(), {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',

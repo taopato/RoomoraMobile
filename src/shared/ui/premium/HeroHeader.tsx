@@ -1,9 +1,11 @@
 import React from 'react';
-import { View, Text, ViewStyle } from 'react-native';
+import { View, ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../theme/ThemeProvider';
 import { PremiumButton } from './Button';
 import { shadow } from '../shadow';
+
+import { Text } from '../../i18n';
 
 type Props = {
   title: string;

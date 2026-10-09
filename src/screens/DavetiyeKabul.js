@@ -1,14 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  Platform,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Platform, StyleSheet, View } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -17,6 +8,10 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../shared/theme/ThemeProvider';
 import { shadow } from '../shared/ui/shadow';
 import { getPasswordValidationErrors } from '../shared/validation/authValidation';
+
+import { Alert, Text, TextInput } from '../shared/i18n';
+
+import { TouchableOpacity } from '../shared/i18n';
 
 const getInviteParams = () => {
   if (Platform.OS !== 'web' || typeof window === 'undefined') {

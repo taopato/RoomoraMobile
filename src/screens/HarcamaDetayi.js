@@ -1,12 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  Alert,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -17,6 +10,11 @@ import { formatMoneyInput, parseMoneyInput } from '../shared/format/money';
 import eventBus from '../shared/events/bus';
 import KeyboardAwareScreen from '../shared/ui/KeyboardAwareScreen';
 import MoneyInput from '../shared/ui/roomora/MoneyInput';
+
+import { Alert, Text, TextInput } from '../shared/i18n';
+import { getLocale } from '../shared/i18n/runtime';
+
+import { TouchableOpacity } from '../shared/i18n';
 
 const pick = (value, keys, fallback = undefined) =>
   keys.map((key) => value?.[key]).find((item) => item !== undefined && item !== null) ?? fallback;
@@ -263,7 +261,7 @@ export default function HarcamaDetayi({ navigation, route }) {
               </View>
               <Text style={styles.heroAmount}>{money(total)}</Text>
               <Text style={styles.heroTitle}>{title}</Text>
-              <Text style={styles.heroDate}>{date && !Number.isNaN(date.getTime()) ? date.toLocaleDateString('tr-TR') : 'Tarih yok'}</Text>
+              <Text style={styles.heroDate}>{date && !Number.isNaN(date.getTime()) ? date.toLocaleDateString(getLocale()) : 'Tarih yok'}</Text>
             </View>
 
             <View style={styles.card}>

@@ -1,13 +1,17 @@
-import React, { useEffect, useMemo } from 'react';
-import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useMemo } from 'react';
+import { StyleSheet, View } from 'react-native';
+import { Alert, Text } from '../shared/i18n';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../shared/theme/ThemeProvider';
 import { useLanguage } from '../context/LanguageContext';
 import { PageHeader } from '../shared/ui/roomora/CanonicalUI';
 
+import { TouchableOpacity } from '../shared/i18n';
+
 const OPTIONS = [
   { key: 'tr', title: 'Türkçe', subtitle: 'Roomora uygulama dili' },
+  { key: 'en', title: 'English', subtitle: 'Roomora app language' },
 ];
 
 export default function LanguageSettingsScreen({ navigation }) {
@@ -15,10 +19,6 @@ export default function LanguageSettingsScreen({ navigation }) {
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const { language, setLanguage } = useLanguage();
   const insets = useSafeAreaInsets();
-
-  useEffect(() => {
-    if (language !== 'tr') setLanguage('tr').catch(() => {});
-  }, [language, setLanguage]);
 
   const onSelect = async (key) => {
     if (key === language) return;
@@ -33,7 +33,7 @@ export default function LanguageSettingsScreen({ navigation }) {
   return (
     <View style={[styles.container, { paddingTop: insets.top + 4 }]}>
       <PageHeader title="Dil Ayarları" onBack={() => navigation.goBack()} />
-      <Text style={styles.subtitle}>Roomora şu anda Türkçe olarak sunulmaktadır.</Text>
+      <Text style={styles.subtitle}>Roomora’yı kullanmak istediğin dili seç.</Text>
 
       <View style={styles.list}>
         {OPTIONS.map((option) => {

@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 import useRoomoraDashboard from '../hooks/useRoomoraDashboard';
@@ -15,6 +15,8 @@ import {
   SectionHeader,
   money,
 } from '../shared/ui/roomora/CanonicalUI';
+
+import { Text } from '../shared/i18n';
 
 const periods = [
   { key: 'month', label: 'Bu ay' },

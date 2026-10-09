@@ -1,13 +1,5 @@
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  StyleSheet,
-  TouchableOpacity,
-  Alert,
-  ActivityIndicator,
-} from 'react-native';
+import { View, StyleSheet, ActivityIndicator } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { useTheme } from '../shared/theme/ThemeProvider';
 import { authApi } from '../services/api';
@@ -16,6 +8,10 @@ import {
   normalizeEmail,
   validateRegistrationForm,
 } from '../shared/validation/authValidation';
+
+import { Text, TextInput, Alert } from '../shared/i18n';
+
+import { TouchableOpacity } from '../shared/i18n';
 
 const RegisterScreen = ({ navigation }) => {
   const { theme } = useTheme();

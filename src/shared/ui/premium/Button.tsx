@@ -1,7 +1,9 @@
 import React from 'react';
-import { ActivityIndicator, StyleSheet, Text, ViewStyle } from 'react-native';
+import { ActivityIndicator, StyleSheet, ViewStyle } from 'react-native';
 import { useTheme } from '../../theme/ThemeProvider';
 import { TouchableScale } from './TouchableScale';
+
+import { Text } from '../../i18n';
 
 type Variant = 'primary' | 'secondary' | 'success' | 'warning' | 'error';
 type Size = 'small' | 'medium' | 'large';

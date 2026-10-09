@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, Image, Platform, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, Platform, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
@@ -16,6 +16,10 @@ import {
   PrimaryButton,
   SectionHeader,
 } from '../shared/ui/roomora/CanonicalUI';
+
+import { Alert, Text } from '../shared/i18n';
+
+import { TouchableOpacity } from '../shared/i18n';
 
 export default function EvUyeleri({ route, navigation }) {
   const { user } = useAuth();

@@ -1,16 +1,12 @@
 // src/components/Toast.js
 import React, { useEffect, useRef } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  Animated,
-  TouchableOpacity,
-  Dimensions,
-  Platform
-} from 'react-native';
+import { View, StyleSheet, Animated, Dimensions, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../shared/theme/ThemeProvider';
+
+import { Text } from '../shared/i18n';
+
+import { TouchableOpacity } from '../shared/i18n';
 
 const { width } = Dimensions.get('window');
 

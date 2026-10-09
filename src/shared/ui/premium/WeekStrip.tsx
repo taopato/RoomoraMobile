@@ -1,8 +1,11 @@
 import React from 'react';
-import { View, Text } from 'react-native';
+import { View } from 'react-native';
 import { useTheme } from '../../theme/ThemeProvider';
 import { TouchableScale } from './TouchableScale';
 import { PremiumCard } from './Card';
+
+import { Text } from '../../i18n';
+import { getLocale } from '../../i18n/runtime';
 
 function startFromYesterday(d: Date): Date {
   const date = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
@@ -34,7 +37,7 @@ export const WeekStrip: React.FC<Props> = ({ selectedKey, onSelect }) => {
   const days: DayInfo[] = Array.from({ length: 7 }).map((_, i) => {
     const d = addDays(startDate, i);
     const key = d.toISOString().slice(0, 10);
-    const weekday = d.toLocaleDateString('tr-TR', { weekday: 'short', timeZone: 'UTC' });
+    const weekday = d.toLocaleDateString(getLocale(), { weekday: 'short', timeZone: 'UTC' });
     const dd = String(d.getUTCDate()).padStart(2, '0');
     return { date: d, key, label: weekday, sublabel: dd };
   });

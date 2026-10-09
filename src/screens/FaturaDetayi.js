@@ -1,14 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -22,7 +13,12 @@ import {
 import { useTheme } from '../shared/theme/ThemeProvider';
 import Toast from '../components/Toast';
 
-const formatAmount = (amount) => new Intl.NumberFormat('tr-TR', {
+import { Alert, Text } from '../shared/i18n';
+import { getLocale } from '../shared/i18n/runtime';
+
+import { TouchableOpacity } from '../shared/i18n';
+
+const formatAmount = (amount) => new Intl.NumberFormat(getLocale(), {
   style: 'currency',
   currency: 'TRY',
   minimumFractionDigits: 2,
@@ -32,7 +28,7 @@ const formatDate = (value) => {
   if (!value) return 'Belirtilmedi';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return 'Belirtilmedi';
-  return date.toLocaleDateString('tr-TR', { day: '2-digit', month: 'long', year: 'numeric' });
+  return date.toLocaleDateString(getLocale(), { day: '2-digit', month: 'long', year: 'numeric' });
 };
 
 const inferCategory = (bill) => {

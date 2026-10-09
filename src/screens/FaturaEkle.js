@@ -1,15 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  InputAccessoryView,
-  Keyboard,
-  Platform,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { ActivityIndicator, InputAccessoryView, Keyboard, Platform, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -25,6 +15,11 @@ import DateField from '../shared/ui/DateField';
 import Toast from '../components/Toast';
 import { formatMoneyInput, parseMoneyInput } from '../shared/format/money';
 import MoneyInput from '../shared/ui/roomora/MoneyInput';
+
+import { Text, TextInput } from '../shared/i18n';
+import { getLocale } from '../shared/i18n/runtime';
+
+import { TouchableOpacity } from '../shared/i18n';
 
 const BILL_TYPES = [
   { key: 'Electricity', icon: 'flash-outline', label: 'Elektrik', hint: 'Aylık tutar değişebilir' },
@@ -368,7 +363,7 @@ export default function FaturaEkle({ route, navigation }) {
             <View style={styles.splitSummary}>
               <Text style={styles.splitSummaryText}>Eşit bölüşüm</Text>
               <Text style={styles.splitSummaryValue}>
-                Yaklaşık kişi başı {new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(perPersonAmount)}
+                Yaklaşık kişi başı {new Intl.NumberFormat(getLocale(), { style: 'currency', currency: 'TRY', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(perPersonAmount)}
               </Text>
             </View>
           </View>

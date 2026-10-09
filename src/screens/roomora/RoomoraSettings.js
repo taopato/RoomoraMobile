@@ -1,12 +1,5 @@
 import React, { useMemo } from 'react';
-import {
-  Alert,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -15,6 +8,10 @@ import { useTheme } from '../../shared/theme/ThemeProvider';
 import { resolveMediaUrl } from '../../shared/config/env';
 import { Avatar, PageHeader } from '../../shared/ui/roomora/CanonicalUI';
 import { shadow } from '../../shared/ui/shadow';
+
+import { Alert, Text } from '../../shared/i18n';
+
+import { TouchableOpacity } from '../../shared/i18n';
 
 const sections = [
   {

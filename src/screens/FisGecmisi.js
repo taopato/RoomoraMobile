@@ -1,3 +1,4 @@
+import { getLocale } from '../shared/i18n/runtime';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -50,7 +51,7 @@ export default function FisGecmisi({ navigation, route }) {
             key={String(item.id)}
             icon="scan-outline"
             title={item.storeName || 'İsimsiz fiş'}
-            subtitle={`${item.receiptDate ? new Date(item.receiptDate).toLocaleDateString('tr-TR') : 'Tarih yok'} · ${item.itemCount || 0} kalem`}
+            subtitle={`${item.receiptDate ? new Date(item.receiptDate).toLocaleDateString(getLocale()) : 'Tarih yok'} · ${item.itemCount || 0} kalem`}
             amount={item.detectedTotalAmount || 0}
             badge={statusLabel[item.status] || String(item.status || 'Taslak')}
             badgeTone={item.status === 'Converted' ? 'success' : 'info'}

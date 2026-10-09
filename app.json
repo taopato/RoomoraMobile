@@ -12,6 +12,16 @@
     },
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
+    "locales": {
+      "tr": {
+        "NSCameraUsageDescription": "Fiş taramak ve profil fotoğrafı çekmek için kameraya erişim gerekir.",
+        "NSPhotoLibraryUsageDescription": "Fiş veya profil fotoğrafı seçebilmek için galeriye erişim gerekir."
+      },
+      "en": {
+        "NSCameraUsageDescription": "Camera access is required to scan receipts and take a profile photo.",
+        "NSPhotoLibraryUsageDescription": "Photo library access is required to choose a receipt or profile photo."
+      }
+    },
     "icon": "./src/assets/icon.png",
     "ios": {
       "supportsTablet": false,

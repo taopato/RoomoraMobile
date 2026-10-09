@@ -1,12 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import {
-  Alert,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { houseApi } from '../services/api';
@@ -14,6 +7,10 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../shared/theme/ThemeProvider';
 import { shadow } from '../shared/ui/shadow';
 import KeyboardAwareScreen from '../shared/ui/KeyboardAwareScreen';
+
+import { Alert, Text, TextInput } from '../shared/i18n';
+
+import { TouchableOpacity } from '../shared/i18n';
 
 export default function DavetEt({ navigation, route }) {
   const { user } = useAuth();

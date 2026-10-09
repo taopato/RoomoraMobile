@@ -12,6 +12,8 @@
     "doctor": "expo-doctor",
     "test": "node scripts/test-domain.mjs",
     "test:e2e:web": "playwright test tests/web-smoke.spec.js",
+    "test:i18n:web": "node scripts/check-i18n-web.mjs",
+    "i18n:extract": "node scripts/extract-i18n.mjs --all",
     "release:check": "npm run test && npm run doctor && npm run export:android && npm run export:ios",
     "version:set": "node scripts/set-app-version.mjs",
     "build:development": "eas build --profile development --platform all",

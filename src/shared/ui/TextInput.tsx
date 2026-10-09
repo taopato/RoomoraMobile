@@ -1,6 +1,8 @@
 import React from 'react';
-import { TextInput as RNTextInput, StyleSheet, ViewStyle, TextStyle } from 'react-native';
+import { StyleSheet, ViewStyle, TextStyle } from 'react-native';
 import { useTheme } from '../theme/ThemeProvider';
+
+import { TextInput as RNTextInput } from '../i18n';
 
 interface TextInputProps {
   value: string;
