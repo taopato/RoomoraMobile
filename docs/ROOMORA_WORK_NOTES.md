@@ -46,8 +46,9 @@ Son guncelleme: 2026-10-22. Bu dosya sohbet uzadiginda kaldigimiz yeri hatirlama
 - Hizli secim hatasinin canli API kok nedeni bulundu: `ExpenseCategory : byte` degeri `int` ile `Enum.IsDefined` icinde karsilastirildigi icin gecerli kategoride runtime hatasi olusuyordu. Backend commit `88ebfda` main'e dagitildi. Canli API'de test hesabi ile sablon olusturma basarili, gecersiz kategori `400`, olusturulan test sablonunu soft-delete ile temizleme basarili ve `/health` `200` olarak dogrulandi.
 - Katilimci secimi ortak bir yardimciya tasindi. Herkes seciliyken bir kisiye ilk dokunus artik yalniz o kisiyi secer; sonraki dokunuslar baska kisileri ekler veya en az bir kisi kalacak sekilde cikarir. Harcama ekleme/duzenleme, fatura ekleme ve fis kalemi atama akislari ayni davranisi kullanir. Hizli secim kaydinda cift dokunma engeli ve API hata ayrintisi eklendi.
 - Duzeltme sonrasi domain testleri, Expo Doctor `20/20`, iOS export, Android export ve web dil gecisi smoke testi basarili. Android magazasina yeni surum gonderilmedi.
+- iOS TestFlight build `1.0.1 (10)` (`634dd460-c4a6-45df-bb74-3465f08faaed`) commit `ad22516` ve canli API ile basariyla tamamlandi. App Store Connect teslimi `8ff48c09-9336-426a-8a49-a41a1edba2e2` planlandi; son kontrolde `IN_QUEUE`, `error: null`. Android production ve iOS canli yayin degistirilmedi.
 
 ## Siradaki adim
 
-1. Bu duzeltmeleri yeni iOS TestFlight build'ine gonder; Android build veya production yayini yapma.
-2. Kullanici yeni build'de hizli secim kaydetme, kisi secme, gezi grubu, su faturasi ve push iznini test edecek.
+1. Build 10 App Store Connect tesliminin tamamlanmasini ve Apple TestFlight processing islemini izle; Android build veya production yayini yapma.
+2. Kullanici build 10'da hizli secim kaydetme, kisi secme, gezi grubu, su faturasi ve push iznini test edecek.
