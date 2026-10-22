@@ -37,10 +37,10 @@ Son guncelleme: 2026-10-22. Bu dosya sohbet uzadiginda kaldigimiz yeri hatirlama
 - `expo-notifications` ile iOS/Android cihaz kaydi, kullanici tercihleri, cikista token pasiflestirme ve sabit planlar icin yerel hatirlatma eklendi. Backend odeme bildirimi/onay/red ve kayitli kullanici davetlerinde Expo push gonderir. Cihaz dili saklanir ve push metni Turkce/Ingilizce secilir.
 - Gorunen "Ortak yasamin kolay hali" sloganlari kaldirildi; marka yuzeylerinde yalniz Roomora kaldi.
 - Expo SDK yama paketleri uyumlu surumlere getirildi. `expo-doctor` 20/20, domain testleri, iOS JS export ve dil gecis testi basarili.
+- Backend commit `6b02fd7` 2026-10-22'de `main` dalina gonderildi. GitHub `Backend CI`, `Publish Backend Image` ve production deployment basarili. Dagitim yedek ve EF migration adimlarini calistirdi. Canli `/health` 200/dataset available; yeni QuickExpenseTemplates endpointi yetkisiz istege 401 vererek canli rotanin yuklendigini dogruladi.
 
 ## Siradaki adim
 
-1. Backend Release build ve idempotent migration SQL'i tekrar dogrula.
-2. Backend degisikliklerini commit et, `main` dalina fast-forward edip push et; production workflow, migration, health check ve canli API'yi izle.
-3. Mobil son test/exportlari calistir, sadece ilgili dosyalari commit edip feature dalina push et.
-4. `testing` EAS profiliyle production API'ye bagli yeni iOS binary build edip TestFlight'a otomatik gonder. Android build veya production yayini yapma.
+1. `testing` EAS profiliyle production API'ye bagli yeni iOS binary build edip TestFlight'a otomatik gonder.
+2. EAS build ve App Store Connect teslim durumunu izle; Android build veya production yayini yapma.
+3. Kullanici TestFlight'ta ozellikle gezi grubu, hizli harcama, su faturasi ve push iznini test edecek.
