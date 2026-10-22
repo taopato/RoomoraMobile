@@ -57,7 +57,7 @@
         "ascAppId": "6800784560"
       },
       "android": {
-        "track": "roomora-kapali-test",
+        "track": "production",
         "releaseStatus": "completed"
       }
     }
