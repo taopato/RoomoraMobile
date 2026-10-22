@@ -52,3 +52,14 @@ Son guncelleme: 2026-10-22. Bu dosya sohbet uzadiginda kaldigimiz yeri hatirlama
 
 1. Build 10 App Store Connect tesliminin tamamlanmasini ve Apple TestFlight processing islemini izle; Android build veya production yayini yapma.
 2. Kullanici build 10'da hizli secim kaydetme, kisi secme, gezi grubu, su faturasi ve push iznini test edecek.
+
+## 2026-10-22 magaza yayini guncellemesi
+
+- Kullanici iOS ve Android icin canli yayin onayi verdi.
+- Google Play Turkce magaza adi `Roomora` yapildi. Kisa ve uzun aciklama ev, gezi ve arkadas gruplarindaki ortak harcamalari kapsayacak sekilde yenilendi. Magaza girisi yeni Android paketiyle birlikte incelemeye gonderilecek.
+- App Store Connect'te `1.0.1` surumu olusturuldu. Turkce ve Ingilizce tanitim metni, aciklama, arama kelimeleri ve surum notlari ev/gezi kullanimini kapsayacak sekilde guncellendi.
+- App Store uygulama adi `Roomora`, Turkce alt baslik `Ev ve gezi giderlerini bolus` yapildi. TestFlight build `1.0.1 (10)` surume baglandi.
+- iOS `1.0.1 (10)` App Review'a gonderildi ve `Waiting for Review` durumunda. Onaydan sonra otomatik yayinlanacak.
+- Android'de iOS izin cevirilerinin Android kaynaklarina sizmasina neden olan Expo locale yapisi duzeltildi. Yerel Android lint raporu `No issues found` / donus kodu `0`; Gradle rapor sonrasinda yerel metaspace sinirina carpsa da lint islemleri basariyla tamamlandi.
+- Android duzeltmesi commit `ecd0988` ile GitHub'a gonderildi. EAS production build `390451e8-5d14-439f-b75a-d30156313b7f`, `1.0.1 (7)` olarak kuyrukta. Tamamlaninca AAB Google Play uretim surumune yuklenecek ve magaza metniyle birlikte incelemeye gonderilecek.
+- Android yayini bittikten sonra kayit/dogrulama e-postalarinin spam'e dusme nedeni; SMTP gonderen kimligi, SPF, DKIM, DMARC ve e-posta basliklari uzerinden incelenecek.
