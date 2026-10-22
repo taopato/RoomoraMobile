@@ -1,6 +1,6 @@
 # Roomora calisma notlari
 
-Son guncelleme: 2026-10-22. Bu dosya sohbet uzadiginda kaldigimiz yeri hatirlamak icindir; uygulama degisikligi veya yayin onayi yerine gecmez.
+Son guncelleme: 2026-10-23. Bu dosya sohbet uzadiginda kaldigimiz yeri hatirlamak icindir; uygulama degisikligi veya yayin onayi yerine gecmez.
 
 ## Mevcut durum
 
@@ -63,3 +63,11 @@ Son guncelleme: 2026-10-22. Bu dosya sohbet uzadiginda kaldigimiz yeri hatirlama
 - Android'de iOS izin cevirilerinin Android kaynaklarina sizmasina neden olan Expo locale yapisi duzeltildi. Yerel Android lint raporu `No issues found` / donus kodu `0`; Gradle rapor sonrasinda yerel metaspace sinirina carpsa da lint islemleri basariyla tamamlandi.
 - Android duzeltmesi commit `ecd0988` ile GitHub'a gonderildi. EAS production build `390451e8-5d14-439f-b75a-d30156313b7f`, `1.0.1 (7)` olarak kuyrukta. Tamamlaninca AAB Google Play uretim surumune yuklenecek ve magaza metniyle birlikte incelemeye gonderilecek.
 - Android yayini bittikten sonra kayit/dogrulama e-postalarinin spam'e dusme nedeni; SMTP gonderen kimligi, SPF, DKIM, DMARC ve e-posta basliklari uzerinden incelenecek.
+
+## 2026-10-23 yayin ve e-posta guncellemesi
+
+- Android EAS production build `390451e8-5d14-439f-b75a-d30156313b7f` basariyla tamamlandi. AAB surum kodu `7`, uygulama surumu `1.0.1`; SHA-256 `8955B8D6A30BC85BFAFE8B6F04244E0940B9923ECBC871C26BFC18B606E9C885`.
+- Android `7 (1.0.1)` uretim kanalina yuzde 100 sunumla yuklendi. Turkce magaza adi `Roomora`, ev/gezi/arkadas grubu odakli kisa ve tam aciklama ile birlikte Google incelemesine gonderildi. Play Console durumu `Incelenmekte olan degisiklikler`; yonetilen yayinlama kapali oldugu icin onaydan sonra otomatik yayinlanacak.
+- iOS `1.0.1 (10)` halen `Waiting for Review`; magazada ad `Roomora`, Turkce alt baslik `Ev ve gezi giderlerini bolus`. Onaydan sonra otomatik yayinlanacak.
+- E-posta basliklarinda SPF ve DKIM geciyor; ana eksik DNS kaydi DMARC. Backend e-posta sablonundan eski slogan ve Gmail onizlemesine sizan CSS kaldirildi, e-posta logosu yaklasik 158 KB'den 11 KB'ye dusuruldu. Backend commit `4cbfbb9` main'e gonderildi; CI/production dagitimi izleniyor.
+- Siradaki e-posta adimi: Cloudflare DNS'e `_dmarc` TXT kaydi ekle (`v=DMARC1; p=none; rua=mailto:destek@takosware.com; adkim=r; aspf=r; pct=100`), DNS yayilimini dogrula ve kayit e-postasini yeniden test et.
