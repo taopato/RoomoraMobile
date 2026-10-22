@@ -1,12 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, View } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { useAuth } from '../context/AuthContext';
-import { houseApi, expensesApi, receiptsApi } from '../services/api';
+import { houseApi, expensesApi, receiptsApi, quickExpenseTemplatesApi } from '../services/api';
 import { useTheme } from '../shared/theme/ThemeProvider';
 import { money, PageHeader } from '../shared/ui/roomora/CanonicalUI';
 import Toast from '../components/Toast';
@@ -26,18 +25,20 @@ const QUICK_EXPENSES = [
   { key: 'Other', label: 'Diğer' },
 ];
 
-const DEFAULT_QUICK_CHOICES = [
-  { id: 'bread', label: 'Ekmek', category: 'Market' },
-  { id: 'market', label: 'Market', category: 'Market' },
-  { id: 'water', label: 'Su', category: 'Market' },
-  { id: 'transport', label: 'Ulaşım', category: 'Other' },
-];
-const QUICK_CHOICES_KEY = 'roomora_quick_expense_choices';
-
-const pick = (value, keys, fallback = undefined) =>
-  keys.map((key) => value?.[key]).find((item) => item !== undefined && item !== null) ?? fallback;
-
-const normalizeQuickLabel = (value) => String(value || '').trim().toLocaleLowerCase('tr-TR');
+const mapQuickTemplate = (template) => ({
+  id: Number(template?.id),
+  label: String(template?.name || ''),
+  category: CATEGORY_ID_TO_KEY[Number(template?.categoryId)] || 'Other',
+  snapshot: {
+    amount: Number(template?.amount || 0),
+    category: CATEGORY_ID_TO_KEY[Number(template?.categoryId)] || 'Other',
+    payerId: Number(template?.payerUserId || 0),
+    participantIds: Array.isArray(template?.participantUserIds) ? template.participantUserIds.map(Number) : [],
+    personal: template?.personalAmounts && typeof template.personalAmounts === 'object'
+      ? template.personalAmounts
+      : {},
+  },
+});
 
 export default function AddExpenseScreen({ navigation, route }) {
   const { user } = useAuth();
@@ -47,7 +48,6 @@ export default function AddExpenseScreen({ navigation, route }) {
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const scrollRef = useRef(null);
   const noteWrapRef = useRef(null);
-  const quickSelectionRequestRef = useRef(0);
 
   const scrollToNoteField = () => {
     requestAnimationFrame(() => {
@@ -70,28 +70,13 @@ export default function AddExpenseScreen({ navigation, route }) {
   const [personal, setPersonal] = useState({});
   const [scanningReceipt, setScanningReceipt] = useState(false);
   const [toast, setToast] = useState({ visible: false, message: '', type: 'success' });
-  const [quickChoices, setQuickChoices] = useState(DEFAULT_QUICK_CHOICES);
+  const [quickChoices, setQuickChoices] = useState([]);
   const [quickModalVisible, setQuickModalVisible] = useState(false);
   const [quickLabel, setQuickLabel] = useState('');
-  const [quickCategory, setQuickCategory] = useState('Market');
   const [selectedQuickChoiceId, setSelectedQuickChoiceId] = useState('');
 
   const showToast = (message, type = 'success') => setToast({ visible: true, message, type });
   const hideToast = () => setToast((prev) => ({ ...prev, visible: false }));
-
-  useEffect(() => {
-    AsyncStorage.getItem(QUICK_CHOICES_KEY)
-      .then((raw) => {
-        const saved = raw ? JSON.parse(raw) : null;
-        if (Array.isArray(saved) && saved.length > 0) setQuickChoices(saved);
-      })
-      .catch(() => {});
-  }, []);
-
-  const persistQuickChoices = (next) => {
-    setQuickChoices(next);
-    AsyncStorage.setItem(QUICK_CHOICES_KEY, JSON.stringify(next)).catch(() => {});
-  };
 
   const applyQuickSnapshot = (snapshot) => {
     if (!snapshot) return;
@@ -116,87 +101,56 @@ export default function AddExpenseScreen({ navigation, route }) {
     setShowPersonal(Object.values(savedPersonal).some((value) => (parseMoneyInput(value) || 0) > 0));
   };
 
-  const snapshotFromExpense = (expense) => {
-    const shares = pick(expense, ['shares', 'Shares'], []);
-    const personalItems = pick(expense, ['sahsiHarcamalar', 'SahsiHarcamalar'], []);
-    const participantIdsFromExpense = [
-      ...(Array.isArray(shares) ? shares : []),
-      ...(Array.isArray(personalItems) ? personalItems : []),
-    ]
-      .map((entry) => Number(pick(entry, ['userId', 'UserId'], 0)))
-      .filter(Boolean);
-    const categoryValue = pick(expense, ['categoryId', 'CategoryId', 'category', 'Category'], null);
-    const numericCategory = Number(categoryValue);
-    const category = Number.isFinite(numericCategory) && categoryValue !== null && categoryValue !== ''
-      ? CATEGORY_ID_TO_KEY[numericCategory]
-      : Object.keys(CATEGORY_ID_TO_KEY).map((key) => CATEGORY_ID_TO_KEY[key])
-        .find((key) => key.toLowerCase() === String(categoryValue || '').toLowerCase());
-
-    return {
-      amount: Number(pick(expense, ['tutar', 'Tutar', 'amount', 'Amount'], 0)),
-      category,
-      payerId: Number(pick(expense, ['odeyenUserId', 'OdeyenUserId'], 0)),
-      participantIds: [...new Set(participantIdsFromExpense)],
-      personal: (Array.isArray(personalItems) ? personalItems : []).reduce((result, item) => {
-        const memberId = Number(pick(item, ['userId', 'UserId'], 0));
-        const value = Number(pick(item, ['tutar', 'Tutar'], 0));
-        if (memberId && value > 0) result[String(memberId)] = value;
-        return result;
-      }, {}),
-    };
-  };
-
-  const selectQuickChoice = async (choice) => {
-    const requestId = ++quickSelectionRequestRef.current;
+  const selectQuickChoice = (choice) => {
     setSelectedQuickChoiceId(String(choice.id));
     setNote(choice.label);
     setCategoryKey(choice.category);
-    if (choice.lastUsed) {
-      applyQuickSnapshot(choice.lastUsed);
-      return;
-    }
-
-    try {
-      const response = await expensesApi.getByHouse(activeHouseId);
-      const expenses = response?.data?.data ?? response?.data ?? [];
-      const label = normalizeQuickLabel(choice.label);
-      const latest = (Array.isArray(expenses) ? expenses : [])
-        .filter((expense) => normalizeQuickLabel(
-          pick(expense, ['tur', 'Tur', 'note', 'Note', 'description', 'Description'], '')
-        ) === label)
-        .sort((left, right) => new Date(
-          pick(right, ['postDate', 'PostDate', 'kayitTarihi', 'KayitTarihi'], 0)
-        ) - new Date(
-          pick(left, ['postDate', 'PostDate', 'kayitTarihi', 'KayitTarihi'], 0)
-        ))[0];
-      const expenseId = Number(pick(latest, ['id', 'Id', 'expenseId', 'ExpenseId'], 0));
-      if (!expenseId) return;
-
-      const detailResponse = await expensesApi.getById(expenseId);
-      const detail = detailResponse?.data?.data ?? detailResponse?.data;
-      if (requestId !== quickSelectionRequestRef.current) return;
-      applyQuickSnapshot(snapshotFromExpense(detail));
-    } catch {
-      // The quick choice still fills its label and category when history is unavailable.
-    }
+    applyQuickSnapshot(choice.snapshot);
   };
 
-  const addQuickChoice = () => {
+  const addQuickChoice = async () => {
     const label = quickLabel.trim();
     if (!label) return;
-    const next = [
-      ...quickChoices,
-      { id: `${Date.now()}`, label, category: quickCategory },
-    ].slice(-8);
-    persistQuickChoices(next);
-    setQuickLabel('');
-    setQuickCategory('Market');
-    setQuickModalVisible(false);
+    const numericAmount = parseMoneyInput(amount) || 0;
+    if (numericAmount <= 0 || !categoryKey || !payerId || !participantIds.length) {
+      Alert.alert('Eksik bilgi', 'Önce tutarı, kategoriyi, ödeyeni ve paylaşılacak kişileri seç.');
+      return;
+    }
+    const personalAmounts = Object.fromEntries(
+      Object.entries(personal)
+        .filter(([id, value]) => participantIds.includes(String(id)) && (parseMoneyInput(value) || 0) > 0)
+        .map(([id, value]) => [Number(id), parseMoneyInput(value)])
+    );
+    try {
+      const response = await quickExpenseTemplatesApi.create({
+        houseId: activeHouseId,
+        name: label,
+        amount: numericAmount,
+        categoryId: toExpenseCategory(categoryKey),
+        description: note.trim() || label,
+        payerUserId: Number(payerId),
+        participantUserIds: participantIds.map(Number),
+        personalAmounts,
+      });
+      const saved = response?.data?.data ?? response?.data;
+      const mapped = mapQuickTemplate(saved);
+      setQuickChoices((current) => [mapped, ...current.filter((item) => item.id !== mapped.id)]);
+      setQuickLabel('');
+      setQuickModalVisible(false);
+      showToast('Hızlı harcama kaydedildi.');
+    } catch (error) {
+      showToast(error?.response?.data?.message || 'Hızlı harcama kaydedilemedi.', 'error');
+    }
   };
 
-  const removeQuickChoice = (id) => {
-    if (String(id) === selectedQuickChoiceId) setSelectedQuickChoiceId('');
-    persistQuickChoices(quickChoices.filter((item) => item.id !== id));
+  const removeQuickChoice = async (id) => {
+    try {
+      await quickExpenseTemplatesApi.remove(id);
+      if (String(id) === selectedQuickChoiceId) setSelectedQuickChoiceId('');
+      setQuickChoices((current) => current.filter((item) => item.id !== id));
+    } catch (error) {
+      showToast(error?.response?.data?.message || 'Hızlı harcama kaldırılamadı.', 'error');
+    }
   };
 
   useEffect(() => {
@@ -206,6 +160,21 @@ export default function AddExpenseScreen({ navigation, route }) {
       return;
     }
     fetchMembers();
+  }, [activeHouseId]);
+
+  useEffect(() => {
+    let active = true;
+    if (!activeHouseId) return () => { active = false; };
+    quickExpenseTemplatesApi.list(activeHouseId)
+      .then((response) => {
+        if (!active) return;
+        const raw = response?.data?.data ?? response?.data ?? [];
+        setQuickChoices((Array.isArray(raw) ? raw : []).map(mapQuickTemplate).filter((item) => item.id && item.label));
+      })
+      .catch(() => {
+        if (active) showToast('Hızlı harcamalar yüklenemedi.', 'error');
+      });
+    return () => { active = false; };
   }, [activeHouseId]);
 
   const fetchMembers = async () => {
@@ -332,28 +301,6 @@ export default function AddExpenseScreen({ navigation, route }) {
     try {
       setLoading(true);
       await expensesApi.create(payload);
-      const selectedQuickChoice = quickChoices.find(
-        (choice) => String(choice.id) === selectedQuickChoiceId
-          && normalizeQuickLabel(choice.label) === normalizeQuickLabel(expenseTitle)
-      );
-      if (selectedQuickChoice) {
-        persistQuickChoices(quickChoices.map((choice) => (
-          String(choice.id) === selectedQuickChoiceId
-            ? {
-              ...choice,
-              lastUsed: {
-                amount: amountNum,
-                category: categoryKey,
-                payerId: Number(payerId),
-                participantIds: participantIds.map(Number),
-                personal: Object.fromEntries(
-                  personalItems.map((item) => [String(item.userId), item.tutar])
-                ),
-              },
-            }
-            : choice
-        )));
-      }
       try {
         const bus = (await import('../shared/events/bus')).default;
         bus.emit('expenses:updated', { houseId: activeHouseId });
@@ -474,12 +421,10 @@ export default function AddExpenseScreen({ navigation, route }) {
         <View style={styles.quickSection}>
           <View style={styles.quickHeader}>
             <Text style={styles.label}>Hızlı seçimler</Text>
-            <TouchableOpacity onPress={() => setQuickModalVisible(true)} style={styles.quickAddButton}>
-              <Ionicons name="add" size={17} color={theme.colors.primary[700]} />
-              <Text style={styles.quickAddText}>Yeni</Text>
-            </TouchableOpacity>
           </View>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.quickList}>
+          {quickChoices.length === 0 ? (
+            <Text style={styles.quickEmpty}>Kaydettiğin hızlı harcamalar burada görünür.</Text>
+          ) : <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.quickList}>
             {quickChoices.map((choice) => (
               <View
                 key={choice.id}
@@ -508,7 +453,7 @@ export default function AddExpenseScreen({ navigation, route }) {
                 </TouchableOpacity>
               </View>
             ))}
-          </ScrollView>
+          </ScrollView>}
         </View>
 
         <View style={styles.fieldBlock} ref={noteWrapRef}>
@@ -653,6 +598,16 @@ export default function AddExpenseScreen({ navigation, route }) {
         </View>
 
         <TouchableOpacity
+          style={[styles.templateSaveButton, (!amountNum || !categoryKey || !payerId) && styles.disabledTemplateButton]}
+          onPress={() => setQuickModalVisible(true)}
+          disabled={!amountNum || !categoryKey || !payerId}
+          activeOpacity={0.86}
+        >
+          <Ionicons name="bookmark-outline" size={19} color={theme.colors.primary[700]} />
+          <Text style={styles.templateSaveText}>Hızlı harcama olarak kaydet</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
           style={[styles.saveButton, (!amountNum || !categoryKey || !payerId || loading) && styles.disabledButton]}
           onPress={save}
           disabled={!amountNum || !categoryKey || !payerId || loading}
@@ -707,18 +662,9 @@ export default function AddExpenseScreen({ navigation, route }) {
                 placeholderTextColor={theme.colors.text.disabled}
                 style={styles.input}
               />
-              <Text style={[styles.label, { marginTop: 16 }]}>Kategori</Text>
-              <View style={styles.chips}>
-                {QUICK_EXPENSES.map((option) => (
-                  <TouchableOpacity
-                    key={option.key}
-                    style={[styles.chip, quickCategory === option.key && styles.chipActive]}
-                    onPress={() => setQuickCategory(option.key)}
-                  >
-                    <Text style={[styles.chipText, quickCategory === option.key && styles.chipTextActive]}>{option.label}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
+              <Text style={styles.quickModalHint}>
+                Ekrandaki tutar, kategori, ödeyen ve seçili kişiler bu hızlı harcamaya kaydedilir.
+              </Text>
               <TouchableOpacity
                 style={[styles.modalSave, !quickLabel.trim() && styles.disabledButton]}
                 disabled={!quickLabel.trim()}
@@ -755,6 +701,10 @@ const makeStyles = (theme) => StyleSheet.create({
   quickChoiceSelect: { minHeight: 30, justifyContent: 'center' },
   quickChoiceText: { color: theme.colors.text.primary, fontFamily: theme.typography?.semibold, fontSize: 12 },
   quickChoiceTextActive: { color: theme.colors.primary[700] },
+  quickEmpty: { color: theme.colors.text.secondary, fontFamily: theme.typography?.regular, fontSize: 12, marginTop: 4, marginBottom: 3 },
+  templateSaveButton: { minHeight: 46, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 8, borderWidth: 1, borderColor: theme.colors.primary[300], marginBottom: 10 },
+  disabledTemplateButton: { opacity: 0.45 },
+  templateSaveText: { color: theme.colors.primary[700], fontFamily: theme.typography?.bold, fontSize: 14 },
   receiptCard: {
     backgroundColor: theme.colors.surface,
     padding: 16,
@@ -856,6 +806,7 @@ const makeStyles = (theme) => StyleSheet.create({
   modalCard: { backgroundColor: theme.colors.surface, borderTopLeftRadius: 18, borderTopRightRadius: 18, padding: 18, paddingBottom: Platform.OS === 'ios' ? 34 : 22 },
   modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 },
   modalTitle: { color: theme.colors.text.primary, fontFamily: theme.typography?.bold, fontSize: 19 },
+  quickModalHint: { color: theme.colors.text.secondary, fontFamily: theme.typography?.regular, fontSize: 12, lineHeight: 18, marginTop: 14 },
   modalClose: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   modalSave: { minHeight: 52, marginTop: 22, borderRadius: 12, backgroundColor: theme.colors.primary[600], alignItems: 'center', justifyContent: 'center' },
 });

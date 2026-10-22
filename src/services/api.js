@@ -304,6 +304,18 @@ export const houseApi = {
   createHouse: (houseData) => api.post('/Houses', houseData),
 };
 
+export const quickExpenseTemplatesApi = {
+  list: (houseId) => api.get(`/QuickExpenseTemplates/house/${Number(houseId)}`),
+  create: (body) => api.post('/QuickExpenseTemplates', body),
+  update: (id, body) => api.put(`/QuickExpenseTemplates/${Number(id)}`, body),
+  remove: (id) => api.delete(`/QuickExpenseTemplates/${Number(id)}`),
+};
+
+export const pushDevicesApi = {
+  register: (body) => api.post('/PushDevices', body),
+  unregister: (token) => api.delete('/PushDevices', { params: { token } }),
+};
+
 // ---------------- LEDGER ----------------
 export const ledgerApi = {
   byExpense: (expenseId) => api.get(`/LedgerLines/ByExpense/${expenseId}`),

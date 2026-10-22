@@ -25,6 +25,13 @@ module.exports = ({ config }) => {
       '@react-native-community/datetimepicker',
       'expo-status-bar',
       [
+        'expo-notifications',
+        {
+          color: '#2D78B4',
+          defaultChannel: 'default',
+        },
+      ],
+      [
         'expo-splash-screen',
         {
           image: './src/assets/mark-navy.png',

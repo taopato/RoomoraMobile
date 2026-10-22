@@ -232,7 +232,14 @@ export default function FaturaDetayi({ route, navigation }) {
           <DetailRow icon="person-outline" label="Ödemeyi yapan" value={bill.odeyenKullaniciAdi || 'Belirtilmedi'} styles={styles} theme={theme} />
           <DetailRow icon="create-outline" label="Kaydı oluşturan" value={bill.kaydedenKullaniciAdi || 'Belirtilmedi'} styles={styles} theme={theme} />
           <DetailRow icon="calendar-outline" label="Fatura tarihi" value={formatDate(billDate)} styles={styles} theme={theme} />
-          <DetailRow icon="calendar-number-outline" label="Son ödeme tarihi" value={formatDate(dueDate)} styles={styles} theme={theme} last />
+          <DetailRow
+            icon="calendar-number-outline"
+            label={category === 'Water' ? 'Ödeme tarihi' : 'Son ödeme tarihi'}
+            value={formatDate(category === 'Water' ? billDate : dueDate)}
+            styles={styles}
+            theme={theme}
+            last
+          />
         </View>
 
         <View style={styles.shareCard}>

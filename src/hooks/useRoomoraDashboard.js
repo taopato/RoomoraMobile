@@ -3,6 +3,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { expensesApi, houseApi, paymentsApi, scheduledChargesApi } from '../services/api';
 import { normalizeExpense } from '../utils/expenseClassifier';
 import { deduplicateMonthlyPlans, getItemDate, sortByDateDesc } from '../utils/expenseHelpers';
+import { syncBillReminders } from '../services/pushNotifications';
 
 const arrayFrom = (response) => {
   const body = response?.data?.data ?? response?.data?.items ?? response?.data;
@@ -47,11 +48,12 @@ export default function useRoomoraDashboard(user) {
       error: '',
       errors: {},
     }));
+    const isTrip = String(user?.defaultHouseType || '').toLowerCase() === 'trip';
     const results = await Promise.allSettled([
       expensesApi.getByHouse(houseId),
       houseApi.getUserDebts(Number(user.id), houseId),
       paymentsApi.getPendingPayments(Number(user.id)),
-      scheduledChargesApi.getByHouse(houseId),
+      isTrip ? Promise.resolve({ data: [] }) : scheduledChargesApi.getByHouse(houseId),
     ]);
 
     const expenseResponse = results[0].status === 'fulfilled' ? results[0].value : null;
@@ -72,18 +74,21 @@ export default function useRoomoraDashboard(user) {
     const totals = Array.isArray(debtBody?.totals) ? debtBody.totals : [];
     const mine = totals.find((item) => Number(item.userId) === Number(user.id)) || debtBody;
 
+    const scheduled = arrayFrom(scheduledResponse);
+    if (!isTrip) syncBillReminders(scheduled, true).catch(() => {});
+
     setState({
       loading: false,
       refreshing: false,
       error: Object.values(errors).find(Boolean) || '',
       errors,
       expenses,
-      scheduled: arrayFrom(scheduledResponse),
+      scheduled,
       pendingPayments: arrayFrom(pendingResponse),
       payable: Number(mine?.payable ?? mine?.borc ?? mine?.totalDebt ?? 0),
       receivable: Number(mine?.receivable ?? mine?.alacak ?? mine?.totalReceivable ?? 0),
     });
-  }, [houseId, user?.id]);
+  }, [houseId, user?.defaultHouseType, user?.id]);
 
   useFocusEffect(useCallback(() => {
     load(false);
@@ -101,6 +106,7 @@ export default function useRoomoraDashboard(user) {
     ...state,
     houseId,
     houseName: user?.defaultHouseName || 'Aktif Ev',
+    groupType: user?.defaultHouseType || 'Home',
     balance: state.receivable - state.payable,
     monthExpenses,
     refresh: () => load(true),

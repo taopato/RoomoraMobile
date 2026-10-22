@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../shared/theme/ThemeProvider';
 import BrandMark from '../components/BrandMark';
+import { registerPushNotifications, syncBillReminders } from '../services/pushNotifications';
 
 import { Text } from '../shared/i18n';
 
@@ -75,6 +76,8 @@ export function NotificationSettingsScreen({ navigation }) {
     const next = { ...values, [key]: value };
     setValues(next);
     AsyncStorage.setItem('notification_preferences', JSON.stringify(next)).catch(() => {});
+    registerPushNotifications(next).catch(() => {});
+    if (key === 'bill' && !value) syncBillReminders([], false).catch(() => {});
   };
 
   const items = [
@@ -163,7 +166,6 @@ export function AboutScreen({ navigation }) {
         <ScrollView contentContainerStyle={[styles.content, styles.aboutContent]}>
           <BrandMark variant="logo" size={156} />
           <Text style={styles.brand}>Roomora</Text>
-          <Text style={styles.tagline}>Ortak yaşamın kolay hali</Text>
           <Text style={styles.version}>Sürüm {version}</Text>
         </ScrollView>
       )}
