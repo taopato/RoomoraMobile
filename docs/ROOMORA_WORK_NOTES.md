@@ -39,10 +39,10 @@ Son guncelleme: 2026-10-22. Bu dosya sohbet uzadiginda kaldigimiz yeri hatirlama
 - Expo SDK yama paketleri uyumlu surumlere getirildi. `expo-doctor` 20/20, domain testleri, iOS JS export ve dil gecis testi basarili.
 - Backend commit `6b02fd7` 2026-10-22'de `main` dalina gonderildi. GitHub `Backend CI`, `Publish Backend Image` ve production deployment basarili. Dagitim yedek ve EF migration adimlarini calistirdi. Canli `/health` 200/dataset available; yeni QuickExpenseTemplates endpointi yetkisiz istege 401 vererek canli rotanin yuklendigini dogruladi.
 - iOS TestFlight build `1.0.1 (8)` (`76443d2c-bde0-489d-a1e9-f413a27d53a4`) baslatildi fakat Xcode, eski provisioning profile'da Push Notifications capability ve `aps-environment` entitlement olmadigi icin buildi durdurdu. Kod/export testleri basarili; Apple Developer oturumu yenilenip Push yetkili provisioning profile uretilmeli, sonra yeni build alinmali. Apple sifresi notlara veya repoya yazilmayacak.
+- Apple Developer oturumu yenilendi, `com.taopato.roomora` icin Push Notifications capability etkinlestirildi ve yeni App Store provisioning profile `LH39LT9A9S` olusturuldu.
+- iOS TestFlight build `1.0.1 (9)` (`a5b93e4f-095e-4df3-964b-8f37b7d14098`) yeni profile ile basariyla tamamlandi. Otomatik App Store Connect teslimi `b0c21fa4-814a-49d7-b140-6954f74de518` EAS kuyruğunda; son kontrolde `IN_QUEUE`, `error: null`. Android uretim ve iOS canli yayin degistirilmedi.
 
 ## Siradaki adim
 
-1. Kullanici kendi terminalinde `eas credentials --platform ios` ile Apple hesabina guvenli bicimde giris yapsin; `testing` profili icin provisioning profile Push Notifications yetkisiyle yeniden olusturulsun.
-2. `testing` EAS profiliyle production API'ye bagli yeni iOS binary build edip TestFlight'a otomatik gonder.
-3. EAS build ve App Store Connect teslim durumunu izle; Android build veya production yayini yapma.
-4. Kullanici TestFlight'ta ozellikle gezi grubu, hizli harcama, su faturasi ve push iznini test edecek.
+1. EAS teslim `b0c21fa4-814a-49d7-b140-6954f74de518` durumunun `FINISHED` olmasini ve Apple processing islemini izle; Android build veya production yayini yapma.
+2. Build 9 TestFlight'ta gorundugunde kullanici ozellikle gezi grubu, hizli harcama, su faturasi ve push iznini test edecek.
