@@ -1,3 +1,5 @@
+import { selectParticipant } from './participantSelection.js';
+
 const normalizeIds = (values = []) => [...new Set(
   values.map(Number).filter((value) => Number.isInteger(value) && value > 0)
 )].sort((left, right) => left - right);
@@ -28,9 +30,11 @@ export const buildReceiptAssignment = (participantUserIds, members = []) => {
 export const toggleReceiptParticipant = (item, userId, members = []) => {
   const selected = getReceiptItemParticipantIds(item, members);
   const numericUserId = Number(userId);
-  const next = selected.includes(numericUserId)
-    ? selected.filter((id) => id !== numericUserId)
-    : [...selected, numericUserId];
+  const next = selectParticipant(
+    selected,
+    numericUserId,
+    members.map((member) => Number(member.id ?? member.userId))
+  ).map(Number);
   return buildReceiptAssignment(next, members);
 };
 

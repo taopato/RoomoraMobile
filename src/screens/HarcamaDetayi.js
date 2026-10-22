@@ -7,6 +7,7 @@ import { expensesApi, houseApi, ledgerApi, receiptsApi } from '../services/api';
 import { useTheme } from '../shared/theme/ThemeProvider';
 import { EmptyState, LoadingState, PageHeader, PrimaryButton, money } from '../shared/ui/roomora/CanonicalUI';
 import { formatMoneyInput, parseMoneyInput } from '../shared/format/money';
+import { selectParticipant } from '../utils/participantSelection';
 import eventBus from '../shared/events/bus';
 import KeyboardAwareScreen from '../shared/ui/KeyboardAwareScreen';
 import MoneyInput from '../shared/ui/roomora/MoneyInput';
@@ -138,16 +139,15 @@ export default function HarcamaDetayi({ navigation, route }) {
   const toggleParticipant = (memberId) => {
     const id = String(memberId);
     setParticipantIds((current) => {
-      if (current.includes(id)) {
-        if (current.length === 1) return current;
+      const next = selectParticipant(current, id, members.map((member) => member.id));
+      if (current.includes(id) && !next.includes(id)) {
         setPersonal((values) => {
-          const next = { ...values };
-          delete next[id];
-          return next;
+          const nextPersonal = { ...values };
+          delete nextPersonal[id];
+          return nextPersonal;
         });
-        return current.filter((value) => value !== id);
       }
-      return [...current, id];
+      return next;
     });
   };
 

@@ -25,6 +25,7 @@ import {
   getReceiptItemParticipantIds,
   getReceiptParticipantSummary,
 } from '../utils/receiptAssignments';
+import { selectParticipant } from '../utils/participantSelection';
 import { getContainedImageMetrics, getContainedOverlayStyle } from '../utils/receiptLayout';
 import { normalizeExpenseCategoryKey } from '../constants/ExpenseEnums';
 
@@ -111,9 +112,7 @@ function FisDetayiInner({ route, navigation }) {
       const selected = current.participantUserIds || [];
       return {
         ...current,
-        participantUserIds: selected.includes(numericId)
-          ? selected.filter((id) => id !== numericId)
-          : [...selected, numericId],
+        participantUserIds: selectParticipant(selected, numericId, memberIds).map(Number),
       };
     });
   };

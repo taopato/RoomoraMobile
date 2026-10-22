@@ -20,6 +20,7 @@ import {
   toggleReceiptParticipant,
 } from '../src/utils/receiptAssignments.js';
 import { getContainedImageMetrics, getContainedOverlayStyle } from '../src/utils/receiptLayout.js';
+import { selectParticipant } from '../src/utils/participantSelection.js';
 import { getLocale, setActiveLanguage, translate } from '../src/shared/i18n/runtime.js';
 
 setActiveLanguage('tr');
@@ -124,10 +125,14 @@ assert.deepEqual(
   {
     isAssigned: true,
     isShared: false,
-    personalUserId: null,
-    participantUserIds: [39, 40],
+    personalUserId: 38,
+    participantUserIds: [38],
   }
 );
+assert.deepEqual(selectParticipant(['38', '39', '40'], 38, [38, 39, 40]), ['38']);
+assert.deepEqual(selectParticipant(['38'], 40, [38, 39, 40]), ['38', '40']);
+assert.deepEqual(selectParticipant(['38', '40'], 38, [38, 39, 40]), ['40']);
+assert.deepEqual(selectParticipant(['38'], 38, [38, 39, 40]), ['38']);
 assert.deepEqual(
   buildReceiptAssignment([38, 40], receiptMembers),
   {

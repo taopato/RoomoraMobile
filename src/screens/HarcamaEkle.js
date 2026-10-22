@@ -12,6 +12,7 @@ import Toast from '../components/Toast';
 import { toExpenseCategory } from '../constants/ExpenseEnums';
 import { CATEGORY_ID_TO_KEY } from '../utils/expenseClassifier';
 import { formatMoneyInput, parseMoneyInput } from '../shared/format/money';
+import { selectParticipant } from '../utils/participantSelection';
 import KeyboardAwareScreen from '../shared/ui/KeyboardAwareScreen';
 import MoneyInput from '../shared/ui/roomora/MoneyInput';
 
@@ -39,6 +40,14 @@ const mapQuickTemplate = (template) => ({
       : {},
   },
 });
+
+const getApiErrorMessage = (error, fallback) => {
+  const payload = error?.response?.data;
+  if (typeof payload?.message === 'string' && payload.message.trim()) return payload.message;
+  if (typeof payload?.title === 'string' && payload.title.trim()) return payload.title;
+  const validationMessage = payload?.errors && Object.values(payload.errors).flat().find(Boolean);
+  return validationMessage || fallback;
+};
 
 export default function AddExpenseScreen({ navigation, route }) {
   const { user } = useAuth();
@@ -74,6 +83,7 @@ export default function AddExpenseScreen({ navigation, route }) {
   const [quickModalVisible, setQuickModalVisible] = useState(false);
   const [quickLabel, setQuickLabel] = useState('');
   const [selectedQuickChoiceId, setSelectedQuickChoiceId] = useState('');
+  const [savingQuickChoice, setSavingQuickChoice] = useState(false);
 
   const showToast = (message, type = 'success') => setToast({ visible: true, message, type });
   const hideToast = () => setToast((prev) => ({ ...prev, visible: false }));
@@ -109,6 +119,7 @@ export default function AddExpenseScreen({ navigation, route }) {
   };
 
   const addQuickChoice = async () => {
+    if (savingQuickChoice) return;
     const label = quickLabel.trim();
     if (!label) return;
     const numericAmount = parseMoneyInput(amount) || 0;
@@ -122,6 +133,7 @@ export default function AddExpenseScreen({ navigation, route }) {
         .map(([id, value]) => [Number(id), parseMoneyInput(value)])
     );
     try {
+      setSavingQuickChoice(true);
       const response = await quickExpenseTemplatesApi.create({
         houseId: activeHouseId,
         name: label,
@@ -139,7 +151,9 @@ export default function AddExpenseScreen({ navigation, route }) {
       setQuickModalVisible(false);
       showToast('Hızlı harcama kaydedildi.');
     } catch (error) {
-      showToast(error?.response?.data?.message || 'Hızlı harcama kaydedilemedi.', 'error');
+      showToast(getApiErrorMessage(error, 'Hızlı harcama kaydedilemedi.'), 'error');
+    } finally {
+      setSavingQuickChoice(false);
     }
   };
 
@@ -219,16 +233,15 @@ export default function AddExpenseScreen({ navigation, route }) {
   const toggleParticipant = (memberId) => {
     const id = String(memberId);
     setParticipantIds((current) => {
-      if (current.includes(id)) {
-        if (current.length <= 1) return current;
+      const next = selectParticipant(current, id, members.map((member) => member.id));
+      if (current.includes(id) && !next.includes(id)) {
         setPersonal((previous) => {
-          const next = { ...previous };
-          delete next[id];
-          return next;
+          const nextPersonal = { ...previous };
+          delete nextPersonal[id];
+          return nextPersonal;
         });
-        return current.filter((item) => item !== id);
       }
-      return [...current, id];
+      return next;
     });
   };
 
@@ -666,11 +679,13 @@ export default function AddExpenseScreen({ navigation, route }) {
                 Ekrandaki tutar, kategori, ödeyen ve seçili kişiler bu hızlı harcamaya kaydedilir.
               </Text>
               <TouchableOpacity
-                style={[styles.modalSave, !quickLabel.trim() && styles.disabledButton]}
-                disabled={!quickLabel.trim()}
+                style={[styles.modalSave, (!quickLabel.trim() || savingQuickChoice) && styles.disabledButton]}
+                disabled={!quickLabel.trim() || savingQuickChoice}
                 onPress={addQuickChoice}
               >
-                <Text style={styles.saveButtonText}>Hızlı Seçimi Kaydet</Text>
+                {savingQuickChoice
+                  ? <ActivityIndicator color={theme.colors.text.onPrimary} />
+                  : <Text style={styles.saveButtonText}>Hızlı Seçimi Kaydet</Text>}
               </TouchableOpacity>
             </View>
           </KeyboardAvoidingView>

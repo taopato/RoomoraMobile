@@ -14,6 +14,7 @@ import { useTheme } from '../shared/theme/ThemeProvider';
 import DateField from '../shared/ui/DateField';
 import Toast from '../components/Toast';
 import { formatMoneyInput, parseMoneyInput } from '../shared/format/money';
+import { selectParticipant } from '../utils/participantSelection';
 import MoneyInput from '../shared/ui/roomora/MoneyInput';
 
 import { Text, TextInput } from '../shared/i18n';
@@ -231,11 +232,10 @@ export default function FaturaEkle({ route, navigation }) {
   };
 
   const toggleParticipant = (userId) => {
-    const id = String(userId);
-    setParticipantIds((current) => (
-      current.includes(id)
-        ? (current.length > 1 ? current.filter((item) => item !== id) : current)
-        : [...current, id]
+    setParticipantIds((current) => selectParticipant(
+      current,
+      userId,
+      members.map((member) => member.userId)
     ));
   };
 

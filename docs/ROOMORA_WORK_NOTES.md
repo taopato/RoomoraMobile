@@ -42,7 +42,12 @@ Son guncelleme: 2026-10-22. Bu dosya sohbet uzadiginda kaldigimiz yeri hatirlama
 - Apple Developer oturumu yenilendi, `com.taopato.roomora` icin Push Notifications capability etkinlestirildi ve yeni App Store provisioning profile `LH39LT9A9S` olusturuldu.
 - iOS TestFlight build `1.0.1 (9)` (`a5b93e4f-095e-4df3-964b-8f37b7d14098`) yeni profile ile basariyla tamamlandi. Otomatik App Store Connect teslimi `b0c21fa4-814a-49d7-b140-6954f74de518` EAS kuyruğunda; son kontrolde `IN_QUEUE`, `error: null`. Android uretim ve iOS canli yayin degistirilmedi.
 
+- Build 9 testinde hizli secim kaydetme isteginin genel hata verdigi ve tum katilimcilar seciliyken bir kisiye dokunmanin o kisiyi cikardigi raporlandi.
+- Hizli secim hatasinin canli API kok nedeni bulundu: `ExpenseCategory : byte` degeri `int` ile `Enum.IsDefined` icinde karsilastirildigi icin gecerli kategoride runtime hatasi olusuyordu. Backend commit `88ebfda` main'e dagitildi. Canli API'de test hesabi ile sablon olusturma basarili, gecersiz kategori `400`, olusturulan test sablonunu soft-delete ile temizleme basarili ve `/health` `200` olarak dogrulandi.
+- Katilimci secimi ortak bir yardimciya tasindi. Herkes seciliyken bir kisiye ilk dokunus artik yalniz o kisiyi secer; sonraki dokunuslar baska kisileri ekler veya en az bir kisi kalacak sekilde cikarir. Harcama ekleme/duzenleme, fatura ekleme ve fis kalemi atama akislari ayni davranisi kullanir. Hizli secim kaydinda cift dokunma engeli ve API hata ayrintisi eklendi.
+- Duzeltme sonrasi domain testleri, Expo Doctor `20/20`, iOS export, Android export ve web dil gecisi smoke testi basarili. Android magazasina yeni surum gonderilmedi.
+
 ## Siradaki adim
 
-1. EAS teslim `b0c21fa4-814a-49d7-b140-6954f74de518` durumunun `FINISHED` olmasini ve Apple processing islemini izle; Android build veya production yayini yapma.
-2. Build 9 TestFlight'ta gorundugunde kullanici ozellikle gezi grubu, hizli harcama, su faturasi ve push iznini test edecek.
+1. Bu duzeltmeleri yeni iOS TestFlight build'ine gonder; Android build veya production yayini yapma.
+2. Kullanici yeni build'de hizli secim kaydetme, kisi secme, gezi grubu, su faturasi ve push iznini test edecek.
