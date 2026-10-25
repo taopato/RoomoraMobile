@@ -10,6 +10,14 @@ For English listing: use the equivalent `home-en-*` and `trip-en-*` files in the
 
 The `native/` captures used in the walkthrough were taken from an Android development build and include development controls. They are also not store-ready. The Play and App Store listings have **not** been updated with these assets.
 
+## Native Android store captures
+
+`store-native/android/` contains nine 1080 x 1920 PNG captures from a local Android release build. The build used fictional, locally intercepted data and was installed only on an emulator. The source fixture was removed after capture; this APK is not a distribution build.
+
+Suggested Turkish phone sequence: `home-tr-01-home.png`, `home-tr-02-expenses.png`, `home-tr-03-bills.png`, `home-tr-04-balance.png`, `home-tr-05-payment.png`, `trip-tr-01-groups.png`, `trip-tr-02-home.png`, `trip-tr-03-expenses.png`, `trip-tr-04-balance.png`. These captures were visually reviewed for the Roomora native interface and do not contain a profile photo or a development overlay. The expense-detail screen was excluded because the isolated demo did not supply faithful detail/ledger data. Do not use these Turkish captures as English-localized images or as iPhone screenshots.
+
+Before uploading, verify the current Play listing and localization, then submit this set as a store-listing update. Apple still needs captures from an iPhone running Roomora with fictional data, in an accepted iPhone size. Neither listing has been changed by generating these files.
+
 ## Walkthroughs
 
 - `video/roomora-native-guide-tr.mp4`: revised Turkish portrait walkthrough (1080 x 1920, 86 seconds).
