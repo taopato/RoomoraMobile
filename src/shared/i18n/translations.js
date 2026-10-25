@@ -547,6 +547,7 @@ const EN = {
   'Davet gönderilemedi.': 'The invitation could not be sent.',
   'Harcama Geçmişi': 'Expense History',
   'Bu ay görüntülenen gider': 'Expenses shown this month',
+  'Görüntülenen gezi gideri': 'Trip expenses shown',
   'Harcamalarda ara': 'Search expenses',
   'Bu Ay': 'This Month',
   'Son 30 Gün': 'Last 30 Days',

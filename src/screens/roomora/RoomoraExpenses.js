@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -16,7 +16,7 @@ import {
   SectionHeader,
   money,
 } from '../../shared/ui/roomora/CanonicalUI';
-import { getCategoryIconName } from '../../constants/ExpenseEnums';
+import { getCategoryDisplayName, getCategoryIconName } from '../../constants/ExpenseEnums';
 import { getExpenseDisplayTitle, getItemDate } from '../../utils/expenseHelpers';
 
 import { Text, TextInput } from '../../shared/i18n';
@@ -24,7 +24,7 @@ import { getLocale } from '../../shared/i18n/runtime';
 
 import { TouchableOpacity } from '../../shared/i18n';
 
-const filters = [
+const homeFilters = [
   { key: 'all', label: 'Tümü' },
   { key: 'Market', label: 'Market' },
   { key: 'bill', label: 'Faturalar' },
@@ -36,12 +36,28 @@ export default function RoomoraExpenses({ navigation }) {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   const data = useRoomoraDashboard(user);
+  const isTrip = String(data.groupType).toLowerCase() === 'trip';
   const screenError = data.errors?.expenses;
   const [filter, setFilter] = useState('all');
   const [period, setPeriod] = useState('month');
   const [search, setSearch] = useState('');
   const [visibleCount, setVisibleCount] = useState(10);
   const styles = useMemo(() => makeStyles(theme, insets), [theme, insets]);
+
+  useEffect(() => {
+    setFilter('all');
+    setPeriod(isTrip ? 'all' : 'month');
+    setVisibleCount(10);
+  }, [data.houseId, isTrip]);
+
+  const filters = useMemo(() => {
+    if (!isTrip) return homeFilters;
+    const categories = [...new Set(data.expenses.map((item) => item.key).filter(Boolean))];
+    return [{ key: 'all', label: 'Tümü' }, ...categories.map((key) => ({
+      key,
+      label: getCategoryDisplayName(key),
+    }))];
+  }, [data.expenses, isTrip]);
 
   const items = useMemo(() => data.expenses.filter((item) => {
     const matchesFilter = filter === 'all'
@@ -80,7 +96,7 @@ export default function RoomoraExpenses({ navigation }) {
         <PageHeader title="Giderler" subtitle={data.houseName} />
 
         <View style={styles.totalCard}>
-          <Text style={styles.totalLabel}>Bu ay görüntülenen gider</Text>
+          <Text style={styles.totalLabel}>{isTrip ? 'Görüntülenen gezi gideri' : 'Bu ay görüntülenen gider'}</Text>
           <View style={styles.totalRow}>
             <View>
           <Text style={styles.totalValue}>{screenError ? '—' : money(total)}</Text>
