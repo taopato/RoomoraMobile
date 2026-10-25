@@ -1,4 +1,4 @@
-"""Generate the print-ready A5 Roomora handout with store-specific QR codes."""
+"""Build a print-ready A5 Roomora flyer with store QR codes."""
 
 from pathlib import Path
 
@@ -16,85 +16,76 @@ OUT.mkdir(parents=True, exist_ok=True)
 PDF = OUT / "roomora-a5-tr.pdf"
 IOS_URL = "https://apps.apple.com/app/id6800784560"
 ANDROID_URL = "https://play.google.com/store/apps/details?id=com.taopato.roomora"
+FONT_DIR = Path("C:/Windows/Fonts")
+pdfmetrics.registerFont(TTFont("Segoe", str(FONT_DIR / "segoeui.ttf")))
+pdfmetrics.registerFont(TTFont("SegoeBold", str(FONT_DIR / "segoeuib.ttf")))
+MM = 72 / 25.4
+W, H = 148 * MM, 210 * MM
+NAVY = colors.HexColor("#182C3C")
+BLUE = colors.HexColor("#286593")
+PALE = colors.HexColor("#EAF3F8")
+MUTED = colors.HexColor("#526675")
+GREEN = colors.HexColor("#217565")
+WHITE = colors.white
 
-font_dir = Path("C:/Windows/Fonts")
-pdfmetrics.registerFont(TTFont("Segoe", str(font_dir / "segoeui.ttf")))
-pdfmetrics.registerFont(TTFont("SegoeBold", str(font_dir / "segoeuib.ttf")))
 
-mm = 72 / 25.4
-w, h = 148 * mm, 210 * mm
-navy = colors.HexColor("#182C3C")
-blue = colors.HexColor("#286593")
-muted = colors.HexColor("#637581")
-line = colors.HexColor("#CBD9E1")
-white = colors.white
-
-
-def qr(url, filename):
-    code = qrcode.QRCode(error_correction=qrcode.constants.ERROR_CORRECT_M, box_size=12, border=4)
+def qr(url, name):
+    code = qrcode.QRCode(error_correction=qrcode.constants.ERROR_CORRECT_H, box_size=16, border=4)
     code.add_data(url)
     code.make(fit=True)
     image = code.make_image(fill_color="#182C3C", back_color="white").convert("RGB")
-    image.save(OUT / filename)
+    image.save(OUT / name)
     return ImageReader(image)
+
+
+def label(c, x, y, value, size=10, color=NAVY, font="Segoe"):
+    c.setFillColor(color)
+    c.setFont(font, size)
+    c.drawString(x * MM, H - y * MM, value)
 
 
 ios = qr(IOS_URL, "roomora-ios-qr.png")
 android = qr(ANDROID_URL, "roomora-android-qr.png")
-c = canvas.Canvas(str(PDF), pagesize=(w, h), pageCompression=1)
-c.setTitle("Roomora | Evde ve gezide ortak harcamalar")
+c = canvas.Canvas(str(PDF), pagesize=(W, H), pageCompression=1)
+c.setTitle("Roomora | Ortak harcamalar, net hesaplar")
 c.setAuthor("Roomora")
+c.setFillColor(WHITE)
+c.rect(0, 0, W, H, fill=1, stroke=0)
+c.setFillColor(NAVY)
+c.rect(0, H - 43 * MM, W, 43 * MM, fill=1, stroke=0)
+c.drawImage(ImageReader(str(ROOT / "src" / "assets" / "mark-white.png")), 13 * MM, H - 32 * MM, 21 * MM, 21 * MM, mask="auto", preserveAspectRatio=True)
+label(c, 37, 22, "ROOMORA", 23, WHITE, "SegoeBold")
+label(c, 37, 31, "Birlikte harca. Net hesaplaş.", 9, colors.HexColor("#DBE9F1"))
 
-c.setFillColor(navy)
-c.rect(0, h - 42 * mm, w, 42 * mm, fill=1, stroke=0)
-c.setFillColor(white)
-c.setFont("SegoeBold", 30)
-c.drawString(14 * mm, h - 22 * mm, "Roomora")
-c.setFont("Segoe", 11)
-c.drawString(14 * mm, h - 31 * mm, "Birlikte harca. Net hesaplaş.")
+label(c, 13, 55, "Evde de, yolda da", 19, NAVY, "SegoeBold")
+label(c, 13, 63, "hesaplar karışmasın.", 19, NAVY, "SegoeBold")
+label(c, 13, 75, "Kimin ödediği, kimin paylaştığı ve kalan bakiye", 9.3, MUTED)
+label(c, 13, 81, "tek yerde, herkes için açık.", 9.3, MUTED)
 
-c.setFillColor(navy)
-c.setFont("SegoeBold", 18)
-c.drawString(14 * mm, h - 57 * mm, "Evde de gezide de")
-c.drawString(14 * mm, h - 65 * mm, "hesaplar net olsun.")
-c.setFont("Segoe", 9.8)
-c.setFillColor(muted)
-c.drawString(14 * mm, h - 75 * mm, "Kira, fatura, market; otel, yemek, ulaşım.")
-c.drawString(14 * mm, h - 81 * mm, "Kim ödedi, kimlerle paylaşıldı, kim kime borçlu?")
+c.setFillColor(PALE)
+c.roundRect(13 * MM, H - 122 * MM, 122 * MM, 31 * MM, 3 * MM, fill=1, stroke=0)
+c.setStrokeColor(colors.HexColor("#B9D1E0"))
+c.line(74 * MM, H - 96 * MM, 74 * MM, H - 117 * MM)
+label(c, 19, 100, "EV ARKADAŞLARI", 9.1, BLUE, "SegoeBold")
+label(c, 19, 108, "Kira · fatura · market", 10, NAVY, "SegoeBold")
+label(c, 19, 115, "Payları ve ödemeleri izle.", 8.3, MUTED)
+label(c, 80, 100, "GEZİ EKİBİ", 9.1, GREEN, "SegoeBold")
+label(c, 80, 108, "Otel · yemek · ulaşım", 10, NAVY, "SegoeBold")
+label(c, 80, 115, "Yalnız ilgili kişilere böl.", 8.3, MUTED)
 
-steps = [
-    ("01", "Grubunu kur", "Ev arkadaşlarını veya gezi ekibini ekle."),
-    ("02", "Harcamayı kaydet", "Ödeyeni ve yalnız ilgili kişileri seç."),
-    ("03", "Bakiyeyi gör", "Ödemeleri bildir, onayla, hesabı kapat."),
-]
-y = h - 95 * mm
-for number, title, body in steps:
-    c.setFillColor(blue)
-    c.setFont("SegoeBold", 11)
-    c.drawString(14 * mm, y, number)
-    c.setFillColor(navy)
-    c.setFont("SegoeBold", 10.5)
-    c.drawString(27 * mm, y, title)
-    c.setFillColor(muted)
-    c.setFont("Segoe", 8.7)
-    c.drawString(27 * mm, y - 5.4 * mm, body)
-    y -= 17 * mm
-
-c.setStrokeColor(line)
-c.line(14 * mm, h - 151 * mm, 134 * mm, h - 151 * mm)
-c.setFillColor(navy)
-c.setFont("SegoeBold", 10)
-c.drawString(14 * mm, h - 160 * mm, "Hemen başla")
-
-qr_size = 27 * mm
-c.drawImage(ios, 26 * mm, h - 193 * mm, qr_size, qr_size, mask="auto")
-c.drawImage(android, 94 * mm, h - 193 * mm, qr_size, qr_size, mask="auto")
-c.setFillColor(navy)
-c.setFont("SegoeBold", 8)
-c.drawCentredString(39.5 * mm, h - 198 * mm, "iPhone")
-c.drawCentredString(107.5 * mm, h - 198 * mm, "Android")
-c.setFillColor(muted)
-c.setFont("Segoe", 7)
-c.drawCentredString(w / 2, 5 * mm, "Roomora  |  Ortak harcamalar, tek bir net hesap")
+label(c, 13, 136, "Ücretsiz indir, grubunu oluştur.", 12, NAVY, "SegoeBold")
+label(c, 13, 143, "Telefonunun mağazasına gitmek için kodu okut.", 8.6, MUTED)
+for x, image, title in ((22, ios, "App Store"), (86, android, "Google Play")):
+    c.setFillColor(WHITE)
+    c.setStrokeColor(colors.HexColor("#CCDDE7"))
+    c.roundRect((x - 5) * MM, H - 200 * MM, 50 * MM, 50 * MM, 2 * MM, fill=1, stroke=1)
+    c.drawImage(image, x * MM, H - 192 * MM, 40 * MM, 40 * MM, mask="auto")
+    c.setFillColor(NAVY)
+    c.setFont("SegoeBold", 9)
+    c.drawCentredString((x + 20) * MM, H - 198 * MM, title)
+c.setFillColor(BLUE)
+c.rect(0, 0, W, 4 * MM, fill=1, stroke=0)
+c.linkURL(IOS_URL, (17 * MM, H - 200 * MM, 68 * MM, H - 149 * MM), relative=0)
+c.linkURL(ANDROID_URL, (81 * MM, H - 200 * MM, 132 * MM, H - 149 * MM), relative=0)
 c.save()
 print(PDF)

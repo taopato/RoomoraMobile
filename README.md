@@ -31,7 +31,7 @@ npm install
 npm start
 ```
 
-Telefon ve bilgisayar aynı ağdayken Expo Go ile terminaldeki QR kodu okutun. API varsayılan olarak yerel ağdaki `5118` portunu kullanır; adresi `.env` veya `app.json` üzerinden yapılandırın.
+Yerel Android/iOS testi icin Expo development client kullanin; Expo Go, projedeki native modullerin tumunu calistirmaz. API adresini `.env` veya `app.json` uzerinden yapilandirin. Uretim hesabi yerine test hesabi kullanin.
 
 ```bash
 npm test
@@ -49,7 +49,7 @@ npm run export:ios
 - `src/shared/theme`: Roomora tasarım sistemi
 - `docs/store`: App Store ve Google Play hazırlıkları
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md): ekran, API ve hesap akisinin haritasi
-- `scripts/capture-demo-store.mjs`: yalniz yerel ornek veriyle magaza goruntusu uretimi
+- `scripts/capture-demo-store.mjs`: yalniz yerel ornek veriyle magaza gorseli taslagi uretimi; gercek cihaz ekran goruntusunun yerine gecmez
 
 ## Bağlı Projeler
 

@@ -68,7 +68,7 @@ for (const [scenario, data] of Object.entries(scenarios)) {
         'Kahvaltı': 'Breakfast',
       })[expense.tur] ?? expense.tur })),
     } : data;
-    const context = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, locale: language === 'tr' ? 'tr-TR' : 'en-US', reducedMotion: 'reduce' });
+    const context = await browser.newContext({ viewport: { width: 360, height: 640 }, deviceScaleFactor: 3, locale: language === 'tr' ? 'tr-TR' : 'en-US', reducedMotion: 'reduce' });
     const page = await context.newPage();
     await page.addInitScript(({ user, language }) => {
       localStorage.setItem('user', JSON.stringify(user));
@@ -87,7 +87,7 @@ for (const [scenario, data] of Object.entries(scenarios)) {
     await page.getByText(language === 'tr' ? 'Ödeme Yap' : 'Make Payment').last().click();
     await page.waitForTimeout(650);
     await page.getByText('Ece Arslan', { exact: true }).last().click();
-    await page.locator('input:visible').first().fill('710');
+    await page.locator('input:visible').first().fill(String(data.debts.pairs[0].netAmount));
     await page.getByText(language === 'tr' ? 'Ödenecek borcu seç' : 'Choose a debt to pay').click();
     await page.waitForTimeout(250);
     await page.screenshot({ path: join(out, `${prefix}-06-payment.png`) });
