@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 import { useTheme } from '../../theme/ThemeProvider';
 
 import { Text, TextInput } from '../../i18n';
@@ -25,7 +25,7 @@ export default function MoneyInput({
         <Text style={styles.currency}>₺</Text>
         <TextInput
           testID={testID}
-          style={styles.input}
+          style={[styles.input, Platform.OS === 'web' && styles.webInput]}
           value={value}
           onChangeText={onChangeText}
           placeholder={placeholder}
@@ -90,5 +90,10 @@ const makeStyles = (theme) => StyleSheet.create({
     lineHeight: 52,
     textAlign: 'left',
     paddingVertical: 0,
+  },
+  webInput: {
+    width: 160,
+    flexGrow: 0,
+    flexShrink: 0,
   },
 });

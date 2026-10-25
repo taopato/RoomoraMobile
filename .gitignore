@@ -12,6 +12,9 @@ dist-*/
 web-build/
 playwright-report/
 test-results/
+media/video/tr-*
+media/video/en-*
+media/video/*-preview.png
 blob-report/
 
 # Native
