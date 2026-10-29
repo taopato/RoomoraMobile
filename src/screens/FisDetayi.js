@@ -868,62 +868,16 @@ function FisDetayiInner({ route, navigation }) {
                 <Text style={styles.zoomResetButtonText}>Sıfırla</Text>
               </TouchableOpacity>
             </View>
-            {canEdit ? (
-              <>
-                <View style={styles.markerToolbar}>
-                  {markerOptions.map((option) => {
-                    const active = activeMarkerKey === option.key;
-                    return (
-                      <TouchableOpacity
-                        key={option.key}
-                        style={[
-                          styles.markerPill,
-                          active
-                            ? { backgroundColor: option.color.fill, borderColor: option.color.border }
-                            : styles.markerPillInactive,
-                          active && styles.markerPillActive,
-                        ]}
-                        onPress={() => {
-                          setActiveMarkerKey((prev) => {
-                            const next = prev === option.key ? null : option.key;
-                            setImageInteractionEnabled(Boolean(next));
-                            if (!next) setDraftSelection(null);
-                            return next;
-                          });
-                        }}
-                      >
-                        <View style={[styles.markerDot, { backgroundColor: option.color.badge }]} />
-                        <Text
-                          style={[
-                            styles.markerPillText,
-                            { color: active ? option.color.text : theme.colors.text.primary },
-                          ]}
-                          numberOfLines={1}
-                        >
-                          {option.label}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-                <Text style={styles.markerHint}>
-                  {imageInteractionEnabled
-                    ? (activeMarker
-                      ? `${activeMarker.label} için ürünün üstüne dokun veya küçük bir alan çiz. Kutular yalnızca gerçek ürün konumu varsa ya da sen oluşturduysan görünür.`
-                      : 'Fotoğraf aktif. Kutular sadece okunabilen ürünler veya senin oluşturduğun alanlar için gösterilir.')
-                    : 'Kalemleri doğrudan aşağıdaki kartlardan kişiye atayabilirsin. Fotoğraftan ayırmak istersen önce üstten bir kişi seç.'}
-                </Text>
-              </>
-            ) : (
+            {!canEdit ? (
               <View style={styles.convertedNotice}>
                 <Text style={styles.convertedNoticeTitle}>Harcamaya dönüştürüldü</Text>
                 <Text style={styles.convertedNoticeText}>Bu fiş kayıt bütünlüğü için salt okunur gösteriliyor.</Text>
               </View>
-            )}
+            ) : null}
             <PinchGestureHandler onGestureEvent={handlePinchGesture} onHandlerStateChange={handlePinchStateChange}>
               <View>
                 <PanGestureHandler
-                  enabled={imageInteractionEnabled && !activeMarker && totalZoom > 1.01}
+                  enabled={totalZoom > 1.01}
                   minDist={16}
                   minPointers={1}
                   maxPointers={1}
@@ -932,7 +886,6 @@ function FisDetayiInner({ route, navigation }) {
                 >
                   <View
                     style={styles.previewFrame}
-                    onTouchStart={() => setImageInteractionEnabled(true)}
                     onLayout={(event) => {
                       const { width, height } = event.nativeEvent.layout;
                       if (width && height) {
@@ -964,81 +917,12 @@ function FisDetayiInner({ route, navigation }) {
                           }
                         }}
                       />
-                      {items.map((item, index) => {
-                        const hasRealBox = item.boxLeft != null && item.boxTop != null && item.boxWidth != null && item.boxHeight != null;
-                        const overlay = hasRealBox ? compactPriceOverlayStyleFor(item) : null;
-                        if (!overlay) return null;
-                        const marker = getItemMarker(item);
-                        const focused = focusedOverlayIndex === index;
-                        const selected = selectedIndexes.includes(index);
-                        return (
-                          <Pressable
-                            key={`overlay-${item.id || index}`}
-                            style={[
-                              styles.imageOverlayHit,
-                              overlay,
-                              { borderColor: marker.border, backgroundColor: marker.fill },
-                              !hasRealBox && styles.imageOverlayHitFallback,
-                              !item.isAssigned && styles.imageOverlayHitIdle,
-                              selected && styles.imageOverlayHitSelected,
-                              focused && styles.imageOverlayHitActive,
-                            ]}
-                            onPress={() => handleOverlayPress(index)}
-                          >
-                            <View style={[
-                              styles.imageOverlayBadge,
-                              { backgroundColor: marker.badge },
-                              !item.isAssigned && styles.imageOverlayBadgeIdle,
-                              selected && styles.imageOverlayBadgeSelected,
-                              focused && styles.imageOverlayBadgeActive,
-                            ]}
-                            >
-                              <Text style={[
-                                styles.imageOverlayBadgeText,
-                                !item.isAssigned ? styles.imageOverlayBadgeTextIdle : { color: theme.colors.text.onPrimary },
-                                (selected || focused) && styles.imageOverlayBadgeTextActive,
-                              ]}
-                              >
-                                {index + 1}
-                              </Text>
-                            </View>
-                            <Text style={styles.imageOverlayPriceText} numberOfLines={1}>
-                              {toNumber(item.lineTotal || item.price).toLocaleString(getLocale(), { maximumFractionDigits: 2 })}
-                            </Text>
-                          </Pressable>
-                        );
-                      })}
-                    </View>
-                    <View
-                      style={StyleSheet.absoluteFill}
-                      pointerEvents={activeMarker ? 'auto' : 'box-none'}
-                      {...drawResponder.panHandlers}
-                    >
-                      {draftSelectionStyle ? (
-                        <View style={[styles.draftSelectionBox, draftSelectionStyle]} />
-                      ) : null}
                     </View>
                   </View>
                 </PanGestureHandler>
               </View>
             </PinchGestureHandler>
           </>
-        ) : null}
-
-        {focusedOverlayIndex != null && items[focusedOverlayIndex] ? (
-          <View style={styles.focusInfoCard}>
-            <View style={styles.focusInfoHeader}>
-              <Text style={styles.focusInfoTitle}>
-                Secili kalem: {items[focusedOverlayIndex].name || `Kalem ${focusedOverlayIndex + 1}`}
-              </Text>
-              <TouchableOpacity onPress={() => setFocusedOverlayIndex(null)}>
-                <Text style={styles.bulkClear}>Kapat</Text>
-              </TouchableOpacity>
-            </View>
-            <Text style={styles.focusInfoText}>
-              Bu kalemin kime ait oldugunu hemen asagidaki karttan secebilirsin. Fotografta yeni bir urun ayirmak istersen ustten kisi secip urunun ustunde alan ciz.
-            </Text>
-          </View>
         ) : null}
 
         <View style={styles.section} onTouchStart={deactivateImageInteraction}>

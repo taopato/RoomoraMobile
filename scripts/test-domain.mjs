@@ -115,6 +115,11 @@ assert.equal(discountedByName['DANA KANGAL SUCUK'].lineTotal, 299.5);
 assert.equal(discountedByName['SLEEPY YUZTEM100LU'].lineTotal, 77.5);
 assert.equal(extractDetectedTotalFromRawText(discountedReceipt), 1411);
 
+const subtotalReceipt = `AKIM KORUMALI PRIZ *299,00\nARA TOP. *299,00\nTOPLAM *299,00`;
+assert.deepEqual(resolveReceiptItems([], subtotalReceipt, 299).map((item) => item.name), ['AKIM KORUMALI PRIZ']);
+assert.equal(extractDetectedTotalFromRawText(subtotalReceipt), 299);
+assert.equal(extractDetectedTotalFromRawText('TOPKDV TOPLAM *481,90 *3,48'), 481.9);
+
 const receiptMembers = [{ id: 38 }, { id: 39 }, { id: 40 }];
 assert.deepEqual(
   getReceiptItemParticipantIds({ isShared: true, participantUserIds: [] }, receiptMembers),

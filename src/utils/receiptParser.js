@@ -33,7 +33,9 @@ const RECEIPT_META_KEYWORDS = [
 
 export const isReceiptMetaName = (value) => {
   const upper = String(value || '').trim().toUpperCase();
+  const compact = upper.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Z0-9]/g, '');
   if (!upper) return true;
+  if (compact.startsWith('ARATOP') || compact.startsWith('TOPLAM') || compact.startsWith('TOPKDV') || compact.includes('HATADUZELT')) return true;
   if (RECEIPT_META_KEYWORDS.some((keyword) => upper.includes(keyword))) return true;
   if (/^\d{6,}$/.test(upper)) return true;
   if (/^\d+\s+AD(?:ET)?\s+X\s+\d/.test(upper)) return true;
@@ -203,9 +205,12 @@ export const extractDetectedTotalFromRawText = (rawText) => {
   for (const priority of priorities) {
     for (let index = lines.length - 1; index >= 0; index -= 1) {
       const line = lines[index];
-      if (!priority.test(line) || /TOPLAM KDV/i.test(line)) continue;
+      const compact = line.toLocaleUpperCase('tr-TR').normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '').replace(/[^A-Z0-9]/g, '');
+      if (!priority.test(line) || compact.startsWith('ARATOP') || compact.startsWith('TOPLAMKDV')) continue;
       const matches = [...line.matchAll(/\d{1,3}(?:[ .]\d{3})*(?:[.,]\d{2})/g)];
-      const amount = parseReceiptAmount(matches.at(-1)?.[0]);
+      const amounts = matches.map((match) => parseReceiptAmount(match[0])).filter((amount) => amount > 0);
+      const amount = compact.startsWith('TOPKDVTOPLAM') ? Math.max(...amounts) : amounts.at(-1);
       if (amount > 0) return amount;
     }
   }
