@@ -1,3 +1,5 @@
+import { selectParticipant } from './participantSelection.js';
+
 const normalizeIds = (values = []) => [...new Set(
   values.map(Number).filter((value) => Number.isInteger(value) && value > 0)
 )].sort((left, right) => left - right);
@@ -28,9 +30,26 @@ export const buildReceiptAssignment = (participantUserIds, members = []) => {
 export const toggleReceiptParticipant = (item, userId, members = []) => {
   const selected = getReceiptItemParticipantIds(item, members);
   const numericUserId = Number(userId);
-  const next = selected.includes(numericUserId)
-    ? selected.filter((id) => id !== numericUserId)
-    : [...selected, numericUserId];
+  const next = selectParticipant(
+    selected,
+    numericUserId,
+    members.map((member) => Number(member.id ?? member.userId))
+  ).map(Number);
   return buildReceiptAssignment(next, members);
+};
+
+export const getReceiptParticipantSummary = (participantUserIds, members = []) => {
+  const memberIds = getMemberIds(members);
+  const selected = normalizeIds(participantUserIds).filter((id) => memberIds.includes(id));
+
+  if (selected.length === 0) return 'Kişi seçilmedi';
+  if (memberIds.length > 0 && selected.length === memberIds.length) return 'Tüm ev';
+
+  const names = members
+    .filter((member) => selected.includes(Number(member.id)))
+    .map((member) => String(member.fullName || member.name || 'Ev arkadaşı'));
+
+  if (names.length === 1) return names[0];
+  return `${names.length} kişi`;
 };
 

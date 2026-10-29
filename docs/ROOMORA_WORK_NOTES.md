@@ -1,0 +1,85 @@
+# Roomora calisma notlari
+
+Son guncelleme: 2026-10-23. Bu dosya sohbet uzadiginda kaldigimiz yeri hatirlamak icindir; uygulama degisikligi veya yayin onayi yerine gecmez.
+
+## Mevcut durum
+
+- Google Play'de uretim erisimi verilmis. Kullanici Turkiye bolgesini ve kapali test surumu 5 (1.0.1) icin tam kullanima sunma istegini incelemeye gonderdi. Son paylasilan ekranda degisiklikler **incelemede**; canliya ciktigini varsayma, Console durumunu yeniden dogrula.
+- 2026-10-22'de paylasilan son ekran `Acik test` kanalina ait ve bu kanalda surum yok. Bu, uretim basvurusunu etkilemez. Mevcut test edilmis surum 5 uretime terfi ettirildigi icin kod degismediyse yeni Android build/AAB gerekmez. `Test edin ve yayinlayin > Uretim` veya `Yayin ozeti` uzerinden inceleme durumu izlenmeli. Yonetilen yayinlama aciksa onaydan sonra `Yayinla` adimi gerekebilir.
+- Ayni gun paylasilan `Uretim` ekraninda kanal `Etkin degil`, `Taslak surum`, `1 ulke/bolge` ve `1 yukleme` gorunuyor; Turkiye hedeflemesi dogru. Bu ekran tek basina incelemenin bitip bitmedigini gostermiyor. `Uretim > Surumler` altindaki taslak durumu ve `Yayin ozeti` kontrol edilmeli. Yeni build olusturma; mevcut surum 5 taslagi tamamlanacak veya inceleme sonucu beklenecek.
+- `Uretim > Surumler` ekraninda `Basliksiz surum`, durum `Taslak` ve `Surumu duzenle` goruldu. Bu uretim surumu henuz incelemeye gonderilmemis/tamamlanmamis. Siradaki adim `Surumu duzenle`; mevcut yuklenmis surum 5/AAB korunacak, yeni build yuklenmeyecek. Surum adi ve notlari doldurulup `Sonraki`/`Kaydet` ile onizleme ekranina gecilecek.
+- `Uretim surumu olusturma` ekraninda paket alani bos ve `Kitapliktan ekle` secenegi goruldu. Mevcut kapali test AAB'si buradan secilerek uretim taslagina baglanmali; `Yukle` ile yeni paket yuklenmemeli. Ardindan surum adi `Roomora 1.0.1` ve yerellestirilmis surum notlari girilecek.
+- Surum 5 (1.0.1) kitapliktan uretim taslagina eklendi, kaydedildi ve incelemeye gonderildi. 2026-10-22'de Play Console dogrudan salt okunur kontrol edildi: uretim kanalinda `5 (1.0.1) surumu incelemede`, kanal `Etkin`, 1 ulke/bolge ve 1 yukleme gorunuyor. Su anda islem gerekmiyor. Onceki yorum duzeltmesi: ekrandaki tam etiket `Yonetilen yayinlama devre disi birakildi`; yani onaydan sonra surum otomatik yayinlanacak. Acik test ayri bir kanal ve orada surum olmadigi icin `Yeni surum olustur` dugmesinin acik olmasi normal.
+- Kullanici yeni ozellikleri iOS TestFlight'ta canli veritabaniyla denemek istiyor. Android uretim kanalina bu degisikliklerle dokunma; iOS ve Android magazalarinda canli yayin ancak kullanici acikca "canliya al" dediginde yapilacak.
+- 2026-10-22 uygulama calismasi basladi. Backend degisiklikleri canli API'ye dagitilacak, mobil degisiklikler yeni native bildirim modulu nedeniyle OTA yerine yeni TestFlight binary'si olarak gonderilecek.
+
+## Istekler ve kod bulgulari
+
+1. **Marka adi:** `app.json` icindeki uygulama adi zaten `Roomora`. Fakat `src/screens/roomora/RoomoraHome.js`, `src/screens/SettingsInfo.js` ve `src/screens/GirisYap.js` gibi ekranlarda `Ortak yasamin kolay hali` slogani gorunuyor. Kullanici yalniz `Roomora` istiyor. Degisiklikten once tam olarak hangi gorunumu kastettigini uygulama ve magazadaki gorunen adlar arasinda ayir; ilgili sabitleri/i18n karsiliklarini birlikte duzelt. Magaza listeleme adi ayrica kontrol edilmeli.
+2. **Gezi grubu:** `Domain/Entities/House.cs` sadece ad, uyeler, olusturan ve kapak resmi tutuyor. `src/screens/YeniEvGrubu.js` sadece ev adi aliyor. Oneri: mevcut House kimligini/tablosunu koruyup geriye donuk uyumlu `GroupType = Home | Trip` ekle; mevcut gruplari Home varsay. Gezi icin istege bagli baslangic/bitis tarihi, para birimi ve arsiv durumu; ortak harcama/paylasim/bakiye/odeme motoru ortak kalsin. Gezi ekraninda ev faturasi ve ev notlari gibi ev odakli alanlari gizle/uyarla. Adlandirma/i18n, davet ve aktif grup secimi beraber incelenmeli. Gezi icin coklu para birimi gerekiyorsa ayri faz olarak tasarla; sessizce TRY disi tutarlari birlestirme.
+3. **Kisisel hizli harcama:** `src/screens/HarcamaEkle.js` sabit `roomora_quick_expense_choices` AsyncStorage anahtari kullaniyor; hesaplar arasi ayrim yok. Yeni secim yalniz ad/kategori kaydediyor. Son kullanimi veya ayni adli son harcamayi arayip tutar, odeyen, katilimci bilgisi doldurmaya calisiyor; ayni adli farkli sigaralar icin belirsiz. Oneri: sunucuda `QuickExpenseTemplate` (OwnerUserId, GroupId, Name, Amount, Category, Description, PayerUserId, ParticipantIds/split, IsArchived, timestamps) ve yalniz sahibine erisim. Grup uyeleri degisince eski ID'leri dogrula. Sablon secimi formu **on doldurur**, harcamayi otomatik kaydetmez. Sablon olustururken o anki tum ilgili alanlari acikca kaydet; "son kayit" aramasini kaldir. Eski cihaz-yerel secimleri hesap karismasi yaratmadan ihtiyatli tasima/temizleme plani gerekir.
+4. **Degisken su faturasi:** `Domain/Entities/RecurringCharge.cs` zaten `AmountMode.Variable` ve nullable `DueDay` iceriyor, ancak `RecurringChargesController.cs` plan olustururken zorunlu DueDay istiyor; `src/screens/FaturaEkle.js` de dueDate zorunlu. `CreateExpenseCommandHandler.cs` dueDate yoksa islem tarihini atiyor. Oneri: "degisken fatura / odendiginde tutar gir" modu; fatura plani icin vade zorunlu degil, ay gelince odenen gercek tutar/tarih/odeyen kaydedilir, tekil islem ve kisi paylari uretilir. Kurumun odendi durumu ile ev arkadaslarinin birbirine borcu ayri durumlar olarak gosterilir. Eski duzenli/tekil faturalar ve ledger icin geriye uyum/test gerekir.
+5. **Telefon push'u:** `src/screens/Bildirimler.js` yalniz bekleyen odemeleri API'den okuyor; `src/screens/SettingsInfo.js` bildirim tercihlerini sadece cihaz AsyncStorage'inda tutuyor. Kodda `expo-notifications` veya backend push altyapisi bulunmadi. Oneri: izin isteme + cihaz tokenini hesaba kaydetme/silme; backend olay bazli bildirim kaydi/outbox, sunucu tarafli tercihler, push gonderim isleyicisi, teslim/hatali token yonetimi, tekrar gonderimde idempotency, dokununca ilgili ekrana yonlendirme. Ilk olaylar: odeme talebi/onayi, ev/gezi daveti, yaklasan gercek vade; degisken ve odenmis su faturasi icin sahte vade bildirimi yok. Push gelsin gelmesin uygulama ici kayit kalici olmali. Expo kurulumu iOS push key, Android FCM v1 ve yeni native build gerektirir; Expo Go ile dogrulama planlama.
+
+## Onerilen sira ve kabul olcutleri
+
+1. Grup turu ve fatura semantigini veri/API sozlesmesiyle netlestir; mevcut evlerin davranisi degismemeli.
+2. Kisisel hizli harcama sablonunu ve secerken tum alanlarin on dolmasini uygula; farkli kullanici/ev hesaplari arasinda veri sizmamali.
+3. Degisken faturada gercek tutar kaydedilmeden borc dogmamali; odendi etiketi banka/kurum odemesini, kisi bakiyesi de ayri borcu dogru gostermeli.
+4. Push bildirimleri test buildlerinde uctan uca sinayip sonra yayina hazirla. Tum degisiklikleri once test kanallarinda onaya sun; uretime otomatik gonderme.
+
+## 2026-10-22 uygulananlar
+
+- Backend'e geriye uyumlu `GroupType` (Home/Trip), gezi tarihleri, para birimi ve arsiv alanlari eklendi. Mevcut gruplar otomatik Home kalir.
+- Yeni grup ekranina Ortak Ev / Gezi secimi eklendi. Gezi grubunda planli faturalar yuklenmez ve Faturalar sekmesi gizlenir; harcama, bakiye, odeme ve notlar ayni motoru kullanir.
+- Kullanici ve grup bazli `QuickExpenseTemplate` eklendi. Tutar, kategori, aciklama, odeyen, katilimcilar ve kisisel paylar sunucuda saklanir; secmek yalniz formu doldurur ve otomatik harcama olusturmaz. Silme soft delete'tir.
+- Su faturasi tekil odenmis gider olarak kaydedilir. Su seciliyken ayrica son odeme tarihi istenmez; fatura tarihi odeme tarihi olarak kullanilir. Kisi paylari ayri borc olarak takip edilmeye devam eder.
+- `expo-notifications` ile iOS/Android cihaz kaydi, kullanici tercihleri, cikista token pasiflestirme ve sabit planlar icin yerel hatirlatma eklendi. Backend odeme bildirimi/onay/red ve kayitli kullanici davetlerinde Expo push gonderir. Cihaz dili saklanir ve push metni Turkce/Ingilizce secilir.
+- Gorunen "Ortak yasamin kolay hali" sloganlari kaldirildi; marka yuzeylerinde yalniz Roomora kaldi.
+- Expo SDK yama paketleri uyumlu surumlere getirildi. `expo-doctor` 20/20, domain testleri, iOS JS export ve dil gecis testi basarili.
+- Backend commit `6b02fd7` 2026-10-22'de `main` dalina gonderildi. GitHub `Backend CI`, `Publish Backend Image` ve production deployment basarili. Dagitim yedek ve EF migration adimlarini calistirdi. Canli `/health` 200/dataset available; yeni QuickExpenseTemplates endpointi yetkisiz istege 401 vererek canli rotanin yuklendigini dogruladi.
+- iOS TestFlight build `1.0.1 (8)` (`76443d2c-bde0-489d-a1e9-f413a27d53a4`) baslatildi fakat Xcode, eski provisioning profile'da Push Notifications capability ve `aps-environment` entitlement olmadigi icin buildi durdurdu. Kod/export testleri basarili; Apple Developer oturumu yenilenip Push yetkili provisioning profile uretilmeli, sonra yeni build alinmali. Apple sifresi notlara veya repoya yazilmayacak.
+- Apple Developer oturumu yenilendi, `com.taopato.roomora` icin Push Notifications capability etkinlestirildi ve yeni App Store provisioning profile `LH39LT9A9S` olusturuldu.
+- iOS TestFlight build `1.0.1 (9)` (`a5b93e4f-095e-4df3-964b-8f37b7d14098`) yeni profile ile basariyla tamamlandi. Otomatik App Store Connect teslimi `b0c21fa4-814a-49d7-b140-6954f74de518` EAS kuyruğunda; son kontrolde `IN_QUEUE`, `error: null`. Android uretim ve iOS canli yayin degistirilmedi.
+
+- Build 9 testinde hizli secim kaydetme isteginin genel hata verdigi ve tum katilimcilar seciliyken bir kisiye dokunmanin o kisiyi cikardigi raporlandi.
+- Hizli secim hatasinin canli API kok nedeni bulundu: `ExpenseCategory : byte` degeri `int` ile `Enum.IsDefined` icinde karsilastirildigi icin gecerli kategoride runtime hatasi olusuyordu. Backend commit `88ebfda` main'e dagitildi. Canli API'de test hesabi ile sablon olusturma basarili, gecersiz kategori `400`, olusturulan test sablonunu soft-delete ile temizleme basarili ve `/health` `200` olarak dogrulandi.
+- Katilimci secimi ortak bir yardimciya tasindi. Herkes seciliyken bir kisiye ilk dokunus artik yalniz o kisiyi secer; sonraki dokunuslar baska kisileri ekler veya en az bir kisi kalacak sekilde cikarir. Harcama ekleme/duzenleme, fatura ekleme ve fis kalemi atama akislari ayni davranisi kullanir. Hizli secim kaydinda cift dokunma engeli ve API hata ayrintisi eklendi.
+- Duzeltme sonrasi domain testleri, Expo Doctor `20/20`, iOS export, Android export ve web dil gecisi smoke testi basarili. Android magazasina yeni surum gonderilmedi.
+- iOS TestFlight build `1.0.1 (10)` (`634dd460-c4a6-45df-bb74-3465f08faaed`) commit `ad22516` ve canli API ile basariyla tamamlandi. App Store Connect teslimi `8ff48c09-9336-426a-8a49-a41a1edba2e2` planlandi; son kontrolde `IN_QUEUE`, `error: null`. Android production ve iOS canli yayin degistirilmedi.
+
+## Siradaki adim
+
+1. Build 10 App Store Connect tesliminin tamamlanmasini ve Apple TestFlight processing islemini izle; Android build veya production yayini yapma.
+2. Kullanici build 10'da hizli secim kaydetme, kisi secme, gezi grubu, su faturasi ve push iznini test edecek.
+
+## 2026-10-22 magaza yayini guncellemesi
+
+- Kullanici iOS ve Android icin canli yayin onayi verdi.
+- Google Play Turkce magaza adi `Roomora` yapildi. Kisa ve uzun aciklama ev, gezi ve arkadas gruplarindaki ortak harcamalari kapsayacak sekilde yenilendi. Magaza girisi yeni Android paketiyle birlikte incelemeye gonderilecek.
+- App Store Connect'te `1.0.1` surumu olusturuldu. Turkce ve Ingilizce tanitim metni, aciklama, arama kelimeleri ve surum notlari ev/gezi kullanimini kapsayacak sekilde guncellendi.
+- App Store uygulama adi `Roomora`, Turkce alt baslik `Ev ve gezi giderlerini bolus` yapildi. TestFlight build `1.0.1 (10)` surume baglandi.
+- iOS `1.0.1 (10)` App Review'a gonderildi ve `Waiting for Review` durumunda. Onaydan sonra otomatik yayinlanacak.
+- Android'de iOS izin cevirilerinin Android kaynaklarina sizmasina neden olan Expo locale yapisi duzeltildi. Yerel Android lint raporu `No issues found` / donus kodu `0`; Gradle rapor sonrasinda yerel metaspace sinirina carpsa da lint islemleri basariyla tamamlandi.
+- Android duzeltmesi commit `ecd0988` ile GitHub'a gonderildi. EAS production build `390451e8-5d14-439f-b75a-d30156313b7f`, `1.0.1 (7)` olarak kuyrukta. Tamamlaninca AAB Google Play uretim surumune yuklenecek ve magaza metniyle birlikte incelemeye gonderilecek.
+- Android yayini bittikten sonra kayit/dogrulama e-postalarinin spam'e dusme nedeni; SMTP gonderen kimligi, SPF, DKIM, DMARC ve e-posta basliklari uzerinden incelenecek.
+
+## 2026-10-23 yayin ve e-posta guncellemesi
+
+- Android EAS production build `390451e8-5d14-439f-b75a-d30156313b7f` basariyla tamamlandi. AAB surum kodu `7`, uygulama surumu `1.0.1`; SHA-256 `8955B8D6A30BC85BFAFE8B6F04244E0940B9923ECBC871C26BFC18B606E9C885`.
+- Android `7 (1.0.1)` uretim kanalina yuzde 100 sunumla yuklendi. Turkce magaza adi `Roomora`, ev/gezi/arkadas grubu odakli kisa ve tam aciklama ile birlikte Google incelemesine gonderildi. Play Console durumu `Incelenmekte olan degisiklikler`; yonetilen yayinlama kapali oldugu icin onaydan sonra otomatik yayinlanacak.
+- iOS `1.0.1 (10)` halen `Waiting for Review`; magazada ad `Roomora`, Turkce alt baslik `Ev ve gezi giderlerini bolus`. Onaydan sonra otomatik yayinlanacak.
+- E-posta basliklarinda SPF ve DKIM geciyor. Backend e-posta sablonundan eski slogan ve Gmail onizlemesine sizan CSS kaldirildi, e-posta logosu yaklasik 158 KB'den 11 KB'ye dusuruldu. Backend commit `4cbfbb9` main'e gonderildi; CI, imaj ve production dagitimi basarili, canli health/database kontrolu saglikli.
+- Cloudflare DNS'e `_dmarc` TXT kaydi eklendi: `v=DMARC1; p=none; rua=mailto:destek@takosware.com; adkim=r; aspf=r; pct=100`. Kayit 1.1.1.1 uzerinden dogrulandi. DMARC sonrasinda canli API ile gonderilen test dogrulama e-postasi Gmail Gelen Kutusu'na dustu; onizleme temiz, gonderen `send.takosware.com`, imzalayan `takosware.com` ve TLS etkin.
+
+## 2026-10-25 magaza materyali ve portfoy calismasi
+
+- Kullanici ekran goruntuleri, iki ayri TR/EN kullanim videosu, QR'li A5 brosur, backend/frontend mimari temizligi ve GitHub portfoy duzenini onayladi. Yeni ozellik veya production binary build istenmedi.
+- `scripts/capture-demo-store.mjs` gercek Roomora web UI'sini yerel sahte API verisiyle ev/gezi ve TR/EN olarak yakalar. Kisisel test fotografi ve canli kullanici finans verisi kullanilmaz. Ev: elektrik, su, internet, kira, market. Gezi: otel, yemek, transfer, kahvalti. Kisi secimi ve bakiye tutarlari kurgusal senaryoda uyumludur.
+- `media/store` altinda her dil ve senaryo icin ev, giderler, harcama ekleme, secili kisi payi, bakiye ve odeme ekranlari; ev icin ayrica fatura ekrani vardir. Web MoneyInput yatay konumu duzeltildi. `npm test` ve `npm run web:build` basarili.
+- `media/video/roomora-guide-tr.mp4` (106 sn) ve `roomora-guide-en.mp4` (96 sn) 1080p seslendirmeli rehber olarak uretildi. Senaryo: grup, harcama, odeyen/katilimci, faturalar, net bakiye, odeme bildirimi/onayi ve gezi.
+- `media/brochure/roomora-a5-tr.pdf` A5 basim dosyasi; iOS `id6800784560` ve Android `com.taopato.roomora` ayri QR'lari icerir. iTunes lookup iOS uygulamasini ve Google Play URL'si HTTP 200'u dogruladi.
+- Backend'de cozume bagli olmayan 19 adet `* - Backup*.csproj` silindi, .gitignore'a tekrar olusmamasi icin kural eklendi; gercek EF migration'larina dokunulmadi. `dotnet build EvArkadasim.sln --no-restore` 0 uyari/0 hata.
+- Mobil ve backend README/architecture diyagramlari yenilendi; OCR ve Web README'lerine akisa uygun diyagram eklendi. Dort aktif Roomora GitHub reposunun aciklama/konu etiketleri guncellendi. Dort eski EvArkadasim deposu geri alinabilir sekilde arsivlendi, kalici silinmedi.
+- **Magaza gorselleri henuz canli listelemeye yuklenmedi.** Bu oturumda Work browser erisimi kapali; ayrica Apple app preview videosu icin gercek cihaz yakalamasi gerekir. Uretilen 96-106 saniyelik videolar kullanim rehberidir, 15-30 saniyelik App Store preview'i degildir. iOS/Android magazasi eski goruntuleri halen gosterebilir. Yuklendi/onaylandi diye raporlama.
+- Frontend'de hicbir importu olmayan `Separator.js` ve `useToast.js` kaldirildi; aktif `Toast.js` korunur. Web MoneyInput duzeltmesi mobil platformlara uygulanmaz.

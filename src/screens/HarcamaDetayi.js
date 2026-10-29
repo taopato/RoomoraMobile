@@ -3,13 +3,15 @@ import { StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { expensesApi, houseApi, ledgerApi } from '../services/api';
+import { expensesApi, houseApi, ledgerApi, receiptsApi } from '../services/api';
 import { useTheme } from '../shared/theme/ThemeProvider';
 import { EmptyState, LoadingState, PageHeader, PrimaryButton, money } from '../shared/ui/roomora/CanonicalUI';
 import { formatMoneyInput, parseMoneyInput } from '../shared/format/money';
+import { selectParticipant } from '../utils/participantSelection';
 import eventBus from '../shared/events/bus';
 import KeyboardAwareScreen from '../shared/ui/KeyboardAwareScreen';
 import MoneyInput from '../shared/ui/roomora/MoneyInput';
+import { getReceiptItemParticipantIds, getReceiptParticipantSummary } from '../utils/receiptAssignments';
 
 import { Alert, Text, TextInput } from '../shared/i18n';
 import { getLocale } from '../shared/i18n/runtime';
@@ -39,6 +41,8 @@ export default function HarcamaDetayi({ navigation, route }) {
   const [payerId, setPayerId] = useState('');
   const [participantIds, setParticipantIds] = useState([]);
   const [personal, setPersonal] = useState({});
+  const [linkedReceiptId, setLinkedReceiptId] = useState(null);
+  const [linkedReceipt, setLinkedReceipt] = useState(null);
 
   const hydrateForm = useCallback((item, availableMembers = []) => {
     setTitle(String(pick(item, ['tur', 'Tur', 'description', 'Description'], 'Harcama')));
@@ -72,10 +76,11 @@ export default function HarcamaDetayi({ navigation, route }) {
     }
     if (!initialExpense) setLoading(true);
     try {
-      const [expenseResult, ledgerResult, memberResult] = await Promise.allSettled([
+      const [expenseResult, ledgerResult, memberResult, receiptResult] = await Promise.allSettled([
         expensesApi.getById(expenseId),
         ledgerApi.byExpense(expenseId),
         houseId ? houseApi.getMembers(houseId) : Promise.resolve({ data: [] }),
+        receiptsApi.getByExpense(expenseId),
       ]);
       const item = expenseResult.status === 'fulfilled'
         ? expenseResult.value?.data?.data ?? expenseResult.value?.data
@@ -86,6 +91,9 @@ export default function HarcamaDetayi({ navigation, route }) {
       const memberList = memberResult.status === 'fulfilled'
         ? memberResult.value?.data?.data ?? memberResult.value?.data ?? []
         : [];
+      const linkedReceipt = receiptResult.status === 'fulfilled'
+        ? receiptResult.value?.data?.data ?? receiptResult.value?.data
+        : null;
       const normalizedMembers = (Array.isArray(memberList) ? memberList : []).map((member) => {
         const id = Number(pick(member, ['userId', 'UserId', 'id'], 0));
         return {
@@ -111,6 +119,8 @@ export default function HarcamaDetayi({ navigation, route }) {
         ? normalizedShares
         : Array.from(totals, ([userId, value]) => ({ userId, value })));
       setExpense(item);
+      setLinkedReceiptId(linkedReceipt?.id || null);
+      setLinkedReceipt(linkedReceipt || null);
       if (item) hydrateForm(item, normalizedMembers);
     } catch {
       setExpense(null);
@@ -129,16 +139,15 @@ export default function HarcamaDetayi({ navigation, route }) {
   const toggleParticipant = (memberId) => {
     const id = String(memberId);
     setParticipantIds((current) => {
-      if (current.includes(id)) {
-        if (current.length === 1) return current;
+      const next = selectParticipant(current, id, members.map((member) => member.id));
+      if (current.includes(id) && !next.includes(id)) {
         setPersonal((values) => {
-          const next = { ...values };
-          delete next[id];
-          return next;
+          const nextPersonal = { ...values };
+          delete nextPersonal[id];
+          return nextPersonal;
         });
-        return current.filter((value) => value !== id);
       }
-      return [...current, id];
+      return next;
     });
   };
 
@@ -240,6 +249,14 @@ export default function HarcamaDetayi({ navigation, route }) {
       name: pick(item, ['kullaniciAdi', 'KullaniciAdi'], ''),
     }))
     .filter((item) => item.userId > 0 && item.value > 0);
+  const receiptItems = (Array.isArray(linkedReceipt?.items) ? linkedReceipt.items : [])
+    .map((item) => ({
+      id: pick(item, ['id', 'Id']),
+      name: String(pick(item, ['name', 'Name'], 'İsimsiz kalem')),
+      amount: Number(pick(item, ['lineTotal', 'LineTotal', 'price', 'Price'], 0)),
+      participantIds: getReceiptItemParticipantIds(item, members),
+    }))
+    .filter((item) => item.amount > 0);
   const visibleNote = note && note.trim() !== title.trim() ? note : '';
 
   return (
@@ -301,15 +318,56 @@ export default function HarcamaDetayi({ navigation, route }) {
               </View>
             )}
 
+            {receiptItems.length > 0 && (
+              <View style={styles.card}>
+                <View style={styles.receiptSectionHeader}>
+                  <View style={styles.receiptSectionTitleBlock}>
+                    <Text style={styles.sectionTitle}>Fiş kalemleri</Text>
+                    <Text style={styles.sectionDescription}>Borcun hangi ürünlerden oluştuğunu kalem kalem görebilirsin.</Text>
+                  </View>
+                  <View style={styles.receiptCountBadge}>
+                    <Text style={styles.receiptCountText}>{receiptItems.length}</Text>
+                  </View>
+                </View>
+                {receiptItems.map((item, index) => (
+                  <View key={`receipt-item-${item.id || index}`} style={styles.receiptItemRow}>
+                    <View style={styles.receiptItemNumber}>
+                      <Text style={styles.receiptItemNumberText}>{index + 1}</Text>
+                    </View>
+                    <View style={styles.receiptItemBody}>
+                      <Text style={styles.receiptItemName} numberOfLines={2}>{item.name}</Text>
+                      <Text style={styles.receiptItemPeople} numberOfLines={1}>
+                        {getReceiptParticipantSummary(item.participantIds, members)}
+                      </Text>
+                    </View>
+                    <Text style={styles.receiptItemAmount}>{money(item.amount)}</Text>
+                  </View>
+                ))}
+                <TouchableOpacity
+                  style={styles.receiptOpenButton}
+                  onPress={() => navigation.navigate('FisDetayi', { receiptId: linkedReceiptId, houseId })}
+                >
+                  <Ionicons name="receipt-outline" size={18} color={theme.colors.primary[700]} />
+                  <Text style={styles.receiptOpenButtonText}>Fişi ve paylaşımı görüntüle</Text>
+                  <Ionicons name="chevron-forward" size={18} color={theme.colors.primary[700]} />
+                </TouchableOpacity>
+              </View>
+            )}
+
             <TouchableOpacity
               style={styles.editButton}
-              onPress={() => navigation.navigate('HarcamaDuzenle', {
-                expenseId,
-                houseId,
-                houseName: route?.params?.houseName,
-                initialExpense: expense,
-                startEditing: true,
-              })}
+              onPress={() => navigation.navigate(
+                linkedReceiptId ? 'FisDetayi' : 'HarcamaDuzenle',
+                linkedReceiptId
+                  ? { receiptId: linkedReceiptId, houseId, editConverted: true }
+                  : {
+                    expenseId,
+                    houseId,
+                    houseName: route?.params?.houseName,
+                    initialExpense: expense,
+                    startEditing: true,
+                  }
+              )}
             >
               <Ionicons name="pencil-outline" size={19} color={theme.colors.primary[700]} />
               <Text style={styles.editText}>Düzenle</Text>
@@ -442,6 +500,19 @@ const makeStyles = (theme, insets) => StyleSheet.create({
   personalIcon: { width: 32, height: 32, borderRadius: 16, backgroundColor: theme.colors.warning[50], alignItems: 'center', justifyContent: 'center' },
   personalBody: { flex: 1 },
   personalCaption: { color: theme.colors.text.secondary, fontFamily: theme.typography.regular, fontSize: 11, marginTop: 2 },
+  receiptSectionHeader: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 4 },
+  receiptSectionTitleBlock: { flex: 1, paddingRight: 10 },
+  receiptCountBadge: { minWidth: 28, height: 28, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.primary[50] },
+  receiptCountText: { color: theme.colors.primary[700], fontFamily: theme.typography.bold, fontSize: 13 },
+  receiptItemRow: { minHeight: 58, flexDirection: 'row', alignItems: 'center', gap: 10, borderTopWidth: 1, borderTopColor: theme.colors.neutral[100] },
+  receiptItemNumber: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.primary[100] },
+  receiptItemNumberText: { color: theme.colors.primary[700], fontFamily: theme.typography.bold, fontSize: 12 },
+  receiptItemBody: { flex: 1, minWidth: 0 },
+  receiptItemName: { color: theme.colors.text.primary, fontFamily: theme.typography.semibold, fontSize: 13 },
+  receiptItemPeople: { color: theme.colors.text.secondary, fontFamily: theme.typography.regular, fontSize: 11, marginTop: 2 },
+  receiptItemAmount: { color: theme.colors.text.primary, fontFamily: theme.typography.bold, fontSize: 13 },
+  receiptOpenButton: { minHeight: 46, flexDirection: 'row', alignItems: 'center', gap: 8, borderTopWidth: 1, borderTopColor: theme.colors.neutral[100], marginTop: 2 },
+  receiptOpenButtonText: { flex: 1, color: theme.colors.primary[700], fontFamily: theme.typography.bold, fontSize: 13 },
   muted: { color: theme.colors.text.secondary, fontFamily: theme.typography.regular, fontSize: 13, paddingVertical: 8 },
   editButton: { minHeight: 52, borderRadius: 8, borderWidth: 1, borderColor: theme.colors.primary[300], flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: theme.colors.surface },
   editText: { color: theme.colors.primary[700], fontFamily: theme.typography.bold, fontSize: 15 },

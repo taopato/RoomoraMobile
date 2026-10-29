@@ -14,6 +14,7 @@ import { useTheme } from '../shared/theme/ThemeProvider';
 import DateField from '../shared/ui/DateField';
 import Toast from '../components/Toast';
 import { formatMoneyInput, parseMoneyInput } from '../shared/format/money';
+import { selectParticipant } from '../utils/participantSelection';
 import MoneyInput from '../shared/ui/roomora/MoneyInput';
 
 import { Text, TextInput } from '../shared/i18n';
@@ -83,6 +84,7 @@ export default function FaturaEkle({ route, navigation }) {
   const [toast, setToast] = useState({ visible: false, message: '', type: 'success' });
 
   const selectedType = BILL_TYPES.find((item) => item.key === billType) || BILL_TYPES[0];
+  const isVariableWaterBill = billType === 'Water';
 
   useEffect(() => {
     if (!initialBill || !isEditing) return;
@@ -157,7 +159,7 @@ export default function FaturaEkle({ route, navigation }) {
       setToast({ visible: true, message: 'Geçerli bir tarih seç.', type: 'warning' });
       return;
     }
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(dueDate)) {
+    if (!isVariableWaterBill && !/^\d{4}-\d{2}-\d{2}$/.test(dueDate)) {
       setToast({ visible: true, message: 'Geçerli bir son ödeme tarihi seç.', type: 'warning' });
       return;
     }
@@ -174,7 +176,7 @@ export default function FaturaEkle({ route, navigation }) {
     const title = `${selectedType.label} Faturası`;
     const description = note.trim() || title;
     const date = `${billDate}T12:00:00`;
-    const paymentDueDate = `${dueDate}T12:00:00`;
+    const paymentDueDate = `${isVariableWaterBill ? billDate : dueDate}T12:00:00`;
     const participants = participantIds.map(Number);
 
     setSaving(true);
@@ -230,11 +232,10 @@ export default function FaturaEkle({ route, navigation }) {
   };
 
   const toggleParticipant = (userId) => {
-    const id = String(userId);
-    setParticipantIds((current) => (
-      current.includes(id)
-        ? (current.length > 1 ? current.filter((item) => item !== id) : current)
-        : [...current, id]
+    setParticipantIds((current) => selectParticipant(
+      current,
+      userId,
+      members.map((member) => member.userId)
     ));
   };
 
@@ -369,15 +370,23 @@ export default function FaturaEkle({ route, navigation }) {
           </View>
 
           <View style={styles.dateRow}>
-            <View style={styles.dateColumn}>
-              <Text style={styles.sectionTitle}>Fatura tarihi</Text>
+            <View style={[styles.dateColumn, isVariableWaterBill && styles.dateColumnFull]}>
+              <Text style={styles.sectionTitle}>{isVariableWaterBill ? 'Ödeme tarihi' : 'Fatura tarihi'}</Text>
               <DateField value={billDate} onChange={setBillDate} placeholder="Tarih seç" />
             </View>
-            <View style={styles.dateColumn}>
-              <Text style={styles.sectionTitle}>Son ödeme</Text>
-              <DateField value={dueDate} onChange={setDueDate} placeholder="Tarih seç" />
-            </View>
+            {!isVariableWaterBill && (
+              <View style={styles.dateColumn}>
+                <Text style={styles.sectionTitle}>Son ödeme</Text>
+                <DateField value={dueDate} onChange={setDueDate} placeholder="Tarih seç" />
+              </View>
+            )}
           </View>
+          {isVariableWaterBill && (
+            <View style={styles.waterInfo}>
+              <Ionicons name="information-circle-outline" size={18} color={theme.colors.primary[700]} />
+              <Text style={styles.waterInfoText}>Su faturası ödenmiş gider olarak kaydedilir; ayrıca son ödeme tarihi gerekmez.</Text>
+            </View>
+          )}
 
           <View style={styles.sectionBlock}>
             <Text style={styles.sectionTitle}>Not <Text style={styles.optional}>(isteğe bağlı)</Text></Text>
@@ -520,6 +529,9 @@ const makeStyles = (theme, insets) => StyleSheet.create({
   splitSummaryValue: { color: theme.colors.primary[700], fontSize: 13, fontWeight: '800' },
   dateRow: { flexDirection: 'row', gap: 10, marginBottom: 14 },
   dateColumn: { flex: 1 },
+  dateColumnFull: { flexBasis: '100%' },
+  waterInfo: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, borderWidth: 1, borderColor: theme.colors.primary[200], backgroundColor: theme.colors.primary[50], borderRadius: 8, padding: 12, marginBottom: 14 },
+  waterInfoText: { flex: 1, color: theme.colors.text.secondary, fontFamily: theme.typography.regular, fontSize: 12, lineHeight: 17 },
   noteInput: {
     minHeight: 84,
     borderRadius: 8,

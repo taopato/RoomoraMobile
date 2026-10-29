@@ -12,20 +12,49 @@ import { formatMoneyInput, parseMoneyInput } from '../src/shared/format/money.js
 import { normalizeExpenseCategoryKey } from '../src/constants/ExpenseEnums.js';
 import { getTokenUserId, isTokenExpired, normalizeAuthUser } from '../src/shared/auth/session.js';
 import { getPaymentOutcome } from '../src/shared/finance/paymentOutcome.js';
-import { extractDetectedTotalFromRawText, resolveReceiptItems } from '../src/utils/receiptParser.js';
+import { extractDetectedTotalFromRawText, receiptTotalsMatch, resolveReceiptItems } from '../src/utils/receiptParser.js';
 import {
   buildReceiptAssignment,
   getReceiptItemParticipantIds,
+  getReceiptParticipantSummary,
   toggleReceiptParticipant,
 } from '../src/utils/receiptAssignments.js';
 import { getContainedImageMetrics, getContainedOverlayStyle } from '../src/utils/receiptLayout.js';
+import { selectParticipant } from '../src/utils/participantSelection.js';
+import { attachReceiptDates, getTimelineDate, sortExpensesByTimeline } from '../src/utils/expenseTimeline.js';
+import { getReadableReceiptItemName, getReceiptStoreName, getReceiptTitle } from '../src/utils/receiptPresentation.js';
 import { getLocale, setActiveLanguage, translate } from '../src/shared/i18n/runtime.js';
 
 setActiveLanguage('tr');
+
+assert.equal(getReceiptStoreName({ storeName: 'e-Arşiv Fatura', rawOcrText: 'A101 YENİ MAĞAZACILIK A.Ş.\nTarih: 08/10/2026' }), 'A101');
+assert.equal(getReceiptTitle({ rawOcrText: 'MİGROS TİCARET A.Ş.\nFiş No: 4' }), 'Migros Fişi');
+assert.equal(getReceiptTitle({ rawOcrText: 'MİGROS TİCARET A.Ş.' }, 'en-US'), 'Migros Receipt');
+assert.equal(getReceiptTitle({ storeName: '08/10/2026' }), 'Fiş');
+assert.equal(getReceiptTitle({ storeName: 'Yıldız Market' }), 'Yıldız Market Fişi');
+assert.equal(getReceiptTitle({ storeName: 'e-Arşiv Fatura' }), 'Fiş');
+assert.equal(attachReceiptDates([{ id: 30, title: 'e-Arşiv Fatura Fişi' }], [
+  { convertedExpenseId: 30, rawOcrText: 'A101 YENİ MAĞAZACILIK', createdAt: '2026-10-29T12:00:00Z' },
+])[0].receiptStoreName, 'A101');
+assert.equal(getReadableReceiptItemName('PIZZAKING600GSF'), 'Pizza King 600 G');
+assert.equal(getReadableReceiptItemName('K. PILIC BONFILE'), 'K. Piliç Bonfile');
+assert.equal(getReadableReceiptItemName('Pizza King 600 g'), 'Pizza King 600 g');
+
+const timelineExpenses = attachReceiptDates([
+  { id: 10, date: '2026-10-28T12:00:00Z', _raw: { kayitTarihi: '2026-10-28T12:00:00Z' } },
+  { id: 11, date: '2026-09-01T12:00:00Z', _raw: { kayitTarihi: '2026-09-01T12:00:00Z' } },
+], [{ convertedExpenseId: 11, receiptDate: '2026-09-01T12:00:00Z', createdAt: '2026-10-29T12:00:00Z' }]);
+assert.equal(sortExpensesByTimeline(timelineExpenses)[0].id, 11);
+assert.equal(sortExpensesByTimeline(timelineExpenses, 'expense')[0].id, 10);
+assert.equal(getTimelineDate(timelineExpenses[1], 'added').toISOString(), '2026-10-29T12:00:00.000Z');
+assert.equal(getTimelineDate(timelineExpenses[1], 'expense').toISOString(), '2026-09-01T12:00:00.000Z');
 assert.equal(translate('Faturalar'), 'Faturalar');
 assert.equal(getLocale(), 'tr-TR');
 setActiveLanguage('en');
 assert.equal(translate('Faturalar'), 'Bills');
+assert.equal(translate('Eklenme tarihi'), 'Date added');
+assert.equal(translate('Harcama tarihi'), 'Expense date');
+assert.equal(translate('Fişi görüntüle'), 'View receipt');
 assert.equal(translate('Ayşe ödedi · 09.10.2026'), 'Ayşe paid · 09.10.2026');
 assert.equal(getLocale(), 'en-US');
 setActiveLanguage('tr');
@@ -113,6 +142,15 @@ assert.equal(discountedByName['DANA KANGAL SUCUK'].lineTotal, 299.5);
 assert.equal(discountedByName['SLEEPY YUZTEM100LU'].lineTotal, 77.5);
 assert.equal(extractDetectedTotalFromRawText(discountedReceipt), 1411);
 
+const subtotalReceipt = `AKIM KORUMALI PRIZ *299,00\nARA TOP. *299,00\nTOPLAM *299,00`;
+assert.deepEqual(resolveReceiptItems([], subtotalReceipt, 299).map((item) => item.name), ['AKIM KORUMALI PRIZ']);
+assert.equal(extractDetectedTotalFromRawText(subtotalReceipt), 299);
+assert.equal(extractDetectedTotalFromRawText('TOPKDV TOPLAM *481,90 *3,48'), 481.9);
+assert.equal(receiptTotalsMatch(481.9, [{ lineTotal: 91.45 }, { lineTotal: 390.45 }]), true);
+assert.equal(receiptTotalsMatch(481.9, [{ lineTotal: 91.45 }]), false);
+assert.equal(receiptTotalsMatch(0, [{ lineTotal: 91.45 }]), false);
+assert.equal(receiptTotalsMatch(100, [{ name: 'Fiş Toplamı', lineTotal: 100 }]), false);
+
 const receiptMembers = [{ id: 38 }, { id: 39 }, { id: 40 }];
 assert.deepEqual(
   getReceiptItemParticipantIds({ isShared: true, participantUserIds: [] }, receiptMembers),
@@ -123,10 +161,14 @@ assert.deepEqual(
   {
     isAssigned: true,
     isShared: false,
-    personalUserId: null,
-    participantUserIds: [39, 40],
+    personalUserId: 38,
+    participantUserIds: [38],
   }
 );
+assert.deepEqual(selectParticipant(['38', '39', '40'], 38, [38, 39, 40]), ['38']);
+assert.deepEqual(selectParticipant(['38'], 40, [38, 39, 40]), ['38', '40']);
+assert.deepEqual(selectParticipant(['38', '40'], 38, [38, 39, 40]), ['40']);
+assert.deepEqual(selectParticipant(['38'], 38, [38, 39, 40]), ['38']);
 assert.deepEqual(
   buildReceiptAssignment([38, 40], receiptMembers),
   {
@@ -145,6 +187,13 @@ assert.deepEqual(
     participantUserIds: [39],
   }
 );
+assert.equal(getReceiptParticipantSummary([38, 39, 40], receiptMembers), 'Tüm ev');
+assert.equal(getReceiptParticipantSummary([38, 40], receiptMembers), '2 kişi');
+assert.equal(
+  getReceiptParticipantSummary([39], [{ id: 38, fullName: 'Tarik' }, { id: 39, fullName: 'Tufan' }]),
+  'Tufan'
+);
+assert.equal(getReceiptParticipantSummary([], receiptMembers), 'Kişi seçilmedi');
 
 const receiptMetrics = getContainedImageMetrics(
   { width: 335, height: 260 },

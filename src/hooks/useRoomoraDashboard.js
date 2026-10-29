@@ -1,8 +1,10 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
-import { expensesApi, houseApi, paymentsApi, scheduledChargesApi } from '../services/api';
+import { expensesApi, houseApi, paymentsApi, receiptsApi, scheduledChargesApi } from '../services/api';
 import { normalizeExpense } from '../utils/expenseClassifier';
 import { deduplicateMonthlyPlans, getItemDate, sortByDateDesc } from '../utils/expenseHelpers';
+import { attachReceiptDates } from '../utils/expenseTimeline';
+import { syncBillReminders } from '../services/pushNotifications';
 
 const arrayFrom = (response) => {
   const body = response?.data?.data ?? response?.data?.items ?? response?.data;
@@ -47,11 +49,13 @@ export default function useRoomoraDashboard(user) {
       error: '',
       errors: {},
     }));
+    const isTrip = String(user?.defaultHouseType || '').toLowerCase() === 'trip';
     const results = await Promise.allSettled([
       expensesApi.getByHouse(houseId),
       houseApi.getUserDebts(Number(user.id), houseId),
       paymentsApi.getPendingPayments(Number(user.id)),
-      scheduledChargesApi.getByHouse(houseId),
+      isTrip ? Promise.resolve({ data: [] }) : scheduledChargesApi.getByHouse(houseId),
+      receiptsApi.getByHouse(houseId),
     ]);
 
     const expenseResponse = results[0].status === 'fulfilled' ? results[0].value : null;
@@ -65,12 +69,17 @@ export default function useRoomoraDashboard(user) {
       scheduled: results[3].status === 'rejected' ? 'Planlı ödemeler şu anda alınamıyor.' : '',
     };
 
-    const expenses = sortByDateDesc(
-      deduplicateMonthlyPlans(arrayFrom(expenseResponse).map(normalizeExpense))
-    );
+    const receipts = results[4].status === 'fulfilled' ? arrayFrom(results[4].value) : [];
+    const expenses = sortByDateDesc(attachReceiptDates(
+      deduplicateMonthlyPlans(arrayFrom(expenseResponse).map(normalizeExpense)),
+      receipts
+    ));
     const debtBody = debtResponse?.data?.data ?? debtResponse?.data ?? {};
     const totals = Array.isArray(debtBody?.totals) ? debtBody.totals : [];
     const mine = totals.find((item) => Number(item.userId) === Number(user.id)) || debtBody;
+
+    const scheduled = arrayFrom(scheduledResponse);
+    if (!isTrip) syncBillReminders(scheduled, true).catch(() => {});
 
     setState({
       loading: false,
@@ -78,12 +87,12 @@ export default function useRoomoraDashboard(user) {
       error: Object.values(errors).find(Boolean) || '',
       errors,
       expenses,
-      scheduled: arrayFrom(scheduledResponse),
+      scheduled,
       pendingPayments: arrayFrom(pendingResponse),
       payable: Number(mine?.payable ?? mine?.borc ?? mine?.totalDebt ?? 0),
       receivable: Number(mine?.receivable ?? mine?.alacak ?? mine?.totalReceivable ?? 0),
     });
-  }, [houseId, user?.id]);
+  }, [houseId, user?.defaultHouseType, user?.id]);
 
   useFocusEffect(useCallback(() => {
     load(false);
@@ -101,6 +110,7 @@ export default function useRoomoraDashboard(user) {
     ...state,
     houseId,
     houseName: user?.defaultHouseName || 'Aktif Ev',
+    groupType: user?.defaultHouseType || 'Home',
     balance: state.receivable - state.payable,
     monthExpenses,
     refresh: () => load(true),
