@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Image, KeyboardAvoidingView, Modal, PanResponder, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, Image, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { PanGestureHandler, PinchGestureHandler, State as GestureState } from 'react-native-gesture-handler';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
@@ -28,7 +28,6 @@ import {
   getReceiptParticipantSummary,
 } from '../utils/receiptAssignments';
 import { selectParticipant } from '../utils/participantSelection';
-import { getContainedImageMetrics, getContainedOverlayStyle } from '../utils/receiptLayout';
 import { normalizeExpenseCategoryKey } from '../constants/ExpenseEnums';
 
 import { Alert, Text, TextInput } from '../shared/i18n';
@@ -42,21 +41,11 @@ const CATEGORY_OPTIONS = [
   { key: 'Other', label: 'Diğer' },
 ];
 
-const MARKER_COLORS = [
-  { fill: 'rgba(255, 214, 10, 0.28)', border: '#E3B700', badge: '#E3B700', text: '#5B4500' },
-  { fill: 'rgba(52, 152, 219, 0.28)', border: '#2D8FD6', badge: '#2D8FD6', text: '#05375D' },
-  { fill: 'rgba(46, 204, 113, 0.26)', border: '#21A75A', badge: '#21A75A', text: '#084523' },
-  { fill: 'rgba(155, 89, 182, 0.26)', border: '#8E44AD', badge: '#8E44AD', text: '#38104B' },
-  { fill: 'rgba(241, 196, 15, 0.28)', border: '#CDA40C', badge: '#CDA40C', text: '#5C4700' },
-];
-
 const toNumber = (value, fallback = 0) => {
   const parsed = Number(String(value ?? '').replace(',', '.'));
   return Number.isFinite(parsed) ? parsed : fallback;
 };
 
-
-const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
 const hydrateParticipantAssignments = (items, members) => items.map((item) => ({
   ...item,
@@ -82,19 +71,12 @@ function FisDetayiInner({ route, navigation }) {
   const [category, setCategory] = useState('Market');
   const [editingIndex, setEditingIndex] = useState(null);
   const [draftItem, setDraftItem] = useState(null);
-  const [selectedIndexes, setSelectedIndexes] = useState([]);
   const [imageFrame, setImageFrame] = useState({ width: 0, height: 260 });
-  const [imageSourceSize, setImageSourceSize] = useState({ width: 1, height: 1 });
-  const [focusedOverlayIndex, setFocusedOverlayIndex] = useState(null);
   const [imageZoom, setImageZoom] = useState(1);
   const [pinchPreviewScale, setPinchPreviewScale] = useState(1);
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
   const [panDrag, setPanDrag] = useState({ x: 0, y: 0 });
-  const [activeMarkerKey, setActiveMarkerKey] = useState(null);
-  const [imageInteractionEnabled, setImageInteractionEnabled] = useState(false);
-  const [draftSelection, setDraftSelection] = useState(null);
   const [assignmentEditor, setAssignmentEditor] = useState(null);
-  const draftSelectionRef = useRef(null);
   const isConverted = String(receipt?.status ?? '').toLowerCase() === 'converted'
     || Number(receipt?.status) === 3;
   const canEdit = !isConverted || editConverted;
@@ -213,50 +195,11 @@ function FisDetayiInner({ route, navigation }) {
     ? (receipt.imageUrl.startsWith('http') ? receipt.imageUrl : `${BASE_URL}${receipt.imageUrl}`)
     : null;
 
-  useEffect(() => {
-    if (!imageUri) return undefined;
-
-    const storedWidth = Number(receipt?.imageWidth);
-    const storedHeight = Number(receipt?.imageHeight);
-    if (storedWidth > 0 && storedHeight > 0) {
-      setImageSourceSize({ width: storedWidth, height: storedHeight });
-      return undefined;
-    }
-
-    let cancelled = false;
-    Image.getSize(
-      imageUri,
-      (width, height) => {
-        if (!cancelled && width > 0 && height > 0) {
-          setImageSourceSize({ width, height });
-        }
-      },
-      () => {
-      }
-    );
-
-    return () => {
-      cancelled = true;
-    };
-  }, [imageUri, receipt?.imageWidth, receipt?.imageHeight]);
-
   const patchItem = (index, next) => {
     if (!canEdit) return;
     setItems((prev) => prev.map((item, itemIndex) => (
       itemIndex === index ? { ...item, ...next } : item
     )));
-  };
-
-  const toggleSelected = (index) => {
-    if (!canEdit) return;
-    setSelectedIndexes((prev) => (
-      prev.includes(index) ? prev.filter((item) => item !== index) : [...prev, index]
-    ));
-  };
-
-  const clearSelected = () => {
-    setSelectedIndexes([]);
-    setFocusedOverlayIndex(null);
   };
 
   const addItem = () => {
@@ -282,8 +225,6 @@ function FisDetayiInner({ route, navigation }) {
     setItems((prev) => prev
       .filter((_, itemIndex) => itemIndex !== index)
       .map((item, itemIndex) => ({ ...item, sortOrder: itemIndex })));
-    setSelectedIndexes((prev) => prev.filter((itemIndex) => itemIndex !== index).map((itemIndex) => (itemIndex > index ? itemIndex - 1 : itemIndex)));
-    if (focusedOverlayIndex === index) setFocusedOverlayIndex(null);
   };
 
   const openEditor = (index) => {
@@ -511,217 +452,11 @@ function FisDetayiInner({ route, navigation }) {
     x: panOffset.x + panDrag.x,
     y: panOffset.y + panDrag.y,
   };
-  const canPageScroll = !imageInteractionEnabled;
-  const renderMetrics = useMemo(
-    () => getContainedImageMetrics(imageFrame, imageSourceSize),
-    [imageFrame, imageSourceSize]
-  );
-
-  const markerOptions = [
-    { key: 'shared', label: 'Tüm ev', type: 'shared', color: { fill: 'rgba(231, 76, 60, 0.26)', border: '#D64534', badge: '#D64534', text: '#6A1510' } },
-    ...members.map((member, index) => ({
-      key: `user-${member.id}`,
-      label: member.fullName,
-      type: 'personal',
-      userId: member.id,
-      color: MARKER_COLORS[index % MARKER_COLORS.length],
-    })),
-  ];
-
-  const activeMarker = markerOptions.find((option) => option.key === activeMarkerKey) || null;
-
-  const deactivateImageInteraction = () => {
-    setImageInteractionEnabled(false);
-    setActiveMarkerKey(null);
-    setDraftSelection(null);
-    draftSelectionRef.current = null;
-    clearSelected();
-  };
-
   const clampPan = (value, axis, zoom = totalZoom) => {
     const base = axis === 'x' ? imageFrame.width : imageFrame.height;
     const max = Math.max(0, ((base * zoom) - base) / 2);
     return Math.min(max, Math.max(-max, value));
   };
-
-  const compactPriceOverlayStyleFor = (item) => getContainedOverlayStyle(item, renderMetrics);
-
-  const getItemMarker = (item) => {
-    if (!item.isAssigned) {
-      return { fill: 'rgba(231, 76, 60, 0.18)', border: '#D64534', badge: '#FFF0EE', text: '#8F1F16' };
-    }
-    const participantIds = getReceiptItemParticipantIds(item, members);
-    if (participantIds.length === memberIds.length) {
-      return markerOptions[0].color;
-    }
-    const personal = participantIds.length === 1
-      ? markerOptions.find((option) => option.type === 'personal' && Number(option.userId) === participantIds[0])
-      : null;
-    return personal?.color || { fill: 'rgba(155, 89, 182, 0.24)', border: '#8E44AD', badge: '#8E44AD', text: '#38104B' };
-  };
-
-  const framePointToImagePoint = (x, y) => {
-    if (!renderMetrics) return null;
-
-    const unscaledX = renderMetrics.centerX + ((x - renderMetrics.centerX - totalPan.x) / totalZoom);
-    const unscaledY = renderMetrics.centerY + ((y - renderMetrics.centerY - totalPan.y) / totalZoom);
-
-    const clampedX = clamp(unscaledX, renderMetrics.offsetX, renderMetrics.offsetX + renderMetrics.renderedWidth);
-    const clampedY = clamp(unscaledY, renderMetrics.offsetY, renderMetrics.offsetY + renderMetrics.renderedHeight);
-
-    return {
-      frameX: clampedX,
-      frameY: clampedY,
-      imageX: (clampedX - renderMetrics.offsetX) / renderMetrics.scale,
-      imageY: (clampedY - renderMetrics.offsetY) / renderMetrics.scale,
-    };
-  };
-
-  const normalizeSelectionToImageBox = (selection) => {
-    if (!selection) return null;
-
-    const start = framePointToImagePoint(selection.startX, selection.startY);
-    const end = framePointToImagePoint(selection.endX, selection.endY);
-    if (!start || !end) return null;
-
-    let left = Math.min(start.imageX, end.imageX);
-    let top = Math.min(start.imageY, end.imageY);
-    let width = Math.abs(end.imageX - start.imageX);
-    let height = Math.abs(end.imageY - start.imageY);
-
-    if (width < 16 && height < 16) {
-      width = 180 / (renderMetrics?.scale || 1);
-      height = 42 / (renderMetrics?.scale || 1);
-      left = clamp(start.imageX - (width / 2), 0, imageSourceSize.width - width);
-      top = clamp(start.imageY - (height / 2), 0, imageSourceSize.height - height);
-    }
-
-    return {
-      boxLeft: Math.round(left),
-      boxTop: Math.round(top),
-      boxWidth: Math.max(24, Math.round(width)),
-      boxHeight: Math.max(18, Math.round(height)),
-    };
-  };
-
-  const getItemBox = (item) => {
-    if (item?.boxLeft == null || item?.boxTop == null || item?.boxWidth == null || item?.boxHeight == null) {
-      return null;
-    }
-    return {
-      left: Number(item.boxLeft),
-      top: Number(item.boxTop),
-      right: Number(item.boxLeft) + Number(item.boxWidth),
-      bottom: Number(item.boxTop) + Number(item.boxHeight),
-    };
-  };
-
-  const findIntersectingItemIndex = (box) => {
-    if (!box) return -1;
-    const candidate = {
-      left: box.boxLeft,
-      top: box.boxTop,
-      right: box.boxLeft + box.boxWidth,
-      bottom: box.boxTop + box.boxHeight,
-    };
-
-    let bestIndex = -1;
-    let bestScore = 0;
-
-    items.forEach((item, index) => {
-      const current = getItemBox(item);
-      if (!current) return;
-
-      const overlapWidth = Math.max(0, Math.min(candidate.right, current.right) - Math.max(candidate.left, current.left));
-      const overlapHeight = Math.max(0, Math.min(candidate.bottom, current.bottom) - Math.max(candidate.top, current.top));
-      const overlapArea = overlapWidth * overlapHeight;
-      if (overlapArea <= 0) return;
-
-      const currentArea = Math.max(1, (current.right - current.left) * (current.bottom - current.top));
-      const candidateArea = Math.max(1, (candidate.right - candidate.left) * (candidate.bottom - candidate.top));
-      const score = overlapArea / Math.min(currentArea, candidateArea);
-      if (score > bestScore) {
-        bestScore = score;
-        bestIndex = index;
-      }
-    });
-
-    return bestScore >= 0.12 ? bestIndex : -1;
-  };
-
-  const buildManualItem = (imageBox, marker) => {
-    const nextIndex = items.length + 1;
-    const baseName = marker?.type === 'shared'
-      ? `Ortak Kalem ${nextIndex}`
-      : `${marker?.label || 'Kişisel'} Kalem ${nextIndex}`;
-
-    const participantIds = marker?.type === 'shared' ? memberIds : [marker?.userId];
-    return {
-      name: baseName,
-      price: 0,
-      quantity: 1,
-      lineTotal: 0,
-      boxLeft: imageBox.boxLeft,
-      boxTop: imageBox.boxTop,
-      boxWidth: imageBox.boxWidth,
-      boxHeight: imageBox.boxHeight,
-      ...buildReceiptAssignment(participantIds, members),
-      sortOrder: items.length,
-    };
-  };
-
-  const finalizeSelection = (selection) => {
-    if (!activeMarker || !selection) {
-      setDraftSelection(null);
-      return;
-    }
-
-    const imageBox = normalizeSelectionToImageBox(selection);
-    setDraftSelection(null);
-    draftSelectionRef.current = null;
-    if (!imageBox) return;
-
-    const existingIndex = findIntersectingItemIndex(imageBox);
-    if (existingIndex >= 0) {
-      patchItem(existingIndex, {
-        boxLeft: imageBox.boxLeft,
-        boxTop: imageBox.boxTop,
-        boxWidth: imageBox.boxWidth,
-        boxHeight: imageBox.boxHeight,
-        ...buildReceiptAssignment(
-          activeMarker.type === 'shared' ? memberIds : [activeMarker.userId],
-          members
-        ),
-      });
-      setFocusedOverlayIndex(existingIndex);
-      setSelectedIndexes([existingIndex]);
-      return;
-    }
-
-    const nextIndex = items.length;
-    setItems((prev) => [...prev, buildManualItem(imageBox, activeMarker)]);
-    setFocusedOverlayIndex(nextIndex);
-    setSelectedIndexes([nextIndex]);
-  };
-
-  const handleOverlayPress = (index) => {
-    if (!activeMarker) {
-      setFocusedOverlayIndex(index);
-      setSelectedIndexes([index]);
-      return;
-    }
-
-    const option = activeMarker;
-    if (option?.type === 'shared') {
-      patchItem(index, buildReceiptAssignment(memberIds, members));
-    } else if (option?.type === 'personal') {
-      patchItem(index, buildReceiptAssignment([option.userId], members));
-    }
-
-    setFocusedOverlayIndex(index);
-    setSelectedIndexes([index]);
-  };
-
   const clampZoom = (value) => Math.min(3, Math.max(1, value));
 
   const handlePinchGesture = (event) => {
@@ -759,49 +494,6 @@ function FisDetayiInner({ route, navigation }) {
     }
   };
 
-  const drawResponder = useMemo(() => PanResponder.create({
-    onStartShouldSetPanResponder: () => Boolean(activeMarker),
-    onMoveShouldSetPanResponder: () => Boolean(activeMarker),
-    onPanResponderGrant: (event) => {
-      if (!activeMarker) return;
-      const { locationX, locationY } = event.nativeEvent;
-      setImageInteractionEnabled(true);
-      const nextSelection = {
-        startX: locationX,
-        startY: locationY,
-        endX: locationX,
-        endY: locationY,
-      };
-      draftSelectionRef.current = nextSelection;
-      setDraftSelection(nextSelection);
-    },
-    onPanResponderMove: (event) => {
-      const { locationX, locationY } = event.nativeEvent;
-      setDraftSelection((prev) => {
-        const next = prev ? {
-          ...prev,
-          endX: locationX,
-          endY: locationY,
-        } : prev;
-        draftSelectionRef.current = next;
-        return next;
-      });
-    },
-    onPanResponderRelease: (event) => {
-      const { locationX, locationY } = event.nativeEvent;
-      const currentSelection = draftSelectionRef.current;
-      finalizeSelection(currentSelection ? {
-        ...currentSelection,
-        endX: locationX,
-        endY: locationY,
-      } : null);
-    },
-    onPanResponderTerminate: () => {
-      setDraftSelection(null);
-      draftSelectionRef.current = null;
-    },
-  }), [activeMarker, items.length, totalPan.x, totalPan.y, totalZoom, renderMetrics, imageSourceSize.width, imageSourceSize.height]);
-
   const visibleItems = useMemo(() => (
     items
       .map((item, index) => ({ item, index }))
@@ -812,23 +504,6 @@ function FisDetayiInner({ route, navigation }) {
         return a.index - b.index;
       })
   ), [items]);
-  const draftSelectionStyle = useMemo(() => {
-    if (!draftSelection || !activeMarker) return null;
-    const left = Math.min(draftSelection.startX, draftSelection.endX);
-    const top = Math.min(draftSelection.startY, draftSelection.endY);
-    const width = Math.max(12, Math.abs(draftSelection.endX - draftSelection.startX));
-    const height = Math.max(12, Math.abs(draftSelection.endY - draftSelection.startY));
-
-    return {
-      left,
-      top,
-      width,
-      height,
-      borderColor: activeMarker.color.border,
-      backgroundColor: activeMarker.color.fill,
-    };
-  }, [draftSelection, activeMarker]);
-
   if (loading) {
     return (
       <View style={[styles.screen, { paddingTop: insets.top + 4 }]}>
@@ -843,7 +518,6 @@ function FisDetayiInner({ route, navigation }) {
       <ScrollView
         style={styles.screen}
         contentContainerStyle={[styles.content, { paddingTop: insets.top + 4 }]}
-        scrollEnabled={canPageScroll}
         directionalLockEnabled
         keyboardShouldPersistTaps="handled"
       >
@@ -907,13 +581,6 @@ function FisDetayiInner({ route, navigation }) {
                         source={{ uri: imageUri }}
                         style={styles.preview}
                         resizeMode="contain"
-                        onLoad={(event) => {
-                          const source = event.nativeEvent?.source;
-                          const hasStoredDimensions = Number(receipt?.imageWidth) > 0 && Number(receipt?.imageHeight) > 0;
-                          if (!hasStoredDimensions && source?.width && source?.height) {
-                            setImageSourceSize({ width: source.width, height: source.height });
-                          }
-                        }}
                       />
                     </View>
                   </View>
@@ -923,7 +590,7 @@ function FisDetayiInner({ route, navigation }) {
           </>
         ) : null}
 
-        <View style={styles.section} onTouchStart={deactivateImageInteraction}>
+        <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Kalemler ve paylaşım</Text>
             {canEdit ? (
@@ -941,7 +608,6 @@ function FisDetayiInner({ route, navigation }) {
           {visibleItems.map(({ item, index }) => {
             const participantIds = getReceiptItemParticipantIds(item, members);
             const participantSummary = getReceiptParticipantSummary(participantIds, members);
-            const isFocused = focusedOverlayIndex === index;
             const quantity = toNumber(item.quantity, 1) || 1;
             const unitPrice = toNumber(item.price);
             const lineTotal = toNumber(item.lineTotal);
@@ -949,7 +615,7 @@ function FisDetayiInner({ route, navigation }) {
             return (
               <View
                 key={`${index}-${item.id || 'new'}`}
-                style={[styles.itemCard, isFocused && styles.itemCardSelected]}
+                style={styles.itemCard}
               >
                 <View style={styles.rowBetween}>
                   <View style={styles.itemHeaderLeft}>
@@ -1388,70 +1054,6 @@ const makeStyles = (theme) => StyleSheet.create({
     borderColor: theme.colors.neutral[200],
   },
   zoomResetButtonText: { color: theme.colors.text.primary, fontWeight: '700' },
-  markerToolbar: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 10,
-  },
-  markerPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-    borderRadius: 999,
-    borderWidth: 1,
-  },
-  markerPillInactive: {
-    backgroundColor: theme.colors.surface,
-    borderColor: theme.colors.neutral[200],
-  },
-  markerPillActive: {
-    shadowColor: '#000',
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 3,
-  },
-  markerDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    marginRight: 8,
-  },
-  markerPillText: {
-    fontWeight: '800',
-    maxWidth: 90,
-  },
-  draftSelectionBox: {
-    position: 'absolute',
-    borderWidth: 2,
-    borderRadius: 12,
-    borderStyle: 'dashed',
-    shadowColor: '#000',
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-  },
-  markerDoneButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 999,
-    backgroundColor: theme.colors.success[600],
-    justifyContent: 'center',
-  },
-  markerDoneButtonPassive: {
-    backgroundColor: theme.colors.primary[600],
-  },
-  markerDoneButtonText: {
-    color: theme.colors.text.onPrimary,
-    fontWeight: '900',
-  },
-  markerHint: {
-    color: theme.colors.text.secondary,
-    marginBottom: 10,
-    lineHeight: 18,
-  },
   convertedNotice: {
     padding: 14,
     borderRadius: 14,
@@ -1462,86 +1064,6 @@ const makeStyles = (theme) => StyleSheet.create({
   },
   convertedNoticeTitle: { color: theme.colors.success[700], fontWeight: '900', marginBottom: 4 },
   convertedNoticeText: { color: theme.colors.text.secondary, lineHeight: 18 },
-  imageOverlayHit: {
-    position: 'absolute',
-    borderRadius: 10,
-    borderWidth: 2,
-    justifyContent: 'flex-start',
-    alignItems: 'flex-start',
-    zIndex: 5,
-  },
-  imageOverlayHitIdle: {
-      borderStyle: 'dashed',
-      backgroundColor: 'rgba(231, 76, 60, 0.18)',
-    },
-  imageOverlayHitFallback: {
-      justifyContent: 'center',
-      paddingHorizontal: 14,
-      backgroundColor: 'rgba(231, 76, 60, 0.22)',
-    },
-  imageOverlayHitSelected: {
-    borderColor: theme.colors.warning[700],
-    backgroundColor: 'rgba(255,196,0,0.22)',
-    shadowColor: theme.colors.warning[700],
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 0 },
-    elevation: 6,
-  },
-  imageOverlayHitActive: {
-    borderColor: theme.colors.primary[700],
-    backgroundColor: 'rgba(38,110,255,0.34)',
-    shadowColor: theme.colors.primary[700],
-    shadowOpacity: 0.45,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 0 },
-    elevation: 8,
-  },
-  imageOverlayBadge: {
-    marginTop: 3,
-    marginLeft: 3,
-    minWidth: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: 'rgba(255,255,255,0.92)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  imageOverlayBadgeIdle: {
-    backgroundColor: 'rgba(255,255,255,0.72)',
-  },
-  imageOverlayBadgeActive: {
-    backgroundColor: theme.colors.primary[700],
-  },
-  imageOverlayBadgeSelected: {
-    backgroundColor: theme.colors.warning[700],
-  },
-  imageOverlayBadgeText: {
-    color: theme.colors.primary[700],
-    fontWeight: '900',
-    fontSize: 11,
-  },
-  imageOverlayBadgeTextIdle: {
-      color: '#8F1F16',
-    },
-  imageOverlayBadgeTextActive: {
-    color: theme.colors.text.onPrimary,
-  },
-  imageOverlayFallbackText: {
-    color: theme.colors.text.primary,
-    fontSize: 11,
-    fontWeight: '700',
-    marginLeft: 6,
-    marginRight: 6,
-  },
-  imageOverlayPriceText: {
-    color: theme.colors.text.primary,
-    fontSize: 11,
-    fontWeight: '900',
-    marginLeft: 6,
-    marginRight: 6,
-    alignSelf: 'center',
-  },
   summaryCard: { backgroundColor: theme.colors.surface, borderRadius: 18, padding: 16, borderWidth: 1, borderColor: theme.colors.neutral[200], marginBottom: 14 },
   summaryTitle: { color: theme.colors.text.primary, fontWeight: '900', fontSize: 18 },
   summarySub: { color: theme.colors.text.secondary, marginTop: 4 },
@@ -1622,7 +1144,6 @@ const makeStyles = (theme) => StyleSheet.create({
   filterButtonText: { color: theme.colors.text.primary, fontWeight: '700', textAlign: 'center' },
   filterButtonTextActive: { color: theme.colors.primary[700] },
   itemCard: { backgroundColor: theme.colors.surface, borderRadius: 8, padding: 12, borderWidth: 1, borderColor: theme.colors.neutral[200], marginBottom: 10 },
-  itemCardSelected: { borderColor: theme.colors.primary[500], backgroundColor: theme.colors.primary[50] },
   rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 },
   row: { flexDirection: 'row', justifyContent: 'space-between' },
   half: { width: '48%' },
