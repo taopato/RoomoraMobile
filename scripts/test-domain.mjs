@@ -12,7 +12,7 @@ import { formatMoneyInput, parseMoneyInput } from '../src/shared/format/money.js
 import { normalizeExpenseCategoryKey } from '../src/constants/ExpenseEnums.js';
 import { getTokenUserId, isTokenExpired, normalizeAuthUser } from '../src/shared/auth/session.js';
 import { getPaymentOutcome } from '../src/shared/finance/paymentOutcome.js';
-import { extractDetectedTotalFromRawText, resolveReceiptItems } from '../src/utils/receiptParser.js';
+import { extractDetectedTotalFromRawText, receiptTotalsMatch, resolveReceiptItems } from '../src/utils/receiptParser.js';
 import {
   buildReceiptAssignment,
   getReceiptItemParticipantIds,
@@ -119,6 +119,10 @@ const subtotalReceipt = `AKIM KORUMALI PRIZ *299,00\nARA TOP. *299,00\nTOPLAM *2
 assert.deepEqual(resolveReceiptItems([], subtotalReceipt, 299).map((item) => item.name), ['AKIM KORUMALI PRIZ']);
 assert.equal(extractDetectedTotalFromRawText(subtotalReceipt), 299);
 assert.equal(extractDetectedTotalFromRawText('TOPKDV TOPLAM *481,90 *3,48'), 481.9);
+assert.equal(receiptTotalsMatch(481.9, [{ lineTotal: 91.45 }, { lineTotal: 390.45 }]), true);
+assert.equal(receiptTotalsMatch(481.9, [{ lineTotal: 91.45 }]), false);
+assert.equal(receiptTotalsMatch(0, [{ lineTotal: 91.45 }]), false);
+assert.equal(receiptTotalsMatch(100, [{ name: 'Fiş Toplamı', lineTotal: 100 }]), false);
 
 const receiptMembers = [{ id: 38 }, { id: 39 }, { id: 40 }];
 assert.deepEqual(

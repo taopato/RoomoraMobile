@@ -17,6 +17,8 @@ import {
   isMeaningfulReceiptItem,
   normalizeReceiptItems,
   normalizeResolvedItems,
+  parseReceiptAmount,
+  receiptTotalsMatch,
   resolveReceiptItems,
 } from '../utils/receiptParser';
 import {
@@ -73,6 +75,7 @@ function FisDetayiInner({ route, navigation }) {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [receipt, setReceipt] = useState(null);
+  const [totalInput, setTotalInput] = useState('');
   const [items, setItems] = useState([]);
   const [members, setMembers] = useState([]);
   const [payerUserId, setPayerUserId] = useState(String(user?.id || ''));
@@ -175,15 +178,14 @@ function FisDetayiInner({ route, navigation }) {
         } catch {}
       }
 
-      const correctedDetectedTotal = Math.max(
-        toNumber(receiptData?.detectedTotalAmount),
-        extractDetectedTotalFromRawText(receiptData?.rawOcrText)
-      );
+      const correctedDetectedTotal = toNumber(receiptData?.detectedTotalAmount)
+        || extractDetectedTotalFromRawText(receiptData?.rawOcrText);
 
       setReceipt({
         ...receiptData,
         detectedTotalAmount: correctedDetectedTotal,
       });
+      setTotalInput(correctedDetectedTotal > 0 ? String(correctedDetectedTotal).replace('.', ',') : '');
       setItems(hydrateParticipantAssignments(
         resolveReceiptItems(normalizedItems, receiptData?.rawOcrText, correctedDetectedTotal),
         normalizedMembers
@@ -340,28 +342,6 @@ function FisDetayiInner({ route, navigation }) {
       sortOrder: index,
     }));
 
-    const detectedTotal = toNumber(receipt?.detectedTotalAmount);
-    const explicitTotal = normalized.reduce((sum, item) => sum + Number(item.lineTotal || 0), 0);
-    const remainder = Number((detectedTotal - explicitTotal).toFixed(2));
-
-    if (detectedTotal > 0 && remainder > 0.01) {
-      normalized.push({
-        name: 'Ortak Kalan Tutar',
-        price: remainder,
-        quantity: 1,
-        lineTotal: remainder,
-        boxLeft: null,
-        boxTop: null,
-        boxWidth: null,
-        boxHeight: null,
-        isAssigned: true,
-        isShared: true,
-        personalUserId: null,
-        participantUserIds: getMemberIds(members),
-        sortOrder: normalized.length,
-      });
-    }
-
     return normalized;
   };
 
@@ -379,10 +359,7 @@ function FisDetayiInner({ route, navigation }) {
 
     setSaving(true);
     try {
-      const preservedDetectedTotal = Math.max(
-        toNumber(receipt?.detectedTotalAmount),
-        extractDetectedTotalFromRawText(receipt?.rawOcrText)
-      );
+      const preservedDetectedTotal = toNumber(receipt?.detectedTotalAmount);
 
       const payload = {
         storeName: receipt?.storeName || 'Fiş',
@@ -409,14 +386,12 @@ function FisDetayiInner({ route, navigation }) {
           isAssigned: item?.isAssigned === true,
           isShared: item.isShared !== false,
         }));
-        const correctedDetectedTotal = Math.max(
-          toNumber(nextReceipt?.detectedTotalAmount),
-          extractDetectedTotalFromRawText(nextReceipt?.rawOcrText)
-        );
+        const correctedDetectedTotal = toNumber(nextReceipt?.detectedTotalAmount);
         setReceipt({
           ...nextReceipt,
           detectedTotalAmount: correctedDetectedTotal,
         });
+        setTotalInput(correctedDetectedTotal > 0 ? String(correctedDetectedTotal).replace('.', ',') : '');
         setItems(hydrateParticipantAssignments(
           resolveReceiptItems(normalizedItems, nextReceipt?.rawOcrText, correctedDetectedTotal),
           members
@@ -432,6 +407,10 @@ function FisDetayiInner({ route, navigation }) {
   };
 
   const saveConvertedExpense = async () => {
+    if (hasTotalMismatch) {
+      Alert.alert('Tutarlar uyuşmuyor', 'Fiş toplamını ve kalemleri kontrol edip eşitle.');
+      return;
+    }
     if (!payerUserId) {
       Alert.alert('Uyarı', 'Önce ödeyen kişiyi seç.');
       return;
@@ -445,6 +424,10 @@ function FisDetayiInner({ route, navigation }) {
   };
 
   const convertToExpense = async () => {
+    if (hasTotalMismatch) {
+      Alert.alert('Tutarlar uyuşmuyor', 'Fiş toplamını ve kalemleri kontrol edip eşitle. Eksik tutar otomatik olarak kimseye paylaştırılmaz.');
+      return;
+    }
     if (!payerUserId) {
       Alert.alert('Uyarı', 'Önce ödeyen kişiyi seç.');
       return;
@@ -470,6 +453,21 @@ function FisDetayiInner({ route, navigation }) {
     } finally {
       setSaving(false);
     }
+  };
+
+  const confirmConvertToExpense = () => {
+    if (hasTotalMismatch) {
+      Alert.alert('Tutarlar uyuşmuyor', 'Fiş toplamını ve kalemleri kontrol edip eşitle. Eksik tutar otomatik olarak kimseye paylaştırılmaz.');
+      return;
+    }
+    Alert.alert(
+      'Fişi kontrol ettin mi?',
+      'Ürün adlarını, indirimleri, tutarları ve kime ait olduklarını kontrol et. Kaydedildikten sonra borçlar bu kalemlere göre hesaplanacak.',
+      [
+        { text: 'Geri dön', style: 'cancel' },
+        { text: 'Kontrol ettim', onPress: convertToExpense },
+      ]
+    );
   };
 
   const deleteReceipt = () => {
@@ -501,12 +499,12 @@ function FisDetayiInner({ route, navigation }) {
   const explicitTotal = items.reduce((sum, item) => sum + toNumber(item.lineTotal), 0);
   const detectedTotal = toNumber(receipt?.detectedTotalAmount);
   const total = detectedTotal > 0 ? detectedTotal : explicitTotal;
-  const missingAmount = Math.max(Number((total - explicitTotal).toFixed(2)), 0);
+  const hasTotalMismatch = !receiptTotalsMatch(detectedTotal, items);
   const memberIds = getMemberIds(members);
   const subsetTotal = items
     .filter((item) => getReceiptItemParticipantIds(item, members).length !== memberIds.length)
     .reduce((sum, item) => sum + toNumber(item.lineTotal), 0);
-  const sharedTotal = Math.max(total - subsetTotal, 0);
+  const sharedTotal = Math.max(explicitTotal - subsetTotal, 0);
 
   const totalZoom = imageZoom * pinchPreviewScale;
   const totalPan = {
@@ -1008,6 +1006,21 @@ function FisDetayiInner({ route, navigation }) {
           <Text style={styles.summaryAmount}>
             {total.toLocaleString(getLocale(), { style: 'currency', currency: 'TRY' })}
           </Text>
+          {canEdit ? (
+            <View style={styles.totalCorrection}>
+              <Text style={styles.summaryMetaLabel}>Fiş toplamı (kontrol et veya düzelt)</Text>
+              <TextInput
+                style={styles.input}
+                keyboardType="decimal-pad"
+                value={totalInput}
+                onChangeText={(value) => {
+                  setTotalInput(value);
+                  setReceipt((current) => ({ ...current, detectedTotalAmount: parseReceiptAmount(value) || 0 }));
+                }}
+                accessibilityLabel="Fiş toplamını düzelt"
+              />
+            </View>
+          ) : null}
           <View style={styles.summaryMetaRow}>
             <View style={styles.summaryMetaBadge}>
               <Text style={styles.summaryMetaLabel}>Tüm ev</Text>
@@ -1018,12 +1031,12 @@ function FisDetayiInner({ route, navigation }) {
               <Text style={styles.summaryMetaValue}>{subsetTotal.toLocaleString(getLocale(), { style: 'currency', currency: 'TRY' })}</Text>
             </View>
           </View>
-          {missingAmount > 0.01 ? (
+          {hasTotalMismatch ? (
             <View style={styles.missingAmountCard}>
-              <Text style={styles.missingAmountTitle}>Eksik okunan tutar var</Text>
+              <Text style={styles.missingAmountTitle}>Fiş tutarlarını kontrol et</Text>
               <Text style={styles.missingAmountText}>
-                Fiş toplamı {total.toLocaleString(getLocale(), { style: 'currency', currency: 'TRY' })}, kalemlerin toplamı ise {explicitTotal.toLocaleString(getLocale(), { style: 'currency', currency: 'TRY' })}.
-                Kalan {missingAmount.toLocaleString(getLocale(), { style: 'currency', currency: 'TRY' })} tutar ortak kalacak. İstersen `Kalem ekle` ile eksik ürünü manuel girebilirsin.
+                Okunan fiş toplamı {detectedTotal.toLocaleString(getLocale(), { style: 'currency', currency: 'TRY' })}, kalemlerin toplamı {explicitTotal.toLocaleString(getLocale(), { style: 'currency', currency: 'TRY' })}.
+                Eksik veya fazla okunan kalemleri düzeltmeden harcamaya dönüştüremezsin; hiçbir fark otomatik paylaştırılmaz.
               </Text>
             </View>
           ) : null}
@@ -1088,7 +1101,7 @@ function FisDetayiInner({ route, navigation }) {
                 <TouchableOpacity style={styles.secondaryButton} onPress={() => saveDraft()} disabled={saving}>
                   <Text style={styles.secondaryButtonText}>{saving ? 'Kaydediliyor...' : 'Taslağı Kaydet'}</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.primaryButton} onPress={convertToExpense} disabled={saving}>
+                <TouchableOpacity style={styles.primaryButton} onPress={confirmConvertToExpense} disabled={saving}>
                   <Text style={styles.primaryButtonText}>Harcamaya Dönüştür</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.deleteReceiptButton} onPress={deleteReceipt} disabled={saving}>
@@ -1533,6 +1546,7 @@ const makeStyles = (theme) => StyleSheet.create({
   summaryTitle: { color: theme.colors.text.primary, fontWeight: '900', fontSize: 18 },
   summarySub: { color: theme.colors.text.secondary, marginTop: 4 },
   summaryAmount: { color: theme.colors.primary[700], fontWeight: '900', fontSize: 22, marginTop: 10 },
+  totalCorrection: { marginTop: 14 },
   summaryMetaRow: { flexDirection: 'row', gap: 10, marginTop: 14 },
   summaryMetaBadge: { flex: 1, padding: 12, borderRadius: 14, backgroundColor: theme.colors.background, borderWidth: 1, borderColor: theme.colors.neutral[200] },
   summaryMetaLabel: { color: theme.colors.text.secondary, fontSize: 12, fontWeight: '700', marginBottom: 4 },

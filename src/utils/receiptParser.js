@@ -236,6 +236,18 @@ export const calculateItemsTotal = (items = []) => items.reduce(
   0
 );
 
+export const receiptTotalsMatch = (detectedTotal, items = []) => {
+  const total = toNumber(detectedTotal);
+  if (total <= 0 || items.length === 0) return false;
+  if (items.some((item) => {
+    const name = String(item?.name || '').toLocaleUpperCase('tr-TR').normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+    return toNumber(item?.lineTotal ?? item?.price) <= 0
+      || name.startsWith('FIS TOPLAM') || name.startsWith('ORTAK KALAN');
+  })) return false;
+  return Math.abs(total - calculateItemsTotal(items)) <= 0.02;
+};
+
 export const resolveReceiptItems = (preferredItems = [], rawText = '', detectedTotalAmount = 0) => {
   const sanitizedPreferred = normalizeResolvedItems(normalizeReceiptItems(preferredItems));
   if (sanitizedPreferred.length) return sanitizedPreferred;
