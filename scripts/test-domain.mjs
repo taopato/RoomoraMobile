@@ -22,9 +22,23 @@ import {
 import { getContainedImageMetrics, getContainedOverlayStyle } from '../src/utils/receiptLayout.js';
 import { selectParticipant } from '../src/utils/participantSelection.js';
 import { attachReceiptDates, getTimelineDate, sortExpensesByTimeline } from '../src/utils/expenseTimeline.js';
+import { getReadableReceiptItemName, getReceiptStoreName, getReceiptTitle } from '../src/utils/receiptPresentation.js';
 import { getLocale, setActiveLanguage, translate } from '../src/shared/i18n/runtime.js';
 
 setActiveLanguage('tr');
+
+assert.equal(getReceiptStoreName({ storeName: 'e-Arşiv Fatura', rawOcrText: 'A101 YENİ MAĞAZACILIK A.Ş.\nTarih: 08/10/2026' }), 'A101');
+assert.equal(getReceiptTitle({ rawOcrText: 'MİGROS TİCARET A.Ş.\nFiş No: 4' }), 'Migros Fişi');
+assert.equal(getReceiptTitle({ rawOcrText: 'MİGROS TİCARET A.Ş.' }, 'en-US'), 'Migros Receipt');
+assert.equal(getReceiptTitle({ storeName: '08/10/2026' }), 'Fiş');
+assert.equal(getReceiptTitle({ storeName: 'Yıldız Market' }), 'Yıldız Market Fişi');
+assert.equal(getReceiptTitle({ storeName: 'e-Arşiv Fatura' }), 'Fiş');
+assert.equal(attachReceiptDates([{ id: 30, title: 'e-Arşiv Fatura Fişi' }], [
+  { convertedExpenseId: 30, rawOcrText: 'A101 YENİ MAĞAZACILIK', createdAt: '2026-10-29T12:00:00Z' },
+])[0].receiptStoreName, 'A101');
+assert.equal(getReadableReceiptItemName('PIZZAKING600GSF'), 'Pizza King 600 G');
+assert.equal(getReadableReceiptItemName('K. PILIC BONFILE'), 'K. Piliç Bonfile');
+assert.equal(getReadableReceiptItemName('Pizza King 600 g'), 'Pizza King 600 g');
 
 const timelineExpenses = attachReceiptDates([
   { id: 10, date: '2026-10-28T12:00:00Z', _raw: { kayitTarihi: '2026-10-28T12:00:00Z' } },

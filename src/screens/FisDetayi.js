@@ -27,8 +27,8 @@ import {
   getReceiptItemParticipantIds,
   getReceiptParticipantSummary,
 } from '../utils/receiptAssignments';
-import { selectParticipant } from '../utils/participantSelection';
 import { normalizeExpenseCategoryKey } from '../constants/ExpenseEnums';
+import { getReadableReceiptItemName, getReceiptStoreName, getReceiptTitle } from '../utils/receiptPresentation';
 
 import { Alert, Text, TextInput } from '../shared/i18n';
 import { getLocale } from '../shared/i18n/runtime';
@@ -77,40 +77,9 @@ function FisDetayiInner({ route, navigation }) {
   const [pinchPreviewScale, setPinchPreviewScale] = useState(1);
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
   const [panDrag, setPanDrag] = useState({ x: 0, y: 0 });
-  const [assignmentEditor, setAssignmentEditor] = useState(null);
   const isConverted = String(receipt?.status ?? '').toLowerCase() === 'converted'
     || Number(receipt?.status) === 3;
   const canEdit = !isConverted || editConverted;
-
-  const openAssignmentEditor = (index, item) => {
-    setAssignmentEditor({
-      index,
-      participantUserIds: getReceiptItemParticipantIds(item, members),
-    });
-  };
-
-  const closeAssignmentEditor = () => setAssignmentEditor(null);
-
-  const toggleAssignmentEditorMember = (userId) => {
-    setAssignmentEditor((current) => {
-      if (!current) return current;
-      const numericId = Number(userId);
-      const selected = current.participantUserIds || [];
-      return {
-        ...current,
-        participantUserIds: selectParticipant(selected, numericId, memberIds).map(Number),
-      };
-    });
-  };
-
-  const saveAssignmentEditor = () => {
-    if (!assignmentEditor || assignmentEditor.participantUserIds.length === 0) return;
-    patchItem(
-      assignmentEditor.index,
-      buildReceiptAssignment(assignmentEditor.participantUserIds, members)
-    );
-    closeAssignmentEditor();
-  };
 
   const load = async () => {
     if (!receiptId || !houseId) return;
@@ -166,6 +135,7 @@ function FisDetayiInner({ route, navigation }) {
 
       setReceipt({
         ...receiptData,
+        storeName: getReceiptStoreName(receiptData) || receiptData?.storeName,
         detectedTotalAmount: correctedDetectedTotal,
       });
       setTotalInput(correctedDetectedTotal > 0 ? String(correctedDetectedTotal).replace('.', ',') : '');
@@ -236,6 +206,7 @@ function FisDetayiInner({ route, navigation }) {
     setEditingIndex(index);
     setDraftItem({
       name: source.name ?? '',
+      originalName: source.name ?? '',
       price: String(source.price ?? ''),
       quantity: String(source.quantity ?? 1),
       lineTotal: String(source.lineTotal ?? source.price ?? 0),
@@ -250,6 +221,14 @@ function FisDetayiInner({ route, navigation }) {
 
   const saveEditor = () => {
     if (editingIndex == null || !draftItem) return;
+    if (!String(draftItem.name || '').trim()) {
+      Alert.alert('Ürün adı gerekli', 'Kalem için bir ürün adı gir.');
+      return;
+    }
+    if (!draftItem.participantUserIds?.length) {
+      Alert.alert('Kişi seç', 'Bu kalemi en az bir kişiyle paylaş.');
+      return;
+    }
 
     const price = toNumber(draftItem.price);
     const quantity = toNumber(draftItem.quantity, 1) || 1;
@@ -304,7 +283,7 @@ function FisDetayiInner({ route, navigation }) {
       const preservedDetectedTotal = toNumber(receipt?.detectedTotalAmount);
 
       const payload = {
-        storeName: receipt?.storeName || 'Fiş',
+        storeName: getReceiptStoreName(receipt) || receipt?.storeName || 'Fiş',
         receiptDate: receipt?.receiptDate,
         detectedTotalAmount: preservedDetectedTotal,
         items: payloadItems,
@@ -385,7 +364,7 @@ function FisDetayiInner({ route, navigation }) {
     try {
       await receiptsApi.convertToExpense(receiptId, {
         payerUserId: Number(payerUserId),
-        note: receipt?.storeName || 'Fişten oluşturuldu',
+        note: getReceiptTitle(receipt),
         category,
       });
       Alert.alert('Başarılı', 'Fiş harcamaya dönüştürüldü.');
@@ -528,7 +507,7 @@ function FisDetayiInner({ route, navigation }) {
           onBack={() => navigation.goBack()}
         />
         <View style={styles.summaryCard}>
-          <Text style={styles.summaryTitle}>{receipt?.storeName || 'Fiş Detayı'}</Text>
+          <Text style={styles.summaryTitle}>{getReceiptTitle(receipt, getLocale())}</Text>
           <Text style={styles.summarySub}>
             {getLocale().startsWith('en') ? 'Receipt date' : 'Fiş tarihi'}: {receipt?.receiptDate ? new Date(receipt.receiptDate).toLocaleDateString(getLocale()) : '-'}
           </Text>
@@ -665,13 +644,13 @@ function FisDetayiInner({ route, navigation }) {
                 key={`${index}-${item.id || 'new'}`}
                 style={styles.itemCard}
               >
-                <View style={styles.rowBetween}>
+                <TouchableOpacity style={styles.rowBetween} onPress={() => openEditor(index)} disabled={!canEdit} accessibilityLabel={`${getReadableReceiptItemName(item.name)}, kalemi düzenle`}>
                   <View style={styles.itemHeaderLeft}>
                     <View style={styles.itemNumberBadge}>
                       <Text style={styles.itemNumberBadgeText}>{index + 1}</Text>
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.itemName} numberOfLines={2}>{item.name || 'İsimsiz kalem'}</Text>
+                      <Text style={styles.itemName} numberOfLines={2}>{getReadableReceiptItemName(item.name) || 'İsimsiz kalem'}</Text>
                       <Text style={styles.itemSubText} numberOfLines={1}>
                         {quantity.toLocaleString(getLocale())} × {unitPrice.toLocaleString(getLocale(), { style: 'currency', currency: 'TRY' })}
                       </Text>
@@ -679,34 +658,26 @@ function FisDetayiInner({ route, navigation }) {
                   </View>
                   <View style={styles.itemAmountBlock}>
                     <Text style={styles.itemAmount}>{lineTotal.toLocaleString(getLocale(), { style: 'currency', currency: 'TRY' })}</Text>
-                    {canEdit ? (
-                    <View style={styles.itemActions}>
-                      <TouchableOpacity style={styles.itemIconButton} onPress={() => openEditor(index)} accessibilityLabel="Kalemi düzenle">
-                        <Ionicons name="pencil-outline" size={18} color={theme.colors.primary[700]} />
-                      </TouchableOpacity>
-                      <TouchableOpacity style={styles.itemIconButton} onPress={() => removeItem(index)} accessibilityLabel="Kalemi sil">
-                        <Ionicons name="trash-outline" size={18} color={theme.colors.error[600]} />
-                      </TouchableOpacity>
-                    </View>
-                    ) : null}
+                    {canEdit ? <Ionicons name="chevron-forward" size={18} color={theme.colors.neutral[400]} /> : null}
                   </View>
-                </View>
-
-                <TouchableOpacity
-                  style={styles.assignmentButton}
-                  onPress={() => canEdit && openAssignmentEditor(index, item)}
-                  disabled={!canEdit}
-                  activeOpacity={0.82}
-                >
-                  <View style={styles.assignmentIcon}>
-                    <Ionicons name="people-outline" size={18} color={theme.colors.primary[700]} />
-                  </View>
-                  <View style={styles.assignmentBody}>
-                    <Text style={styles.assignmentLabel}>Paylaşım</Text>
-                    <Text style={styles.assignmentValue} numberOfLines={2}>{participantSummary}</Text>
-                  </View>
-                  {canEdit ? <Ionicons name="chevron-forward" size={19} color={theme.colors.neutral[400]} /> : null}
                 </TouchableOpacity>
+
+                <View style={styles.itemFooter}>
+                  <TouchableOpacity style={[styles.assignmentButton, { flex: 1 }]} onPress={() => openEditor(index)} disabled={!canEdit} activeOpacity={0.82}>
+                    <View style={styles.assignmentIcon}>
+                      <Ionicons name="people-outline" size={18} color={theme.colors.primary[700]} />
+                    </View>
+                    <View style={styles.assignmentBody}>
+                      <Text style={styles.assignmentLabel}>Paylaşım</Text>
+                      <Text style={styles.assignmentValue} numberOfLines={2}>{participantSummary}</Text>
+                    </View>
+                  </TouchableOpacity>
+                  {canEdit ? (
+                    <TouchableOpacity style={styles.deleteItemButton} onPress={() => removeItem(index)} accessibilityLabel="Kalemi sil">
+                      <Ionicons name="trash-outline" size={18} color={theme.colors.error[600]} />
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
               </View>
             );
           })}
@@ -798,6 +769,13 @@ function FisDetayiInner({ route, navigation }) {
             >
               <Text style={styles.modalTitle}>Kalemi düzenle</Text>
               <Text style={styles.modalHint}>Ürün bilgilerini ve tutarı paylaşacak kişileri güncelleyebilirsin.</Text>
+              {draftItem?.originalName ? <Text style={styles.originalName}>Fişteki ad: {draftItem.originalName}</Text> : null}
+              {draftItem?.originalName && getReadableReceiptItemName(draftItem.originalName) !== draftItem.originalName ? (
+                <TouchableOpacity style={styles.nameSuggestion} onPress={() => setDraftItem((prev) => ({ ...prev, name: getReadableReceiptItemName(prev.originalName) }))}>
+                  <Text style={styles.nameSuggestionText}>Önerilen ad: {getReadableReceiptItemName(draftItem.originalName)}</Text>
+                  <Ionicons name="arrow-forward" size={16} color={theme.colors.primary[700]} />
+                </TouchableOpacity>
+              ) : null}
 
               <TextInput
                 style={styles.input}
@@ -901,80 +879,6 @@ function FisDetayiInner({ route, navigation }) {
         </KeyboardAvoidingView>
       </Modal>
 
-      <Modal visible={assignmentEditor != null} transparent animationType="slide" onRequestClose={closeAssignmentEditor}>
-        <View style={styles.assignmentModalRoot}>
-          <Pressable style={styles.assignmentModalBackdrop} onPress={closeAssignmentEditor} />
-          <View style={[styles.assignmentModalSheet, { paddingBottom: Math.max(insets.bottom, 16) + 12 }]}>
-            <View style={styles.assignmentModalHandle} />
-            <View style={styles.assignmentModalHeader}>
-              <View style={styles.assignmentModalTitleBlock}>
-                <Text style={styles.modalTitle}>Paylaşımı düzenle</Text>
-                <Text style={styles.modalHint} numberOfLines={2}>
-                  {assignmentEditor != null ? items[assignmentEditor.index]?.name : ''}
-                </Text>
-              </View>
-              <TouchableOpacity style={styles.modalCloseButton} onPress={closeAssignmentEditor} accessibilityLabel="Kapat">
-                <Ionicons name="close" size={22} color={theme.colors.text.primary} />
-              </TouchableOpacity>
-            </View>
-
-            <TouchableOpacity
-              style={styles.selectAllRow}
-              onPress={() => setAssignmentEditor((current) => current ? ({ ...current, participantUserIds: memberIds }) : current)}
-            >
-              <View style={styles.memberSelectIcon}>
-                <Ionicons name="people-outline" size={19} color={theme.colors.primary[700]} />
-              </View>
-              <View style={styles.assignmentBody}>
-                <Text style={styles.memberSelectName}>Tüm ev</Text>
-                <Text style={styles.memberSelectMeta}>{members.length} kişi</Text>
-              </View>
-              <Ionicons
-                name={assignmentEditor?.participantUserIds?.length === memberIds.length ? 'checkmark-circle' : 'ellipse-outline'}
-                size={24}
-                color={assignmentEditor?.participantUserIds?.length === memberIds.length ? theme.colors.primary[600] : theme.colors.neutral[400]}
-              />
-            </TouchableOpacity>
-
-            <ScrollView style={styles.assignmentMemberScroll} contentContainerStyle={styles.assignmentMemberContent}>
-              {members.map((member) => {
-                const active = (assignmentEditor?.participantUserIds || []).includes(Number(member.id));
-                return (
-                  <TouchableOpacity
-                    key={`assignment-modal-${member.id}`}
-                    style={styles.memberSelectRow}
-                    onPress={() => toggleAssignmentEditorMember(member.id)}
-                  >
-                    <View style={styles.memberAvatar}>
-                      <Text style={styles.memberAvatarText}>{String(member.fullName || '?').charAt(0).toUpperCase()}</Text>
-                    </View>
-                    <Text style={styles.memberSelectName} numberOfLines={1}>{member.fullName}</Text>
-                    <Ionicons
-                      name={active ? 'checkmark-circle' : 'ellipse-outline'}
-                      size={24}
-                      color={active ? theme.colors.primary[600] : theme.colors.neutral[400]}
-                    />
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-
-            <View style={styles.assignmentModalFooter}>
-              <View style={styles.assignmentSelectionSummary}>
-                <Text style={styles.assignmentSelectionCount}>{assignmentEditor?.participantUserIds?.length || 0}</Text>
-                <Text style={styles.assignmentSelectionLabel}>kişi seçildi</Text>
-              </View>
-              <TouchableOpacity
-                style={[styles.assignmentSaveButton, !assignmentEditor?.participantUserIds?.length && styles.assignmentSaveButtonDisabled]}
-                onPress={saveAssignmentEditor}
-                disabled={!assignmentEditor?.participantUserIds?.length}
-              >
-                <Text style={styles.assignmentSaveButtonText}>Uygula</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 }
@@ -1149,6 +1053,11 @@ const makeStyles = (theme) => StyleSheet.create({
   filterButtonText: { color: theme.colors.text.primary, fontWeight: '700', textAlign: 'center' },
   filterButtonTextActive: { color: theme.colors.primary[700] },
   itemCard: { backgroundColor: theme.colors.surface, borderRadius: 8, padding: 12, borderWidth: 1, borderColor: theme.colors.neutral[200], marginBottom: 10 },
+  itemFooter: { flexDirection: 'row', alignItems: 'center', borderTopWidth: 1, borderColor: theme.colors.neutral[200] },
+  deleteItemButton: { width: 44, height: 48, alignItems: 'center', justifyContent: 'center' },
+  originalName: { color: theme.colors.text.secondary, fontSize: 12, marginBottom: 8 },
+  nameSuggestion: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
+  nameSuggestionText: { color: theme.colors.primary[700], fontSize: 13, fontWeight: '700', flexShrink: 1 },
   rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 },
   row: { flexDirection: 'row', justifyContent: 'space-between' },
   half: { width: '48%' },
@@ -1211,8 +1120,6 @@ const makeStyles = (theme) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     minHeight: 52,
-    borderTopWidth: 1,
-    borderColor: theme.colors.neutral[200],
     paddingTop: 10,
   },
   assignmentIcon: { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.primary[50], marginRight: 10 },

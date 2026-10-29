@@ -7,6 +7,7 @@ import { receiptsApi } from '../services/api';
 import { useTheme } from '../shared/theme/ThemeProvider';
 import { EmptyState, ListRow, LoadingState, PageHeader, Pill, SectionHeader } from '../shared/ui/roomora/CanonicalUI';
 import { Text } from '../shared/i18n';
+import { getReceiptTitle } from '../utils/receiptPresentation';
 
 const statusLabel = {
   Uploaded: 'Yüklendi',
@@ -66,7 +67,7 @@ export default function FisGecmisi({ navigation, route }) {
           <ListRow
             key={String(item.id)}
             icon="scan-outline"
-            title={item.storeName || 'İsimsiz fiş'}
+            title={getReceiptTitle(item, getLocale())}
             subtitle={`${getLocale().startsWith('en') ? 'Receipt' : 'Fiş'}: ${item.receiptDate ? new Date(item.receiptDate).toLocaleDateString(getLocale()) : '-'}\n${getLocale().startsWith('en') ? 'Added' : 'Eklendi'}: ${item.createdAt ? new Date(item.createdAt).toLocaleDateString(getLocale()) : '-'}`}
             subtitleLines={2}
             amount={item.detectedTotalAmount || 0}

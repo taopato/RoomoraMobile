@@ -1,3 +1,5 @@
+import { getReceiptStoreName } from './receiptPresentation.js';
+
 const validDate = (value) => {
   const date = value ? new Date(value) : null;
   return date && Number.isFinite(date.getTime()) ? date : null;
@@ -17,6 +19,7 @@ export const attachReceiptDates = (expenses, receipts) => {
       ...expense,
       receiptUploadedAt: receipt.createdAt,
       receiptDate: receipt.receiptDate,
+      receiptStoreName: getReceiptStoreName(receipt),
     };
   });
 };
