@@ -21,13 +21,26 @@ import {
 } from '../src/utils/receiptAssignments.js';
 import { getContainedImageMetrics, getContainedOverlayStyle } from '../src/utils/receiptLayout.js';
 import { selectParticipant } from '../src/utils/participantSelection.js';
+import { attachReceiptDates, getTimelineDate, sortExpensesByTimeline } from '../src/utils/expenseTimeline.js';
 import { getLocale, setActiveLanguage, translate } from '../src/shared/i18n/runtime.js';
 
 setActiveLanguage('tr');
+
+const timelineExpenses = attachReceiptDates([
+  { id: 10, date: '2026-10-28T12:00:00Z', _raw: { kayitTarihi: '2026-10-28T12:00:00Z' } },
+  { id: 11, date: '2026-09-01T12:00:00Z', _raw: { kayitTarihi: '2026-09-01T12:00:00Z' } },
+], [{ convertedExpenseId: 11, receiptDate: '2026-09-01T12:00:00Z', createdAt: '2026-10-29T12:00:00Z' }]);
+assert.equal(sortExpensesByTimeline(timelineExpenses)[0].id, 11);
+assert.equal(sortExpensesByTimeline(timelineExpenses, 'expense')[0].id, 10);
+assert.equal(getTimelineDate(timelineExpenses[1], 'added').toISOString(), '2026-10-29T12:00:00.000Z');
+assert.equal(getTimelineDate(timelineExpenses[1], 'expense').toISOString(), '2026-09-01T12:00:00.000Z');
 assert.equal(translate('Faturalar'), 'Faturalar');
 assert.equal(getLocale(), 'tr-TR');
 setActiveLanguage('en');
 assert.equal(translate('Faturalar'), 'Bills');
+assert.equal(translate('Eklenme tarihi'), 'Date added');
+assert.equal(translate('Harcama tarihi'), 'Expense date');
+assert.equal(translate('Fişi görüntüle'), 'View receipt');
 assert.equal(translate('Ayşe ödedi · 09.10.2026'), 'Ayşe paid · 09.10.2026');
 assert.equal(getLocale(), 'en-US');
 setActiveLanguage('tr');

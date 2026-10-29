@@ -73,6 +73,7 @@ function FisDetayiInner({ route, navigation }) {
   const [draftItem, setDraftItem] = useState(null);
   const [imageFrame, setImageFrame] = useState({ width: 0, height: 260 });
   const [imageZoom, setImageZoom] = useState(1);
+  const [showPhoto, setShowPhoto] = useState(false);
   const [pinchPreviewScale, setPinchPreviewScale] = useState(1);
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
   const [panDrag, setPanDrag] = useState({ x: 0, y: 0 });
@@ -526,7 +527,65 @@ function FisDetayiInner({ route, navigation }) {
           subtitle={editConverted ? 'Kalemleri, tarihi ve paylaşımı güncelle' : (isConverted ? 'Kaydedilmiş fiş' : 'Bilgileri kontrol edip kaydet')}
           onBack={() => navigation.goBack()}
         />
+        <View style={styles.summaryCard}>
+          <Text style={styles.summaryTitle}>{receipt?.storeName || 'Fiş Detayı'}</Text>
+          <Text style={styles.summarySub}>
+            {getLocale().startsWith('en') ? 'Receipt date' : 'Fiş tarihi'}: {receipt?.receiptDate ? new Date(receipt.receiptDate).toLocaleDateString(getLocale()) : '-'}
+          </Text>
+          {receipt?.createdAt ? <Text style={styles.summarySub}>{getLocale().startsWith('en') ? 'Added' : 'Eklendi'}: {new Date(receipt.createdAt).toLocaleDateString(getLocale())}</Text> : null}
+          <Text style={styles.summaryAmount}>
+            {total.toLocaleString(getLocale(), { style: 'currency', currency: 'TRY' })}
+          </Text>
+          {canEdit ? (
+            <View style={styles.totalCorrection}>
+              <Text style={styles.summaryMetaLabel}>Fiş toplamı (kontrol et veya düzelt)</Text>
+              <TextInput
+                style={styles.input}
+                keyboardType="decimal-pad"
+                value={totalInput}
+                onChangeText={(value) => {
+                  setTotalInput(value);
+                  setReceipt((current) => ({ ...current, detectedTotalAmount: parseReceiptAmount(value) || 0 }));
+                }}
+                accessibilityLabel="Fiş toplamını düzelt"
+              />
+            </View>
+          ) : null}
+          <View style={styles.summaryMetaRow}>
+            <View style={styles.summaryMetaBadge}>
+              <Text style={styles.summaryMetaLabel}>Tüm ev</Text>
+              <Text style={styles.summaryMetaValue}>{sharedTotal.toLocaleString(getLocale(), { style: 'currency', currency: 'TRY' })}</Text>
+            </View>
+            <View style={styles.summaryMetaBadge}>
+              <Text style={styles.summaryMetaLabel}>Seçili kişiler</Text>
+              <Text style={styles.summaryMetaValue}>{subsetTotal.toLocaleString(getLocale(), { style: 'currency', currency: 'TRY' })}</Text>
+            </View>
+          </View>
+          {hasTotalMismatch ? (
+            <View style={styles.missingAmountCard}>
+              <Text style={styles.missingAmountTitle}>Fiş tutarlarını kontrol et</Text>
+              <Text style={styles.missingAmountText}>
+                Okunan fiş toplamı {detectedTotal.toLocaleString(getLocale(), { style: 'currency', currency: 'TRY' })}, kalemlerin toplamı {explicitTotal.toLocaleString(getLocale(), { style: 'currency', currency: 'TRY' })}.
+                Eksik veya fazla okunan kalemleri düzeltmeden harcamaya dönüştüremezsin; hiçbir fark otomatik paylaştırılmaz.
+              </Text>
+            </View>
+          ) : null}
+        </View>
+
+        {!canEdit ? (
+          <View style={styles.convertedNotice}>
+            <Text style={styles.convertedNoticeTitle}>Harcamaya dönüştürüldü</Text>
+            <Text style={styles.convertedNoticeText}>Bu fiş kayıt bütünlüğü için salt okunur gösteriliyor.</Text>
+          </View>
+        ) : null}
         {imageUri ? (
+          <TouchableOpacity style={styles.photoToggle} onPress={() => setShowPhoto((current) => !current)} accessibilityLabel={showPhoto ? 'Fiş fotoğrafını gizle' : 'Fiş fotoğrafını görüntüle'}>
+            <Ionicons name="receipt-outline" size={19} color={theme.colors.primary[700]} />
+            <Text style={styles.photoToggleText}>{showPhoto ? 'Fişi gizle' : 'Fişi görüntüle'}</Text>
+            <Ionicons name={showPhoto ? 'chevron-up' : 'chevron-down'} size={18} color={theme.colors.text.secondary} />
+          </TouchableOpacity>
+        ) : null}
+        {imageUri && showPhoto ? (
           <>
             <View style={styles.zoomToolbar}>
               <TouchableOpacity style={styles.zoomButton} onPress={() => setImageZoom((prev) => Math.max(1, Number((prev - 0.25).toFixed(2))))}>
@@ -540,12 +599,6 @@ function FisDetayiInner({ route, navigation }) {
                 <Text style={styles.zoomResetButtonText}>Sıfırla</Text>
               </TouchableOpacity>
             </View>
-            {!canEdit ? (
-              <View style={styles.convertedNotice}>
-                <Text style={styles.convertedNoticeTitle}>Harcamaya dönüştürüldü</Text>
-                <Text style={styles.convertedNoticeText}>Bu fiş kayıt bütünlüğü için salt okunur gösteriliyor.</Text>
-              </View>
-            ) : null}
             <PinchGestureHandler onGestureEvent={handlePinchGesture} onHandlerStateChange={handlePinchStateChange}>
               <View>
                 <PanGestureHandler
@@ -599,11 +652,6 @@ function FisDetayiInner({ route, navigation }) {
               </TouchableOpacity>
             ) : null}
           </View>
-          <Text style={styles.sectionHint}>
-            {!canEdit
-              ? 'Fiş kalemleri ve paylaşım bilgileri tamamlanan harcama kaydıyla eşleşir.'
-              : 'Her kalemde dahil olacak kişileri seç. Bir, birkaç veya tüm ev üyelerini işaretleyebilirsin.'}
-          </Text>
 
           {visibleItems.map(({ item, index }) => {
             const participantIds = getReceiptItemParticipantIds(item, members);
@@ -655,7 +703,7 @@ function FisDetayiInner({ route, navigation }) {
                   </View>
                   <View style={styles.assignmentBody}>
                     <Text style={styles.assignmentLabel}>Paylaşım</Text>
-                    <Text style={styles.assignmentValue} numberOfLines={1}>{participantSummary}</Text>
+                    <Text style={styles.assignmentValue} numberOfLines={2}>{participantSummary}</Text>
                   </View>
                   {canEdit ? <Ionicons name="chevron-forward" size={19} color={theme.colors.neutral[400]} /> : null}
                 </TouchableOpacity>
@@ -664,53 +712,9 @@ function FisDetayiInner({ route, navigation }) {
           })}
         </View>
 
-        <View style={styles.summaryCard} onTouchStart={deactivateImageInteraction}>
-          <Text style={styles.summaryTitle}>{receipt?.storeName || 'Fis Detayi'}</Text>
-          <Text style={styles.summarySub}>
-            {receipt?.receiptDate ? new Date(receipt.receiptDate).toLocaleDateString(getLocale()) : 'Tarih seçilmedi'}
-          </Text>
-          <Text style={styles.summaryAmount}>
-            {total.toLocaleString(getLocale(), { style: 'currency', currency: 'TRY' })}
-          </Text>
-          {canEdit ? (
-            <View style={styles.totalCorrection}>
-              <Text style={styles.summaryMetaLabel}>Fiş toplamı (kontrol et veya düzelt)</Text>
-              <TextInput
-                style={styles.input}
-                keyboardType="decimal-pad"
-                value={totalInput}
-                onChangeText={(value) => {
-                  setTotalInput(value);
-                  setReceipt((current) => ({ ...current, detectedTotalAmount: parseReceiptAmount(value) || 0 }));
-                }}
-                accessibilityLabel="Fiş toplamını düzelt"
-              />
-            </View>
-          ) : null}
-          <View style={styles.summaryMetaRow}>
-            <View style={styles.summaryMetaBadge}>
-              <Text style={styles.summaryMetaLabel}>Tüm ev</Text>
-              <Text style={styles.summaryMetaValue}>{sharedTotal.toLocaleString(getLocale(), { style: 'currency', currency: 'TRY' })}</Text>
-            </View>
-            <View style={styles.summaryMetaBadge}>
-              <Text style={styles.summaryMetaLabel}>Seçili kişiler</Text>
-              <Text style={styles.summaryMetaValue}>{subsetTotal.toLocaleString(getLocale(), { style: 'currency', currency: 'TRY' })}</Text>
-            </View>
-          </View>
-          {hasTotalMismatch ? (
-            <View style={styles.missingAmountCard}>
-              <Text style={styles.missingAmountTitle}>Fiş tutarlarını kontrol et</Text>
-              <Text style={styles.missingAmountText}>
-                Okunan fiş toplamı {detectedTotal.toLocaleString(getLocale(), { style: 'currency', currency: 'TRY' })}, kalemlerin toplamı {explicitTotal.toLocaleString(getLocale(), { style: 'currency', currency: 'TRY' })}.
-                Eksik veya fazla okunan kalemleri düzeltmeden harcamaya dönüştüremezsin; hiçbir fark otomatik paylaştırılmaz.
-              </Text>
-            </View>
-          ) : null}
-        </View>
-
         {canEdit ? (
           <>
-            <View style={styles.section} onTouchStart={deactivateImageInteraction}>
+            <View style={styles.section}>
               <Text style={styles.sectionTitle}>Harcama tarihi</Text>
               <DateField
                 value={receipt?.receiptDate ? String(receipt.receiptDate).slice(0, 10) : ''}
@@ -722,7 +726,7 @@ function FisDetayiInner({ route, navigation }) {
               />
             </View>
 
-            <View style={styles.section} onTouchStart={deactivateImageInteraction}>
+            <View style={styles.section}>
               <Text style={styles.sectionTitle}>Ödeyen</Text>
               <View style={styles.chips}>
                 {members.map((member) => {
@@ -740,7 +744,7 @@ function FisDetayiInner({ route, navigation }) {
               </View>
             </View>
 
-            <View style={styles.section} onTouchStart={deactivateImageInteraction}>
+            <View style={styles.section}>
               <Text style={styles.sectionTitle}>Kategori</Text>
               <View style={styles.chips}>
                 {CATEGORY_OPTIONS.map((option) => {
@@ -1023,7 +1027,9 @@ export default function FisDetayi(props) {
 const makeStyles = (theme) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.background },
   statusBarGuard: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 20, backgroundColor: theme.colors.background },
-  content: { paddingHorizontal: 20, paddingBottom: 36 },
+  content: { paddingHorizontal: 18, paddingBottom: 36 },
+  photoToggle: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12, marginBottom: 12, borderRadius: 8, backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.neutral[200] },
+  photoToggleText: { flex: 1, color: theme.colors.primary[700], fontFamily: theme.typography.semibold, fontSize: 14 },
   previewFrame: { width: '100%', height: 260, borderRadius: 8, backgroundColor: theme.colors.neutral[100], marginBottom: 14, overflow: 'hidden', position: 'relative' },
   previewCanvas: { position: 'relative', backgroundColor: theme.colors.neutral[100], width: '100%', height: '100%' },
   preview: { width: '100%', height: '100%' },
@@ -1064,13 +1070,13 @@ const makeStyles = (theme) => StyleSheet.create({
   },
   convertedNoticeTitle: { color: theme.colors.success[700], fontWeight: '900', marginBottom: 4 },
   convertedNoticeText: { color: theme.colors.text.secondary, lineHeight: 18 },
-  summaryCard: { backgroundColor: theme.colors.surface, borderRadius: 18, padding: 16, borderWidth: 1, borderColor: theme.colors.neutral[200], marginBottom: 14 },
+  summaryCard: { backgroundColor: theme.colors.primary[50], borderRadius: 8, padding: 16, borderWidth: 1, borderColor: theme.colors.primary[100], marginTop: 14, marginBottom: 14 },
   summaryTitle: { color: theme.colors.text.primary, fontWeight: '900', fontSize: 18 },
   summarySub: { color: theme.colors.text.secondary, marginTop: 4 },
   summaryAmount: { color: theme.colors.primary[700], fontWeight: '900', fontSize: 22, marginTop: 10 },
   totalCorrection: { marginTop: 14 },
-  summaryMetaRow: { flexDirection: 'row', gap: 10, marginTop: 14 },
-  summaryMetaBadge: { flex: 1, padding: 12, borderRadius: 14, backgroundColor: theme.colors.background, borderWidth: 1, borderColor: theme.colors.neutral[200] },
+  summaryMetaRow: { flexDirection: 'row', gap: 16, marginTop: 14, paddingTop: 12, borderTopWidth: 1, borderColor: theme.colors.primary[100] },
+  summaryMetaBadge: { flex: 1 },
   summaryMetaLabel: { color: theme.colors.text.secondary, fontSize: 12, fontWeight: '700', marginBottom: 4 },
   summaryMetaValue: { color: theme.colors.text.primary, fontSize: 14, fontWeight: '800' },
   missingAmountCard: {
@@ -1085,8 +1091,7 @@ const makeStyles = (theme) => StyleSheet.create({
   missingAmountText: { color: theme.colors.text.secondary, lineHeight: 18 },
   section: { marginBottom: 16 },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
-  sectionTitle: { color: theme.colors.text.primary, fontWeight: '800', fontSize: 16, marginBottom: 10 },
-  sectionHint: { color: theme.colors.text.secondary, marginBottom: 10, lineHeight: 18 },
+  sectionTitle: { color: theme.colors.text.primary, fontFamily: theme.typography.bold, fontSize: 17, marginBottom: 10 },
   addText: { color: theme.colors.primary[700], fontWeight: '800' },
   rawCard: { padding: 14, borderRadius: 14, backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.neutral[200] },
   rawText: { color: theme.colors.text.secondary, lineHeight: 20 },
@@ -1152,13 +1157,13 @@ const makeStyles = (theme) => StyleSheet.create({
   itemNumberBadge: {
     width: 30,
     height: 30,
-    borderRadius: 15,
+    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: theme.colors.primary[600],
+    backgroundColor: theme.colors.primary[50],
     marginRight: 10,
   },
-  itemNumberBadgeText: { color: theme.colors.text.onPrimary, fontWeight: '900' },
+  itemNumberBadgeText: { color: theme.colors.primary[700], fontWeight: '800' },
   itemAmountBlock: { alignItems: 'flex-end', minWidth: 94, marginLeft: 8 },
   itemAmount: { color: theme.colors.text.primary, fontWeight: '900', fontSize: 15 },
   itemActions: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 5 },
@@ -1206,11 +1211,9 @@ const makeStyles = (theme) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     minHeight: 52,
-    borderRadius: 8,
-    backgroundColor: theme.colors.background,
-    borderWidth: 1,
+    borderTopWidth: 1,
     borderColor: theme.colors.neutral[200],
-    paddingHorizontal: 10,
+    paddingTop: 10,
   },
   assignmentIcon: { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.primary[50], marginRight: 10 },
   assignmentBody: { flex: 1, minWidth: 0 },

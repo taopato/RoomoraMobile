@@ -1,4 +1,11 @@
 const EN = {
+  'Fişi görüntüle': 'View receipt',
+  'Fişi gizle': 'Hide receipt',
+  'Fiş fotoğrafını görüntüle': 'View receipt photo',
+  'Fiş fotoğrafını gizle': 'Hide receipt photo',
+  'Sırala': 'Sort by',
+  'Eklenme tarihi': 'Date added',
+  'Harcama tarihi': 'Expense date',
   'Gruplarım': 'My Groups',
   'Evlerini ve gezilerini yönet': 'Manage your homes and trips',
   'Gezi grubu': 'Trip group',

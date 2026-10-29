@@ -20,7 +20,9 @@ import {
 import {
   getExpenseDisplayTitle,
   getItemDate,
+  isFutureExpense,
 } from '../../utils/expenseHelpers';
+import { sortExpensesByTimeline } from '../../utils/expenseTimeline';
 import { getCategoryIconName } from '../../constants/ExpenseEnums';
 import BrandMark from '../../components/BrandMark';
 
@@ -48,7 +50,7 @@ export default function RoomoraHome({ navigation }) {
   const styles = useMemo(() => makeStyles(theme, insets), [theme, insets]);
   const firstName = String(user?.fullName || 'Kullanıcı').trim().split(/\s+/)[0];
   const isTrip = String(data.groupType || '').toLowerCase() === 'trip';
-  const recent = data.expenses.slice(0, 4);
+  const recent = sortExpensesByTimeline(data.expenses.filter((item) => !isFutureExpense(item))).slice(0, 4);
   const upcomingBill = !isTrip && data.expenses.find((item) =>
     ['Electricity', 'Water', 'Gas', 'Internet', 'Rent'].includes(item.key)
   );
@@ -187,7 +189,7 @@ export default function RoomoraHome({ navigation }) {
                 key={String(item.id)}
                 icon={getCategoryIconName(item.key)}
                 title={getExpenseDisplayTitle(item)}
-                subtitle={`${dayLabel(getItemDate(item))}${item.payerName ? ` · Ödeyen: ${item.payerName}` : ''}`}
+                subtitle={`${dayLabel(item.receiptUploadedAt || getItemDate(item))}${item.payerName ? ` · Ödeyen: ${item.payerName}` : ''}`}
                 amount={item.amount}
                 onPress={() => requireHouse('HarcamaDetayi', { expenseId: item.id })}
               />

@@ -18,6 +18,7 @@ import {
 } from '../../shared/ui/roomora/CanonicalUI';
 import { getCategoryDisplayName, getCategoryIconName } from '../../constants/ExpenseEnums';
 import { getExpenseDisplayTitle, getItemDate } from '../../utils/expenseHelpers';
+import { getTimelineDate, sortExpensesByTimeline } from '../../utils/expenseTimeline';
 
 import { Text, TextInput } from '../../shared/i18n';
 import { getLocale } from '../../shared/i18n/runtime';
@@ -40,6 +41,7 @@ export default function RoomoraExpenses({ navigation }) {
   const screenError = data.errors?.expenses;
   const [filter, setFilter] = useState('all');
   const [period, setPeriod] = useState('month');
+  const [sortMode, setSortMode] = useState('added');
   const [search, setSearch] = useState('');
   const [visibleCount, setVisibleCount] = useState(10);
   const styles = useMemo(() => makeStyles(theme, insets), [theme, insets]);
@@ -59,11 +61,11 @@ export default function RoomoraExpenses({ navigation }) {
     }))];
   }, [data.expenses, isTrip]);
 
-  const items = useMemo(() => data.expenses.filter((item) => {
+  const items = useMemo(() => sortExpensesByTimeline(data.expenses.filter((item) => {
     const matchesFilter = filter === 'all'
       || item.key === filter
       || (filter === 'bill' && item.kind === 'bill');
-    const date = getItemDate(item);
+    const date = getTimelineDate(item, sortMode);
     const now = new Date();
     const matchesPeriod = period === 'all'
       || (period === 'month'
@@ -74,7 +76,7 @@ export default function RoomoraExpenses({ navigation }) {
     return matchesFilter
       && matchesPeriod
       && haystack.includes(search.trim().toLocaleLowerCase('tr-TR'));
-  }), [data.expenses, filter, period, search]);
+  }), sortMode), [data.expenses, filter, period, search, sortMode]);
   const visibleItems = items.slice(0, visibleCount);
 
   const total = items.reduce((sum, item) => sum + Number(item.amount || 0), 0);
@@ -142,6 +144,14 @@ export default function RoomoraExpenses({ navigation }) {
           <Pill label="Tüm Zamanlar" active={period === 'all'} onPress={() => { setPeriod('all'); setVisibleCount(10); }} />
         </View>
 
+        <View style={styles.sortRow}>
+          <Text style={styles.sortLabel}>Sırala</Text>
+          <View style={styles.sortOptions}>
+            <Pill label="Eklenme tarihi" active={sortMode === 'added'} onPress={() => { setSortMode('added'); setVisibleCount(10); }} />
+            <Pill label="Harcama tarihi" active={sortMode === 'expense'} onPress={() => { setSortMode('expense'); setPeriod('all'); setVisibleCount(10); }} />
+          </View>
+        </View>
+
         <SectionHeader
           title="Harcama Geçmişi"
           action={items.length > visibleCount ? 'Daha Fazla' : undefined}
@@ -165,7 +175,10 @@ export default function RoomoraExpenses({ navigation }) {
             key={String(item.id)}
             icon={getCategoryIconName(item.key)}
             title={getExpenseDisplayTitle(item)}
-            subtitle={`${getItemDate(item).toLocaleDateString(getLocale())}${item.payerName ? ` · ${item.payerName} ödedi` : ''}`}
+            subtitleLines={item.receiptUploadedAt ? 2 : 1}
+            subtitle={item.receiptUploadedAt
+              ? `${getLocale().startsWith('en') ? 'Receipt' : 'Fiş'}: ${getItemDate(item).toLocaleDateString(getLocale())}\n${getLocale().startsWith('en') ? 'Added' : 'Eklendi'}: ${getTimelineDate(item, 'added').toLocaleDateString(getLocale())}`
+              : `${getTimelineDate(item, sortMode).toLocaleDateString(getLocale())}${item.payerName ? ` · ${item.payerName} ödedi` : ''}`}
             amount={item.amount}
             onPress={() => navigation.navigate('HarcamaDetayi', {
               expenseId: item.id,
@@ -209,6 +222,9 @@ const makeStyles = (theme, insets) => StyleSheet.create({
   },
   filters: { gap: 8, paddingVertical: 14 },
   periodRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 14 },
+  sortRow: { marginBottom: 16 },
+  sortLabel: { color: theme.colors.text.secondary, fontFamily: theme.typography.medium, fontSize: 12, marginBottom: 8 },
+  sortOptions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   collapseButton: { minHeight: 44, alignItems: 'center', justifyContent: 'center' },
   collapseText: { color: theme.colors.primary[700], fontFamily: theme.typography.semibold, fontSize: 13 },
   totalCard: {

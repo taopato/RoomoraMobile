@@ -1,8 +1,9 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
-import { expensesApi, houseApi, paymentsApi, scheduledChargesApi } from '../services/api';
+import { expensesApi, houseApi, paymentsApi, receiptsApi, scheduledChargesApi } from '../services/api';
 import { normalizeExpense } from '../utils/expenseClassifier';
 import { deduplicateMonthlyPlans, getItemDate, sortByDateDesc } from '../utils/expenseHelpers';
+import { attachReceiptDates } from '../utils/expenseTimeline';
 import { syncBillReminders } from '../services/pushNotifications';
 
 const arrayFrom = (response) => {
@@ -54,6 +55,7 @@ export default function useRoomoraDashboard(user) {
       houseApi.getUserDebts(Number(user.id), houseId),
       paymentsApi.getPendingPayments(Number(user.id)),
       isTrip ? Promise.resolve({ data: [] }) : scheduledChargesApi.getByHouse(houseId),
+      receiptsApi.getByHouse(houseId),
     ]);
 
     const expenseResponse = results[0].status === 'fulfilled' ? results[0].value : null;
@@ -67,9 +69,11 @@ export default function useRoomoraDashboard(user) {
       scheduled: results[3].status === 'rejected' ? 'Planlı ödemeler şu anda alınamıyor.' : '',
     };
 
-    const expenses = sortByDateDesc(
-      deduplicateMonthlyPlans(arrayFrom(expenseResponse).map(normalizeExpense))
-    );
+    const receipts = results[4].status === 'fulfilled' ? arrayFrom(results[4].value) : [];
+    const expenses = sortByDateDesc(attachReceiptDates(
+      deduplicateMonthlyPlans(arrayFrom(expenseResponse).map(normalizeExpense)),
+      receipts
+    ));
     const debtBody = debtResponse?.data?.data ?? debtResponse?.data ?? {};
     const totals = Array.isArray(debtBody?.totals) ? debtBody.totals : [];
     const mine = totals.find((item) => Number(item.userId) === Number(user.id)) || debtBody;
