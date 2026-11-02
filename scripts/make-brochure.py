@@ -23,10 +23,9 @@ MM = 72 / 25.4
 W, H = 148 * MM, 210 * MM
 NAVY = colors.HexColor("#182C3C")
 BLUE = colors.HexColor("#286593")
-PALE = colors.HexColor("#EAF3F8")
+PAPER = colors.HexColor("#F8FAFB")
 MUTED = colors.HexColor("#526675")
-GREEN = colors.HexColor("#85D3BF")
-GOLD = colors.HexColor("#E3BB75")
+GREEN = colors.HexColor("#8BD9C5")
 WHITE = colors.white
 
 
@@ -47,10 +46,12 @@ def label(c, x, y, value, size=10, color=NAVY, font="Segoe"):
 
 def phone(c, image_path, x, top, width):
     height = width * 16 / 9
-    c.setFillColor(colors.HexColor("#0B1B29"))
-    c.roundRect((x - 0.8) * MM, (H / MM - top - height - 1.6) * MM,
-                (width + 2.2) * MM, (height + 2.2) * MM, 2.5 * MM,
-                fill=1, stroke=0)
+    c.setFillColor(colors.HexColor("#DCE6EC"))
+    c.roundRect((x + 1.6) * MM, (H / MM - top - height - 2.6) * MM,
+                (width + 2.4) * MM, (height + 2.4) * MM, 2.4 * MM, fill=1, stroke=0)
+    c.setFillColor(NAVY)
+    c.roundRect((x - 0.7) * MM, (H / MM - top - height - 0.7) * MM,
+                (width + 1.4) * MM, (height + 1.4) * MM, 2.1 * MM, fill=1, stroke=0)
     c.drawImage(ImageReader(str(image_path)), x * MM,
                 (H / MM - top - height) * MM, width * MM, height * MM,
                 mask="auto")
@@ -59,55 +60,64 @@ def phone(c, image_path, x, top, width):
 ios = qr(IOS_URL, "roomora-ios-qr.png")
 android = qr(ANDROID_URL, "roomora-android-qr.png")
 c = canvas.Canvas(str(PDF), pagesize=(W, H), pageCompression=1)
-c.setTitle("Roomora | Ortak harcamalar, net hesaplar")
+c.setTitle("Roomora | Evde de gezide de hesap ortada")
 c.setAuthor("Roomora")
-c.setFillColor(WHITE)
+c.setFillColor(PAPER)
 c.rect(0, 0, W, H, fill=1, stroke=0)
 c.setFillColor(NAVY)
-c.rect(0, H - 130 * MM, W, 130 * MM, fill=1, stroke=0)
+c.rect(0, H - 22 * MM, W, 22 * MM, fill=1, stroke=0)
 c.drawImage(ImageReader(str(ROOT / "src" / "assets" / "mark-white.png")),
-            13 * MM, H - 31 * MM, 20 * MM, 20 * MM,
+            12 * MM, H - 19 * MM, 16 * MM, 16 * MM,
             mask="auto", preserveAspectRatio=True)
-label(c, 36, 21, "ROOMORA", 22, WHITE, "SegoeBold")
-label(c, 36, 28, "Birlikte harca. Net hesaplaş.", 8.2, colors.HexColor("#CFDDE6"))
-c.setStrokeColor(colors.HexColor("#40596C"))
-c.line(13 * MM, H - 37 * MM, 135 * MM, H - 37 * MM)
+label(c, 31, 13.5, "ROOMORA", 19, WHITE, "SegoeBold")
+label(c, 112, 12.4, "EV  +  GEZİ", 7.5, GREEN, "SegoeBold")
+c.setFillColor(BLUE)
+c.rect(0, H - 23.3 * MM, W, 1.3 * MM, fill=1, stroke=0)
 
-label(c, 13, 48, "EVDE VE GEZİDE", 8.5, GREEN, "SegoeBold")
-label(c, 13, 61, "Kim ne ödedi,", 18, WHITE, "SegoeBold")
-label(c, 13, 71, "kim ne kadar", 18, WHITE, "SegoeBold")
-label(c, 13, 81, "borçlu?", 18, WHITE, "SegoeBold")
-label(c, 13, 94, "Kira, fatura, otel ve yemek:", 8.3, colors.HexColor("#D9E5EB"))
-label(c, 13, 100, "her harcama ilgili kişilerle", 8.3, colors.HexColor("#D9E5EB"))
-label(c, 13, 106, "paylaşılır, bakiye açık kalır.", 8.3, colors.HexColor("#D9E5EB"))
-
-c.setFillColor(GOLD)
-c.roundRect(13 * MM, H - 120 * MM, 23 * MM, 8 * MM, 2 * MM, fill=1, stroke=0)
-label(c, 17, 117.5, "EV", 7.8, NAVY, "SegoeBold")
+label(c, 13, 37, "AYNI MASADA, AYNI HESAPTA", 7.5, BLUE, "SegoeBold")
+label(c, 13, 51, "Kim ne ödedi?", 20, NAVY, "SegoeBold")
+label(c, 13, 62, "Hesap net.", 21, NAVY, "SegoeBold")
 c.setFillColor(GREEN)
-c.roundRect(39 * MM, H - 120 * MM, 26 * MM, 8 * MM, 2 * MM, fill=1, stroke=0)
-label(c, 43, 117.5, "GEZİ", 7.8, NAVY, "SegoeBold")
+c.rect(13 * MM, H - 67 * MM, 38 * MM, 1.7 * MM, fill=1, stroke=0)
+label(c, 13, 78, "Kira, market, otel ya da yemek.", 9, MUTED)
+label(c, 13, 84, "Kimlerle paylaşılacağını seç.", 9, MUTED)
+label(c, 13, 90, "Kimin kime borcu var, gör.", 9, MUTED)
 
-phone(c, ROOT / "media" / "store-native" / "android" / "home-tr-01-home.png", 80, 42, 47)
-phone(c, ROOT / "media" / "store-native" / "android" / "trip-tr-03-expenses.png", 107, 76, 30)
+phone(c, ROOT / "media" / "store-native" / "android" / "home-tr-01-home.png", 91, 29, 36)
+phone(c, ROOT / "media" / "store-native" / "android" / "trip-tr-03-expenses.png", 115, 54, 25)
+label(c, 93, 99, "EV", 6.8, BLUE, "SegoeBold")
+label(c, 118, 103, "GEZİ", 6.8, BLUE, "SegoeBold")
 
-c.setFillColor(BLUE)
-c.rect(0, H - 131.5 * MM, W, 1.5 * MM, fill=1, stroke=0)
-label(c, 13, 143, "Grubunu kur, hesabı birlikte gör.", 13, NAVY, "SegoeBold")
-label(c, 13, 150, "Ücretsiz indir. Telefonuna uygun kodu okut.", 8.4, MUTED)
+c.setFillColor(NAVY)
+c.rect(0, H - 148 * MM, W, 41 * MM, fill=1, stroke=0)
+steps = [
+    (13, "01", "EKLE", "Kim ödedi?", "Ne kadar tuttu?"),
+    (57, "02", "PAYLAŞ", "Herkes mi, birkaç", "kişi mi? Sen seç."),
+    (103, "03", "GÖR", "Kimin kime borcu", "var, anında gör."),
+]
+for x, number, title, first, second in steps:
+    label(c, x, 117, number, 10.5, GREEN, "SegoeBold")
+    label(c, x, 127, title, 10.5, WHITE, "SegoeBold")
+    label(c, x, 135, first, 7.9, colors.HexColor("#D9E5EB"))
+    label(c, x, 141, second, 7.9, colors.HexColor("#D9E5EB"))
+c.setStrokeColor(colors.HexColor("#456071"))
+c.line(52 * MM, H - 115 * MM, 52 * MM, H - 142 * MM)
+c.line(98 * MM, H - 115 * MM, 98 * MM, H - 142 * MM)
 
-for x, image, title, url in ((13, ios, "iPhone / App Store", IOS_URL),
-                             (79, android, "Android / Google Play", ANDROID_URL)):
-    c.setFillColor(PALE)
-    c.roundRect(x * MM, H - 201 * MM, 56 * MM, 44 * MM, 2 * MM, fill=1, stroke=0)
-    c.drawImage(image, (x + 11) * MM, H - 194 * MM, 34 * MM, 34 * MM, mask="auto")
+label(c, 13, 158, "Birlikte indir, hesabı birlikte gör.", 11.3, NAVY, "SegoeBold")
+label(c, 13, 164, "Telefonuna uygun kodu okut. Ücretsiz.", 8.1, MUTED)
+
+for x, image, title, url, color in (
+    (22, ios, "iPhone / App Store", IOS_URL, BLUE),
+    (90, android, "Android / Google Play", ANDROID_URL, colors.HexColor("#267B68")),
+):
+    c.setFillColor(color)
+    c.rect(x * MM, H - 169 * MM, 34 * MM, 1.2 * MM, fill=1, stroke=0)
+    c.drawImage(image, x * MM, H - 203 * MM, 34 * MM, 34 * MM, mask="auto")
     c.setFillColor(NAVY)
-    c.setFont("SegoeBold", 8.2)
-    c.drawCentredString((x + 28) * MM, H - 199 * MM, title)
-    c.linkURL(url, (x * MM, H - 201 * MM, (x + 56) * MM, H - 157 * MM), relative=0)
+    c.setFont("SegoeBold", 8)
+    c.drawCentredString((x + 17) * MM, H - 207 * MM, title)
+    c.linkURL(url, (x * MM, H - 208 * MM, (x + 34) * MM, H - 169 * MM), relative=0)
 
-label(c, 13, 206, "roomora  /  takosware.com", 7.2, MUTED)
-c.setFillColor(BLUE)
-c.rect(0, 0, W, 2 * MM, fill=1, stroke=0)
 c.save()
 print(PDF)
