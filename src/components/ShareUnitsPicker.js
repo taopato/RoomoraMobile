@@ -86,7 +86,7 @@ export default function ShareUnitsPicker({ members, units, amount, onChange, onC
                   {count > 1 ? (
                     <TextInput
                       style={styles.guestInput}
-                      placeholder="Ek pay açıklaması (örn. Sedef için)"
+                      placeholder="Ek pay açıklaması (örn. bir arkadaşın için)"
                       placeholderTextColor={theme.colors.text.disabled}
                       value={entry.forLabel || ''}
                       maxLength={80}

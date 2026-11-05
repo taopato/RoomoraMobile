@@ -29,7 +29,7 @@ import { getLocale, setActiveLanguage, translate } from '../src/shared/i18n/runt
 setActiveLanguage('tr');
 
 const chickenUnits = normalizeShareUnits([
-  { userId: 1, units: 1 }, { userId: 2, units: 2, forLabel: 'Sedef için' }, { userId: 3, units: 1 },
+  { userId: 1, units: 1 }, { userId: 2, units: 2, forLabel: 'bir arkadaşın için' }, { userId: 3, units: 1 },
 ], [1, 2, 3]);
 assert.equal(hasCustomShareUnits(chickenUnits), true);
 assert.deepEqual(allocateShareUnits(400, chickenUnits), [

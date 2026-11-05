@@ -8,8 +8,10 @@ import { getActiveLanguage, translate } from '../shared/i18n/runtime';
 
 const TOKEN_KEY = 'roomora:expo-push-token';
 const BILL_REMINDERS_KEY = 'roomora:bill-reminder-ids';
+const INACTIVITY_REMINDER_KEY = 'roomora:inactivity-reminder-id';
 const PREFERENCES_KEY = 'notification_preferences';
-const DEFAULT_PREFERENCES = { payment: true, bill: true, house: true };
+const DEFAULT_PREFERENCES = { payment: true, bill: true, house: true, inactivity: false };
+let reminderSync = Promise.resolve();
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -59,13 +61,53 @@ export async function registerPushNotifications(preferences = {}) {
     billEnabled: resolvedPreferences.bill !== false,
     groupEnabled: resolvedPreferences.house !== false,
   });
+  await syncInactivityReminder(resolvedPreferences.inactivity === true);
   return token;
 }
 
 export async function unregisterPushNotifications() {
+  await syncInactivityReminder(false);
   const token = await AsyncStorage.getItem(TOKEN_KEY);
   if (token) await pushDevicesApi.unregister(token).catch(() => {});
   await AsyncStorage.removeItem(TOKEN_KEY);
+}
+
+export function syncInactivityReminder(enabled) {
+  reminderSync = reminderSync.catch(() => {}).then(async () => {
+    if (Platform.OS === 'web') return;
+    const previousId = await AsyncStorage.getItem(INACTIVITY_REMINDER_KEY);
+    if (previousId) {
+      await Notifications.cancelScheduledNotificationAsync(previousId).catch(() => {});
+      await AsyncStorage.removeItem(INACTIVITY_REMINDER_KEY);
+    }
+    if (!enabled) return;
+
+    const permission = await Notifications.getPermissionsAsync();
+    if (permission.status !== 'granted') return;
+    const id = await Notifications.scheduleNotificationAsync({
+      content: {
+        title: translate('Roomora seni bekliyor'),
+        body: translate('Son harcamalarını eklemeyi unutma.'),
+        data: { route: 'MainTabs' },
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+        seconds: 48 * 60 * 60,
+      },
+    });
+    await AsyncStorage.setItem(INACTIVITY_REMINDER_KEY, id);
+  });
+  return reminderSync;
+}
+
+export async function refreshInactivityReminder() {
+  let preferences = {};
+  try {
+    preferences = JSON.parse(await AsyncStorage.getItem(PREFERENCES_KEY)) || {};
+  } catch {
+    preferences = {};
+  }
+  await syncInactivityReminder(preferences.inactivity === true);
 }
 
 export function subscribeToNotificationNavigation(onOpen) {

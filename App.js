@@ -1,6 +1,6 @@
 import 'react-native-gesture-handler';
 import React from 'react';
-import { LogBox, Platform, View } from 'react-native';
+import { AppState, LogBox, Platform, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
@@ -21,7 +21,7 @@ import { ThemeProvider, useTheme } from './src/shared/theme/ThemeProvider';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { LanguageProvider, useLanguage } from './src/context/LanguageContext';
 import MainTabBar from './src/shared/ui/MainTabBar';
-import { registerPushNotifications, subscribeToNotificationNavigation } from './src/services/pushNotifications';
+import { refreshInactivityReminder, registerPushNotifications, subscribeToNotificationNavigation } from './src/services/pushNotifications';
 
 import GirisYap from './src/screens/GirisYap';
 import KayitOl from './src/screens/KayitOl';
@@ -173,7 +173,7 @@ function ThemedNavigator() {
   React.useEffect(() => {
     if (!user?.id) return undefined;
     registerPushNotifications().catch(() => {});
-    return subscribeToNotificationNavigation((data) => {
+    const unsubscribe = subscribeToNotificationNavigation((data) => {
       const route = data?.route;
       if (!route || !navigationRef.current) return;
       if (route === 'Faturalar') {
@@ -182,6 +182,13 @@ function ThemedNavigator() {
         navigationRef.current.navigate(route, data);
       }
     });
+    const appState = AppState.addEventListener('change', (state) => {
+      if (state === 'active') refreshInactivityReminder().catch(() => {});
+    });
+    return () => {
+      unsubscribe();
+      appState.remove();
+    };
   }, [user?.id]);
 
   React.useEffect(() => {

@@ -6,7 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../shared/theme/ThemeProvider';
 import BrandMark from '../components/BrandMark';
-import { registerPushNotifications, syncBillReminders } from '../services/pushNotifications';
+import { registerPushNotifications, syncBillReminders, syncInactivityReminder } from '../services/pushNotifications';
 
 import { Text } from '../shared/i18n';
 
@@ -16,6 +16,7 @@ const notificationDefaults = {
   payment: true,
   bill: true,
   house: true,
+  inactivity: false,
 };
 
 const LEGAL_LAST_UPDATED = '28.07.2026';
@@ -76,14 +77,16 @@ export function NotificationSettingsScreen({ navigation }) {
     const next = { ...values, [key]: value };
     setValues(next);
     AsyncStorage.setItem('notification_preferences', JSON.stringify(next)).catch(() => {});
-    registerPushNotifications(next).catch(() => {});
+    if (key === 'inactivity') syncInactivityReminder(value).catch(() => {});
+    else registerPushNotifications(next).catch(() => {});
     if (key === 'bill' && !value) syncBillReminders([], false).catch(() => {});
   };
 
   const items = [
     ['payment', 'Ödeme bildirimleri', 'Yeni ödeme ve onay sonuçları'],
     ['bill', 'Fatura hatırlatmaları', 'Yaklaşan ve geciken faturalar'],
-    ['house', 'Ev hareketleri', 'Davetler, üyeler ve ev notları'],
+    ['house', 'Grup hareketleri', 'Harcamalar, davetler ve üyeler'],
+    ['inactivity', 'Ara verme hatırlatması', '2 gün uygulamaya girmezsen bir kez hatırlat'],
   ];
 
   return (
