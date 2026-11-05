@@ -601,9 +601,10 @@ function FisDetayiInner({ route, navigation }) {
           </View>
         ) : null}
         {!canEdit ? (
-          <View style={styles.convertedNotice}>
+          <View style={styles.convertedNotice} accessibilityLabel="Harcamaya dönüştürüldü, salt okunur">
+            <Ionicons name="checkmark-circle" size={18} color={theme.colors.success[700]} />
             <Text style={styles.convertedNoticeTitle}>Harcamaya dönüştürüldü</Text>
-            <Text style={styles.convertedNoticeText}>Bu fiş kayıt bütünlüğü için salt okunur gösteriliyor.</Text>
+            <Text style={styles.convertedNoticeText}>Salt okunur</Text>
           </View>
         ) : null}
         {imageUri ? (
@@ -1063,15 +1064,13 @@ const makeStyles = (theme) => StyleSheet.create({
   },
   zoomResetButtonText: { color: theme.colors.text.primary, fontWeight: '700' },
   convertedNotice: {
-    padding: 14,
-    borderRadius: 14,
-    backgroundColor: theme.colors.success[50],
-    borderWidth: 1,
-    borderColor: theme.colors.success[200],
-    marginBottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 10,
   },
-  convertedNoticeTitle: { color: theme.colors.success[700], fontWeight: '900', marginBottom: 4 },
-  convertedNoticeText: { color: theme.colors.text.secondary, lineHeight: 18 },
+  convertedNoticeTitle: { color: theme.colors.success[700], fontWeight: '700', fontSize: 13 },
+  convertedNoticeText: { color: theme.colors.text.secondary, fontSize: 12 },
   summaryCard: { backgroundColor: theme.colors.primary[50], borderRadius: 8, padding: 16, borderWidth: 1, borderColor: theme.colors.primary[100], marginTop: 14, marginBottom: 14 },
   summaryTitle: { color: theme.colors.text.primary, fontWeight: '900', fontSize: 18 },
   summarySub: { color: theme.colors.text.secondary, marginTop: 4 },

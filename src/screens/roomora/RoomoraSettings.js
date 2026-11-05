@@ -80,6 +80,10 @@ export default function RoomoraSettings({ navigation }) {
           <Ionicons name="chevron-forward" size={20} color={theme.colors.neutral[400]} />
         </TouchableOpacity>
 
+        <View style={styles.brandCredit}>
+          <TakoswareCredit compact />
+        </View>
+
         {sections.map((section) => (
           <View key={section.title} style={styles.section}>
             <Text style={styles.sectionTitle}>{section.title}</Text>
@@ -114,7 +118,6 @@ export default function RoomoraSettings({ navigation }) {
           <Text style={styles.logoutText}>Çıkış Yap</Text>
         </TouchableOpacity>
         <Text style={styles.version}>Roomora v{version}</Text>
-        <TakoswareCredit compact />
       </ScrollView>
     </View>
   );
@@ -137,6 +140,7 @@ const makeStyles = (theme, insets) => StyleSheet.create({
     ...shadow(1, 'rgba(23,40,57,0.08)'),
   },
   profileBody: { flex: 1 },
+  brandCredit: { alignItems: 'center', marginTop: 12 },
   profileName: {
     color: theme.colors.text.primary,
     fontFamily: theme.typography.bold,

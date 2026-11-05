@@ -71,7 +71,7 @@ export function PageHeader({
       <View style={styles.header}>
         <View style={styles.headerSide}>
           {onBack ? (
-            <TouchableOpacity style={styles.iconButton} onPress={onBack} activeOpacity={0.82}>
+            <TouchableOpacity style={styles.iconButton} onPress={onBack} activeOpacity={0.82} accessibilityRole="button" accessibilityLabel="Geri">
               <Ionicons name="arrow-back" size={24} color={theme.colors.text.primary} />
             </TouchableOpacity>
           ) : null}
@@ -95,7 +95,7 @@ export function PageHeader({
     <View style={styles.header}>
       <View style={styles.headerLeading}>
         {onBack ? (
-          <TouchableOpacity style={styles.iconButton} onPress={onBack} activeOpacity={0.82}>
+          <TouchableOpacity style={styles.iconButton} onPress={onBack} activeOpacity={0.82} accessibilityRole="button" accessibilityLabel="Geri">
             <Ionicons name="arrow-back" size={24} color={theme.colors.text.primary} />
           </TouchableOpacity>
         ) : null}

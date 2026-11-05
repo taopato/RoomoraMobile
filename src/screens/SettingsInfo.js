@@ -97,17 +97,20 @@ export function NotificationSettingsScreen({ navigation }) {
           <Text style={styles.intro}>Sadece sana yardımcı olacak bildirimleri seç.</Text>
           <View style={styles.card}>
             {items.map(([key, title, desc], index) => (
-              <View key={key} style={[styles.settingRow, index > 0 && styles.divider]}>
+              <View key={key} testID={`notification-row-${key}`} style={[styles.settingRow, index > 0 && styles.divider]}>
                 <View style={styles.rowCopy}>
                   <Text style={styles.rowTitle}>{title}</Text>
                   <Text style={styles.rowDesc}>{desc}</Text>
                 </View>
-                <Switch
-                  value={values[key]}
-                  onValueChange={(value) => change(key, value)}
-                  trackColor={{ false: theme.colors.neutral[300], true: theme.colors.primary[200] }}
-                  thumbColor={values[key] ? theme.colors.primary[600] : theme.colors.surface}
-                />
+                <View style={styles.switchColumn}>
+                  <Switch
+                    accessibilityLabel={title}
+                    value={values[key]}
+                    onValueChange={(value) => change(key, value)}
+                    trackColor={{ false: theme.colors.neutral[300], true: theme.colors.primary[200] }}
+                    thumbColor={values[key] ? theme.colors.primary[600] : theme.colors.surface}
+                  />
+                </View>
               </View>
             ))}
           </View>
@@ -208,9 +211,10 @@ const makeStyles = (theme, insets) => StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 14,
   },
-  settingRow: { minHeight: 72, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  settingRow: { minHeight: 76, flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 },
+  switchColumn: { width: 54, alignSelf: 'stretch', alignItems: 'flex-end', justifyContent: 'center' },
   divider: { borderTopWidth: 1, borderTopColor: theme.colors.neutral[200] },
-  rowCopy: { flex: 1 },
+  rowCopy: { flex: 1, minWidth: 0, justifyContent: 'center' },
   rowTitle: { color: theme.colors.text.primary, fontFamily: theme.typography?.bold, fontSize: 15 },
   rowDesc: { color: theme.colors.text.secondary, fontFamily: theme.typography?.regular, fontSize: 12, marginTop: 3, lineHeight: 17 },
   iconTitle: { minHeight: 84, flexDirection: 'row', alignItems: 'center' },
