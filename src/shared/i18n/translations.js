@@ -1,4 +1,6 @@
 const EN = {
+  'Bir Takosware projesi': 'A Takosware project',
+  'Tarık Çetintürk tarafından geliştirildi.': 'Built by Tarık Çetintürk.',
   'Roomora seni bekliyor': 'Roomora is waiting for you',
   'Son harcamalarını eklemeyi unutma.': "Don't forget to add your recent expenses.",
   'Grup hareketleri': 'Group activity',

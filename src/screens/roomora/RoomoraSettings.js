@@ -8,6 +8,7 @@ import { useTheme } from '../../shared/theme/ThemeProvider';
 import { resolveMediaUrl } from '../../shared/config/env';
 import { Avatar, PageHeader } from '../../shared/ui/roomora/CanonicalUI';
 import { shadow } from '../../shared/ui/shadow';
+import TakoswareCredit from '../../components/TakoswareCredit';
 
 import { Alert, Text } from '../../shared/i18n';
 
@@ -113,6 +114,7 @@ export default function RoomoraSettings({ navigation }) {
           <Text style={styles.logoutText}>Çıkış Yap</Text>
         </TouchableOpacity>
         <Text style={styles.version}>Roomora v{version}</Text>
+        <TakoswareCredit compact />
       </ScrollView>
     </View>
   );

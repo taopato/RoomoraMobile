@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../shared/theme/ThemeProvider';
 import BrandMark from '../components/BrandMark';
+import TakoswareCredit from '../components/TakoswareCredit';
 import { registerPushNotifications, syncBillReminders, syncInactivityReminder } from '../services/pushNotifications';
 
 import { Text } from '../shared/i18n';
@@ -170,6 +171,7 @@ export function AboutScreen({ navigation }) {
           <BrandMark variant="logo" size={156} />
           <Text style={styles.brand}>Roomora</Text>
           <Text style={styles.version}>Sürüm {version}</Text>
+          <View style={styles.aboutCredit}><TakoswareCredit /></View>
         </ScrollView>
       )}
     </ScreenShell>
@@ -224,4 +226,5 @@ const makeStyles = (theme, insets) => StyleSheet.create({
   brand: { color: theme.colors.text.primary, fontFamily: theme.typography?.extrabold, fontSize: 28, marginTop: 16 },
   tagline: { color: theme.colors.text.secondary, fontFamily: theme.typography?.regular, fontSize: 16, marginTop: 5 },
   version: { color: theme.colors.text.secondary, fontFamily: theme.typography?.medium, fontSize: 13, marginTop: 20 },
+  aboutCredit: { marginTop: 30 },
 });
