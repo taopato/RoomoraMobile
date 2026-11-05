@@ -183,21 +183,23 @@ const synthesizeItemsFromRawText = (rawText, detectedTotalAmount = 0) => {
   return detectedTotalAmount > 0 ? [{ ...makeItem('Fiş Toplamı', detectedTotalAmount), sortOrder: 0 }] : [];
 };
 
-export const normalizeReceiptItems = (items = []) => items.map((item, index) => ({
-  ...item,
-  sortOrder: item?.sortOrder ?? index,
-  name: item?.name ?? '',
-  price: toNumber(item?.price),
-  quantity: toNumber(item?.quantity, 1),
-  lineTotal: toNumber(item?.lineTotal ?? item?.price),
-  discountAmount: toNumber(item?.discountAmount),
-  originalLineTotal: item?.originalLineTotal == null ? undefined : toNumber(item.originalLineTotal),
-  isAssigned: item?.isAssigned === true,
-  isShared: item?.isShared !== false,
-  participantUserIds: Array.isArray(item?.participantUserIds)
-    ? [...new Set(item.participantUserIds.map(Number).filter((id) => Number.isInteger(id) && id > 0))]
-    : [],
-}));
+export const normalizeReceiptItems = (items = []) => (Array.isArray(items) ? items : [])
+  .filter((item) => item && typeof item === 'object' && !Array.isArray(item))
+  .map((item, index) => ({
+    ...item,
+    sortOrder: item.sortOrder ?? index,
+    name: item.name ?? '',
+    price: toNumber(item.price),
+    quantity: toNumber(item.quantity, 1),
+    lineTotal: toNumber(item.lineTotal ?? item.price),
+    discountAmount: toNumber(item.discountAmount),
+    originalLineTotal: item.originalLineTotal == null ? undefined : toNumber(item.originalLineTotal),
+    isAssigned: item.isAssigned === true,
+    isShared: item.isShared !== false,
+    participantUserIds: Array.isArray(item.participantUserIds)
+      ? [...new Set(item.participantUserIds.map(Number).filter((id) => Number.isInteger(id) && id > 0))]
+      : [],
+  }));
 
 export const extractDetectedTotalFromRawText = (rawText) => {
   const lines = String(rawText || '').split(/\r?\n/).map((line) => line.trim()).filter(Boolean);

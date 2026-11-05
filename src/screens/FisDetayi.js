@@ -326,7 +326,7 @@ function FisDetayiInner({ route, navigation }) {
         : await receiptsApi.update(receiptId, payload);
       const nextReceipt = response?.data;
       if (nextReceipt) {
-        const normalizedItems = (nextReceipt.items || []).map((item, index) => ({
+        const normalizedItems = normalizeReceiptItems(nextReceipt.items).map((item, index) => ({
           ...item,
           sortOrder: item.sortOrder ?? index,
           price: toNumber(item.price),
@@ -504,6 +504,7 @@ function FisDetayiInner({ route, navigation }) {
 
   const visibleItems = useMemo(() => (
     items
+      .filter((item) => item && typeof item === 'object')
       .map((item, index) => ({ item, index }))
       .sort((a, b) => {
         const topA = a.item?.boxTop ?? Number.MAX_SAFE_INTEGER;
