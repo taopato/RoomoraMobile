@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Image, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
@@ -705,9 +705,13 @@ export default function AddExpenseScreen({ navigation, route }) {
         <Toast visible={toast.visible} message={toast.message} type={toast.type} onHide={hideToast} />
       </KeyboardAwareScreen>
 
-      <Modal visible={scanningReceipt} transparent animationType="fade" onRequestClose={() => {}}>
+      {scanningReceipt ? (
         <View style={styles.scanOverlay} accessibilityViewIsModal>
           <View style={styles.scanPanel}>
+            <View style={styles.scanBrand}>
+              <Image source={require('../assets/mark-navy.png')} style={styles.scanBrandMark} resizeMode="contain" />
+              <Text style={styles.scanBrandText}>Roomora</Text>
+            </View>
             <View style={styles.scanIconWrap}>
               <Ionicons name="receipt-outline" size={30} color={theme.colors.primary[700]} />
               <ActivityIndicator size="small" color={theme.colors.primary[600]} style={styles.scanSpinner} />
@@ -716,7 +720,7 @@ export default function AddExpenseScreen({ navigation, route }) {
             <Text style={styles.scanSubtitle}>{scanStage === 'preparing' ? 'Görsel işleniyor...' : 'Ürünler ve tutarlar okunuyor...'}</Text>
           </View>
         </View>
-      </Modal>
+      ) : null}
 
       <Modal visible={shareEditorVisible} transparent animationType="slide" onRequestClose={() => setShareEditorVisible(false)}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={[styles.shareModalBackdrop, { paddingTop: insets.top + 8 }]}>
@@ -840,8 +844,11 @@ const makeStyles = (theme) => StyleSheet.create({
     borderColor: theme.colors.neutral[200],
   },
   receiptGhostButtonText: { color: theme.colors.text.primary, fontWeight: '700' },
-  scanOverlay: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(18,24,29,0.48)', padding: 28 },
+  scanOverlay: { ...StyleSheet.absoluteFillObject, zIndex: 50, elevation: 50, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(18,24,29,0.55)', padding: 28 },
   scanPanel: { width: '100%', maxWidth: 310, borderRadius: 8, padding: 24, alignItems: 'center', backgroundColor: theme.colors.surface },
+  scanBrand: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 },
+  scanBrandMark: { width: 26, height: 26 },
+  scanBrandText: { color: theme.colors.text.primary, fontFamily: theme.typography?.bold, fontSize: 15 },
   scanIconWrap: { width: 70, height: 70, borderRadius: 35, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.primary[50] },
   scanSpinner: { position: 'absolute', right: 0, bottom: 0 },
   scanTitle: { color: theme.colors.text.primary, fontFamily: theme.typography?.bold, fontSize: 17, marginTop: 18 },
