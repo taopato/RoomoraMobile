@@ -423,7 +423,7 @@ function FisDetayiInner({ route, navigation }) {
     if (!receiptId || isConverted || saving) return;
     Alert.alert(
       'Fişi sil',
-      'Bu fiş ve taranan görseli kalıcı olarak silinecek.',
+      'Bu fiş taslağı listeden kaldırılacak. Harcamaya dönüşmemiş kayıt ve görseli sistemde saklanacak.',
       [
         { text: 'Vazgeç', style: 'cancel' },
         {
@@ -948,7 +948,7 @@ function FisDetayiInner({ route, navigation }) {
 class FisDetayiErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
-    this.state = { error: null };
+    this.state = { error: null, deleting: false };
   }
 
   static getDerivedStateFromError(error) {
@@ -958,6 +958,25 @@ class FisDetayiErrorBoundary extends React.Component {
   componentDidCatch(error, info) {
     console.error('FisDetayi render hatası:', error?.message, info?.componentStack);
   }
+
+  deleteDraft = () => {
+    const receiptId = this.props.route?.params?.receiptId;
+    if (!receiptId || this.state.deleting) return;
+    Alert.alert('Fiş taslağını sil', 'Fiş listeden kaldırılacak; kayıt ve görsel sistemde saklanacak.', [
+      { text: 'Vazgeç', style: 'cancel' },
+      { text: 'Sil', style: 'destructive', onPress: async () => {
+        this.setState({ deleting: true });
+        try {
+          await receiptsApi.remove(receiptId);
+          this.props.navigation?.goBack?.();
+        } catch {
+          Alert.alert('Hata', 'Taslak silinemedi. Harcamaya dönüştürülmüş fişler silinemez.');
+        } finally {
+          this.setState({ deleting: false });
+        }
+      } },
+    ]);
+  };
 
   render() {
     if (this.state.error) {
@@ -969,12 +988,22 @@ class FisDetayiErrorBoundary extends React.Component {
           <Text style={{ fontSize: 14, color: '#666', textAlign: 'center', marginBottom: 20 }}>
             Bu fişi açarken beklenmeyen bir hata oluştu. Lütfen geri dönüp tekrar dene.
           </Text>
+          <Text selectable style={{ fontSize: 12, color: '#666', textAlign: 'center', marginBottom: 18 }}>
+            Hata ayrıntısı: {String(this.state.error?.message || 'Bilinmiyor').slice(0, 180)}
+          </Text>
           <TouchableOpacity
             style={{ backgroundColor: '#172839', borderRadius: 12, paddingVertical: 12, paddingHorizontal: 24 }}
             onPress={() => this.props.navigation?.goBack?.()}
           >
             <Text style={{ color: '#fff', fontWeight: '700' }}>Geri dön</Text>
           </TouchableOpacity>
+          {this.props.route?.params?.receiptId ? (
+            <TouchableOpacity style={{ paddingVertical: 15 }} onPress={this.deleteDraft} disabled={this.state.deleting}>
+              <Text style={{ color: '#b42318', fontWeight: '700' }}>
+                {this.state.deleting ? 'Siliniyor...' : 'Taslağı sil'}
+              </Text>
+            </TouchableOpacity>
+          ) : null}
         </View>
       );
     }
@@ -984,7 +1013,7 @@ class FisDetayiErrorBoundary extends React.Component {
 
 export default function FisDetayi(props) {
   return (
-    <FisDetayiErrorBoundary navigation={props.navigation}>
+    <FisDetayiErrorBoundary key={props.route?.params?.receiptId} navigation={props.navigation} route={props.route}>
       <FisDetayiInner {...props} />
     </FisDetayiErrorBoundary>
   );
