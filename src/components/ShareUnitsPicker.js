@@ -28,7 +28,7 @@ export default function ShareUnitsPicker({ members, units, amount, onChange, onC
       <View style={styles.headingRow}>
         <View style={styles.headingText}>
           <Text style={styles.title}>Payları özelleştir</Text>
-          <Text style={styles.subtitle}>Ek pay vermek istediğin kişiye dokun.</Text>
+          <Text style={styles.subtitle}>Kişiye dokun, ek payı + ile artır.</Text>
         </View>
         <TouchableOpacity accessibilityLabel="Kapat" style={styles.close} onPress={onCancel}>
           <Ionicons name="close" size={22} color={theme.colors.text.primary} />
@@ -48,7 +48,6 @@ export default function ShareUnitsPicker({ members, units, amount, onChange, onC
                 accessibilityLabel={`${member.fullName} paylaşımını düzenle`}
                 onPress={() => {
                   Keyboard.dismiss();
-                  if (!expanded && count === 1 && totalUnits < 100) setCount(userId, 2);
                   setExpandedId(expanded ? null : userId);
                 }}
               >

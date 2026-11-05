@@ -804,7 +804,7 @@ function FisDetayiInner({ route, navigation }) {
       <Modal visible={editingIndex != null && !!draftItem} transparent animationType="slide" onRequestClose={closeEditor}>
         <View style={styles.modalRoot}>
           <Pressable style={styles.modalBackdrop} onPress={closeEditor} />
-          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={[styles.modalKeyboard, { paddingTop: insets.top + 8 }]}>
+          <KeyboardAvoidingView pointerEvents="box-none" behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={[styles.modalKeyboard, { paddingTop: insets.top + 8 }]}>
             <View style={[styles.modalSheet, { paddingBottom: insets.bottom + 12 }]}>
               {editingShares ? (
                 <ShareUnitsPicker

@@ -35,6 +35,12 @@ assert.equal(hasCustomShareUnits(chickenUnits), true);
 assert.deepEqual(allocateShareUnits(400, chickenUnits), [
   { userId: 1, amount: 100 }, { userId: 2, amount: 200 }, { userId: 3, amount: 100 },
 ]);
+assert.deepEqual(allocateShareUnits(400, normalizeShareUnits([], [1, 2, 3])), [
+  { userId: 1, amount: 133.34 }, { userId: 2, amount: 133.33 }, { userId: 3, amount: 133.33 },
+]);
+assert.deepEqual(allocateShareUnits(400, normalizeShareUnits([{ userId: 2, units: 3 }], [1, 2, 3])), [
+  { userId: 1, amount: 80 }, { userId: 2, amount: 240 }, { userId: 3, amount: 80 },
+]);
 assert.equal(allocateShareUnits(99.99, chickenUnits).reduce((sum, entry) => sum + Math.round(entry.amount * 100), 0), 9999);
 assert.equal(normalizeShareUnits(chickenUnits, [1, 3]).length, 2);
 assert.equal(normalizeShareUnits([], [1, 2, 3]).every((entry) => entry.units === 1), true);
