@@ -1,7 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Image, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Share, StyleSheet, View } from 'react-native';
-import Constants from 'expo-constants';
-import * as Updates from 'expo-updates';
+import { ActivityIndicator, Image, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { PanGestureHandler, PinchGestureHandler, State as GestureState } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -20,6 +18,7 @@ import {
   isMeaningfulReceiptItem,
   normalizeReceiptItems,
   normalizeResolvedItems,
+  getReceiptQuantityHint,
   parseReceiptAmount,
   receiptTotalsMatch,
   resolveReceiptItems,
@@ -48,6 +47,7 @@ const CATEGORY_OPTIONS = [
 ];
 
 const toNumber = (value, fallback = 0) => {
+  if (value == null || String(value).trim() === '') return fallback;
   const parsed = Number(String(value ?? '').replace(',', '.'));
   return Number.isFinite(parsed) ? parsed : fallback;
 };
@@ -515,6 +515,7 @@ function FisDetayiInner({ route, navigation }) {
         return a.index - b.index;
       })
   ), [items]);
+  const quantityHint = getReceiptQuantityHint(draftItem);
   if (loading) {
     return (
       <View style={[styles.screen, { paddingTop: insets.top + 4 }]}>
@@ -851,9 +852,9 @@ function FisDetayiInner({ route, navigation }) {
                 value={draftItem?.lineTotal ?? ''}
                 onChangeText={(value) => setDraftItem((prev) => ({ ...prev, lineTotal: formatMoneyInput(value) }))}
               />
-              {toNumber(draftItem?.quantity, 1) !== 1 ? (
+              {quantityHint != null ? (
                 <Text style={styles.quantityHint}>
-                  {getLocale().startsWith('en') ? `Quantity on receipt: ${draftItem.quantity}` : `Fişteki miktar: ${draftItem.quantity}`}
+                  {getLocale().startsWith('en') ? `Quantity on receipt: ${quantityHint}` : `Fişteki miktar: ${quantityHint}`}
                 </Text>
               ) : null}
               <View style={styles.participantCard}>
@@ -951,7 +952,7 @@ function FisDetayiInner({ route, navigation }) {
 class FisDetayiErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
-    this.state = { error: null, componentStack: '', deleting: false, checkingUpdate: false, updateStatus: '' };
+    this.state = { error: null, deleting: false };
   }
 
   static getDerivedStateFromError(error) {
@@ -960,48 +961,7 @@ class FisDetayiErrorBoundary extends React.Component {
 
   componentDidCatch(error, info) {
     console.error('FisDetayi render hatası:', error?.message, info?.componentStack);
-    this.setState({ componentStack: info?.componentStack || '' });
   }
-
-  getDiagnostic = () => {
-    const { error, componentStack } = this.state;
-    const limitedStack = (value) => String(value || '')
-      .split('\n').slice(0, 10).map((line) => line.trim().slice(0, 240)).join('\n');
-    return [
-      'Roomora fis ekrani hatasi',
-      `Tur: ${error?.name || 'Error'}`,
-      `Mesaj: ${String(error?.message || 'Bilinmiyor').slice(0, 300)}`,
-      `Zaman: ${new Date().toISOString()}`,
-      `Platform: ${Platform.OS}`,
-      `Uygulama: ${Constants.nativeAppVersion || Constants.expoConfig?.version || '-'}`,
-      `Build: ${Constants.nativeBuildVersion || '-'}`,
-      `Kanal: ${Updates.channel || '-'}`,
-      `Runtime: ${Updates.runtimeVersion || '-'}`,
-      `Guncelleme: ${Updates.updateId || (Updates.isEmbeddedLaunch ? 'pakete gomulu' : 'bilinmiyor')}`,
-      `Guncelleme tarihi: ${Updates.createdAt?.toISOString?.() || '-'}`,
-      `Fis no: ${this.props.route?.params?.receiptId || '-'}`,
-      `JS stack:\n${limitedStack(error?.stack) || '-'}`,
-      `Bilesen stack:\n${limitedStack(componentStack) || '-'}`,
-    ].join('\n');
-  };
-
-  checkUpdate = async () => {
-    if (!Updates.isEnabled || this.state.checkingUpdate) return;
-    this.setState({ checkingUpdate: true, updateStatus: '' });
-    try {
-      const result = await Updates.checkForUpdateAsync();
-      if (!result.isAvailable) {
-        this.setState({ updateStatus: 'Bu kanal ve runtime icin daha yeni guncelleme bulunamadi.' });
-        return;
-      }
-      await Updates.fetchUpdateAsync();
-      await Updates.reloadAsync();
-    } catch (error) {
-      this.setState({ updateStatus: `Guncelleme kontrolu basarisiz: ${String(error?.message || 'Bilinmiyor').slice(0, 120)}` });
-    } finally {
-      this.setState({ checkingUpdate: false });
-    }
-  };
 
   deleteDraft = () => {
     const receiptId = this.props.route?.params?.receiptId;
@@ -1025,27 +985,15 @@ class FisDetayiErrorBoundary extends React.Component {
   render() {
     if (this.state.error) {
       return (
-        <ScrollView contentContainerStyle={{ flexGrow: 1, padding: 24, paddingTop: 60, paddingBottom: 40 }}>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 }}>
           <Text style={{ fontWeight: '800', fontSize: 17, marginBottom: 8, textAlign: 'center' }}>
             Fiş görüntülenemedi
           </Text>
           <Text style={{ fontSize: 14, color: '#666', textAlign: 'center', marginBottom: 20 }}>
-            Bu fişi açarken uygulamada bir hata oluştu. Aşağıdaki tanı bilgilerini paylaşabilirsin; fiş fotoğrafı ve hesap bilgilerin dahil değildir.
+            Bu fişi açarken beklenmeyen bir hata oluştu. Lütfen geri dönüp tekrar dene.
           </Text>
-          <Text selectable style={{ fontSize: 12, color: '#333', marginBottom: 18 }}>
-            {this.getDiagnostic()}
-          </Text>
-          <TouchableOpacity style={{ backgroundColor: '#2D78B4', borderRadius: 8, paddingVertical: 13, alignItems: 'center', marginBottom: 12 }} onPress={() => Share.share({ message: this.getDiagnostic() })}>
-            <Text style={{ color: '#fff', fontWeight: '700' }}>Tanı bilgilerini paylaş</Text>
-          </TouchableOpacity>
-          {Updates.isEnabled ? (
-            <TouchableOpacity style={{ paddingVertical: 13, alignItems: 'center', marginBottom: 12 }} onPress={this.checkUpdate} disabled={this.state.checkingUpdate}>
-              <Text style={{ color: '#2D78B4', fontWeight: '700' }}>{this.state.checkingUpdate ? 'Kontrol ediliyor...' : 'Güncellemeyi kontrol et'}</Text>
-            </TouchableOpacity>
-          ) : null}
-          {this.state.updateStatus ? <Text style={{ color: '#666', marginBottom: 12 }}>{this.state.updateStatus}</Text> : null}
           <TouchableOpacity
-            style={{ backgroundColor: '#172839', borderRadius: 8, paddingVertical: 12, alignItems: 'center' }}
+            style={{ backgroundColor: '#172839', borderRadius: 12, paddingVertical: 12, paddingHorizontal: 24 }}
             onPress={() => this.props.navigation?.goBack?.()}
           >
             <Text style={{ color: '#fff', fontWeight: '700' }}>Geri dön</Text>
@@ -1057,7 +1005,7 @@ class FisDetayiErrorBoundary extends React.Component {
               </Text>
             </TouchableOpacity>
           ) : null}
-        </ScrollView>
+        </View>
       );
     }
     return this.props.children;

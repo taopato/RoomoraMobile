@@ -1,6 +1,13 @@
 const toNumber = (value, fallback = 0) => {
+  if (value == null || String(value).trim() === '') return fallback;
   const parsed = Number(String(value ?? '').replace(',', '.'));
   return Number.isFinite(parsed) ? parsed : fallback;
+};
+
+export const getReceiptQuantityHint = (item) => {
+  if (item == null) return null;
+  const quantity = toNumber(item.quantity, 1);
+  return quantity > 0 && quantity !== 1 ? quantity : null;
 };
 
 export const parseReceiptAmount = (value) => {

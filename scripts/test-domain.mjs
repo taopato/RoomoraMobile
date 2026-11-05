@@ -12,7 +12,7 @@ import { formatMoneyInput, parseMoneyInput } from '../src/shared/format/money.js
 import { normalizeExpenseCategoryKey } from '../src/constants/ExpenseEnums.js';
 import { getTokenUserId, isTokenExpired, normalizeAuthUser } from '../src/shared/auth/session.js';
 import { getPaymentOutcome } from '../src/shared/finance/paymentOutcome.js';
-import { extractDetectedTotalFromRawText, normalizeReceiptItems, receiptTotalsMatch, resolveReceiptItems } from '../src/utils/receiptParser.js';
+import { extractDetectedTotalFromRawText, getReceiptQuantityHint, normalizeReceiptItems, receiptTotalsMatch, resolveReceiptItems } from '../src/utils/receiptParser.js';
 import {
   buildReceiptAssignment,
   getReceiptItemParticipantIds,
@@ -165,6 +165,11 @@ assert.equal(receiptTotalsMatch(0, [{ lineTotal: 91.45 }]), false);
 assert.equal(receiptTotalsMatch(100, [{ name: 'Fiş Toplamı', lineTotal: 100 }]), false);
 assert.deepEqual(normalizeReceiptItems([null, { name: 'Ekmek', price: 20, quantity: 1, lineTotal: 20 }]).map((item) => item.name), ['Ekmek']);
 assert.deepEqual(normalizeReceiptItems(null), []);
+assert.equal(normalizeReceiptItems([{ name: 'Ekmek', quantity: null }])[0].quantity, 1);
+assert.equal(getReceiptQuantityHint(null), null);
+assert.equal(getReceiptQuantityHint({ quantity: null }), null);
+assert.equal(getReceiptQuantityHint({ quantity: 1 }), null);
+assert.equal(getReceiptQuantityHint({ quantity: 2 }), 2);
 assert.deepEqual(resolveReceiptItems([null, { name: 'Ekmek', price: 20, quantity: 1, lineTotal: 20 }], '', 20).map((item) => item.name), ['Ekmek']);
 
 const receiptMembers = [{ id: 38 }, { id: 39 }, { id: 40 }];
