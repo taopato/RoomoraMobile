@@ -38,7 +38,7 @@ assert.deepEqual(allocateShareUnits(400, chickenUnits), [
 assert.equal(allocateShareUnits(99.99, chickenUnits).reduce((sum, entry) => sum + Math.round(entry.amount * 100), 0), 9999);
 assert.equal(normalizeShareUnits(chickenUnits, [1, 3]).length, 2);
 assert.equal(normalizeShareUnits([], [1, 2, 3]).every((entry) => entry.units === 1), true);
-assert.match(shareUnitsSummary(chickenUnits, [{ id: 1, fullName: 'Tarık' }, { id: 2, fullName: 'Tuğfan' }, { id: 3, fullName: 'Berdan' }]), /Tuğfan 2/);
+assert.match(shareUnitsSummary(chickenUnits, [{ id: 1, fullName: 'Tarık' }, { id: 2, fullName: 'Tuğfan' }, { id: 3, fullName: 'Berdan' }]), /Ek pay: Tuğfan/);
 
 assert.equal(getReceiptStoreName({ storeName: 'e-Arşiv Fatura', rawOcrText: 'A101 YENİ MAĞAZACILIK A.Ş.\nTarih: 08/10/2026' }), 'A101');
 assert.equal(getReceiptTitle({ rawOcrText: 'MİGROS TİCARET A.Ş.\nFiş No: 4' }), 'Migros Fişi');

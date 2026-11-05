@@ -1,8 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Image, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Image, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { PanGestureHandler, PinchGestureHandler, State as GestureState } from 'react-native-gesture-handler';
-import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 import { houseApi, receiptsApi } from '../services/api';
@@ -222,12 +221,14 @@ function FisDetayiInner({ route, navigation }) {
   };
 
   const closeEditor = () => {
+    Keyboard.dismiss();
     setEditingIndex(null);
     setDraftItem(null);
     setEditingShares(false);
   };
 
   const saveEditor = () => {
+    Keyboard.dismiss();
     if (editingIndex == null || !draftItem) return;
     if (!String(draftItem.name || '').trim()) {
       Alert.alert('Ürün adı gerekli', 'Kalem için bir ürün adı gir.');
@@ -647,7 +648,7 @@ function FisDetayiInner({ route, navigation }) {
           {visibleItems.map(({ item, index }) => {
             const participantIds = getReceiptItemParticipantIds(item, members);
             const participantSummary = hasCustomShareUnits(item.shareUnits)
-              ? shareUnitsSummary(item.shareUnits, members)
+              ? `${getReceiptParticipantSummary(participantIds, members)} · ${shareUnitsSummary(item.shareUnits, members)}`
               : getReceiptParticipantSummary(participantIds, members);
             const quantity = toNumber(item.quantity, 1) || 1;
             const unitPrice = toNumber(item.price);
@@ -771,16 +772,10 @@ function FisDetayiInner({ route, navigation }) {
       <View pointerEvents="none" style={[styles.statusBarGuard, { height: insets.top }]} />
 
       <Modal visible={editingIndex != null && !!draftItem} transparent animationType="slide" onRequestClose={closeEditor}>
-        <Pressable style={styles.modalBackdrop} onPress={closeEditor} />
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={Platform.OS === 'ios' ? 84 : 0}>
-          <View style={styles.modalSheet}>
-            <KeyboardAwareScrollView
-              keyboardShouldPersistTaps="handled"
-              contentContainerStyle={styles.modalContent}
-              enableOnAndroid
-              extraScrollHeight={20}
-              keyboardOpeningTime={0}
-            >
+        <View style={styles.modalRoot}>
+          <Pressable style={styles.modalBackdrop} onPress={closeEditor} />
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={[styles.modalKeyboard, { paddingTop: insets.top + 8 }]}>
+            <View style={[styles.modalSheet, { paddingBottom: insets.bottom + 12 }]}>
               {editingShares ? (
                 <ShareUnitsPicker
                   members={members}
@@ -799,7 +794,12 @@ function FisDetayiInner({ route, navigation }) {
                   }}
                   theme={theme}
                 />
-              ) : <>
+              ) : <ScrollView
+                style={styles.modalScroll}
+                keyboardShouldPersistTaps="handled"
+                keyboardDismissMode="interactive"
+                contentContainerStyle={styles.modalContent}
+              >
               <Text style={styles.modalTitle}>Kalemi düzenle</Text>
               <Text style={styles.modalHint}>Ürün bilgilerini ve tutarı paylaşacak kişileri güncelleyebilirsin.</Text>
               {draftItem?.originalName ? <Text style={styles.originalName}>Fişteki ad: {draftItem.originalName}</Text> : null}
@@ -853,11 +853,14 @@ function FisDetayiInner({ route, navigation }) {
               <View style={styles.memberSelectList}>
                 <TouchableOpacity
                   style={styles.memberSelectRow}
-                  onPress={() => setDraftItem((prev) => ({
-                    ...prev,
-                    participantUserIds: memberIds,
-                    shareUnits: normalizeShareUnits(prev.shareUnits, memberIds),
-                  }))}
+                  onPress={() => {
+                    Keyboard.dismiss();
+                    setDraftItem((prev) => ({
+                      ...prev,
+                      participantUserIds: memberIds,
+                      shareUnits: normalizeShareUnits(prev.shareUnits, memberIds),
+                    }));
+                  }}
                 >
                   <View style={styles.memberSelectIcon}>
                     <Ionicons name="people-outline" size={19} color={theme.colors.primary[700]} />
@@ -875,18 +878,21 @@ function FisDetayiInner({ route, navigation }) {
                     <TouchableOpacity
                       key={`draft-${member.id}`}
                       style={styles.memberSelectRow}
-                      onPress={() => setDraftItem((prev) => {
-                        const current = prev?.participantUserIds || [];
-                        const userId = Number(member.id);
-                        const participantUserIds = current.includes(userId)
-                          ? current.filter((id) => id !== userId)
-                          : [...current, userId];
-                        return {
-                          ...prev,
-                          participantUserIds,
-                          shareUnits: normalizeShareUnits(prev.shareUnits, participantUserIds),
-                        };
-                      })}
+                      onPress={() => {
+                        Keyboard.dismiss();
+                        setDraftItem((prev) => {
+                          const current = prev?.participantUserIds || [];
+                          const userId = Number(member.id);
+                          const participantUserIds = current.includes(userId)
+                            ? current.filter((id) => id !== userId)
+                            : [...current, userId];
+                          return {
+                            ...prev,
+                            participantUserIds,
+                            shareUnits: normalizeShareUnits(prev.shareUnits, participantUserIds),
+                          };
+                        });
+                      }}
                     >
                       <View style={styles.memberAvatar}>
                         <Text style={styles.memberAvatarText}>{String(member.fullName || '?').charAt(0).toUpperCase()}</Text>
@@ -904,6 +910,7 @@ function FisDetayiInner({ route, navigation }) {
 
               {draftItem?.participantUserIds?.length > 0 ? (
                 <TouchableOpacity style={styles.memberSelectRow} onPress={() => {
+                  Keyboard.dismiss();
                   setShareDraft(normalizeShareUnits(draftItem.shareUnits, draftItem.participantUserIds));
                   setEditingShares(true);
                 }}>
@@ -923,10 +930,10 @@ function FisDetayiInner({ route, navigation }) {
                   <Text style={styles.modalPrimaryButtonText}>Kaydet</Text>
                 </TouchableOpacity>
               </View>
-              </>}
-            </KeyboardAwareScrollView>
-          </View>
-        </KeyboardAvoidingView>
+              </ScrollView>}
+            </View>
+          </KeyboardAvoidingView>
+        </View>
       </Modal>
 
     </View>
@@ -1230,9 +1237,12 @@ const makeStyles = (theme) => StyleSheet.create({
   primaryButtonText: { color: theme.colors.text.onPrimary, fontWeight: '900' },
   deleteReceiptButton: { paddingVertical: 14, alignItems: 'center', marginTop: 6 },
   deleteReceiptButtonText: { color: theme.colors.error[700], fontWeight: '800' },
-  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.28)' },
-  modalSheet: { backgroundColor: theme.colors.surface, paddingHorizontal: 16, paddingTop: 18, paddingBottom: 26, borderTopLeftRadius: 24, borderTopRightRadius: 24, borderWidth: 1, borderColor: theme.colors.neutral[200] },
-  modalContent: { paddingBottom: Platform.OS === 'ios' ? 28 : 40 },
+  modalRoot: { flex: 1, justifyContent: 'flex-end' },
+  modalBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.42)' },
+  modalKeyboard: { flex: 1, justifyContent: 'flex-end' },
+  modalSheet: { maxHeight: '100%', flexShrink: 1, backgroundColor: theme.colors.surface, paddingHorizontal: 16, paddingTop: 18, borderTopLeftRadius: 8, borderTopRightRadius: 8, borderWidth: 1, borderColor: theme.colors.neutral[200] },
+  modalScroll: { flexGrow: 0, flexShrink: 1 },
+  modalContent: { paddingBottom: 12 },
   modalTitle: { color: theme.colors.text.primary, fontSize: 18, fontWeight: '900', marginBottom: 6 },
   modalHint: { color: theme.colors.text.secondary, lineHeight: 18, marginBottom: 12 },
   modalActions: { flexDirection: 'row', gap: 10, marginTop: 8 },

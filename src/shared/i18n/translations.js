@@ -1,7 +1,10 @@
 const EN = {
   'Payları özelleştir': 'Customize shares',
+  'Ek pay': 'Extra share',
+  'Bu kişinin payı': "This person's shares",
   'Payları düzenle': 'Edit shares',
   'Ek payı borçtan sorumlu ev üyesine yaz.': 'Assign extra shares to the group member responsible for them.',
+  'Ek pay vermek istediğin kişiye dokun.': 'Tap the person who should cover an extra share.',
   'Ek pay açıklaması (örn. Sedef için)': 'Extra share note (e.g. for Sedef)',
   'Paylaştırılmıyor': 'Not included',
   'Eşit paylaş': 'Split equally',

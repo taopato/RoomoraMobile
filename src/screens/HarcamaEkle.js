@@ -694,7 +694,7 @@ export default function AddExpenseScreen({ navigation, route }) {
       </KeyboardAwareScreen>
 
       <Modal visible={shareEditorVisible} transparent animationType="slide" onRequestClose={() => setShareEditorVisible(false)}>
-        <View style={styles.shareModalBackdrop}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={[styles.shareModalBackdrop, { paddingTop: insets.top + 8 }]}>
           <ShareUnitsPicker
             members={members}
             units={shareDraft}
@@ -704,7 +704,7 @@ export default function AddExpenseScreen({ navigation, route }) {
             onApply={applyShareEditor}
             theme={theme}
           />
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       <Modal visible={quickModalVisible} transparent animationType="fade" onRequestClose={() => setQuickModalVisible(false)}>

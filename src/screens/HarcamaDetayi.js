@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Modal, StyleSheet, View } from 'react-native';
+import { KeyboardAvoidingView, Modal, Platform, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -494,7 +494,7 @@ export default function HarcamaDetayi({ navigation, route }) {
         )}
       </KeyboardAwareScreen>
       <Modal visible={shareEditorVisible} transparent animationType="slide" onRequestClose={() => setShareEditorVisible(false)}>
-        <View style={styles.shareModalBackdrop}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={[styles.shareModalBackdrop, { paddingTop: insets.top + 8 }]}>
           <ShareUnitsPicker
             members={members}
             units={shareDraft}
@@ -511,7 +511,7 @@ export default function HarcamaDetayi({ navigation, route }) {
             }}
             theme={theme}
           />
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );

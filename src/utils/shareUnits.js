@@ -1,3 +1,5 @@
+import { getLocale } from '../shared/i18n/runtime.js';
+
 const positiveId = (value) => Number.isInteger(Number(value)) && Number(value) > 0;
 
 export const normalizeShareUnits = (units = [], participantIds = []) => {
@@ -44,7 +46,7 @@ export const allocateShareUnits = (amount, units = []) => {
 
 export const shareUnitsSummary = (units = [], members = []) => {
   const names = new Map(members.map((member) => [Number(member.id), String(member.fullName || member.name || '')]));
-  return units.filter((entry) => Number(entry.units) > 0)
-    .map((entry) => `${names.get(Number(entry.userId)) || 'Üye'} ${entry.units}${entry.forLabel ? ` (${entry.forLabel})` : ''}`)
-    .join(' · ');
+  const extra = units.filter((entry) => Number(entry.units) > 1)
+    .map((entry) => `${names.get(Number(entry.userId)) || 'Üye'}${entry.forLabel ? ` (${entry.forLabel})` : ''}`);
+  return extra.length ? `${getLocale().startsWith('en') ? 'Extra share' : 'Ek pay'}: ${extra.join(', ')}` : '';
 };
