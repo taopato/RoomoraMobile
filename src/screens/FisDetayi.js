@@ -32,6 +32,7 @@ import { normalizeExpenseCategoryKey } from '../constants/ExpenseEnums';
 import { getReadableReceiptItemName, getReceiptStoreName, getReceiptTitle } from '../utils/receiptPresentation';
 import ShareUnitsPicker from '../components/ShareUnitsPicker';
 import { hasCustomShareUnits, normalizeShareUnits, shareUnitsSummary } from '../utils/shareUnits';
+import { selectParticipant } from '../utils/participantSelection';
 
 import { Alert, Text, TextInput } from '../shared/i18n';
 import { getLocale } from '../shared/i18n/runtime';
@@ -76,6 +77,7 @@ function FisDetayiInner({ route, navigation }) {
   const [draftItem, setDraftItem] = useState(null);
   const [editingShares, setEditingShares] = useState(false);
   const [shareDraft, setShareDraft] = useState([]);
+  const [scanFailure, setScanFailure] = useState('');
   const [imageFrame, setImageFrame] = useState({ width: 0, height: 260 });
   const [imageZoom, setImageZoom] = useState(1);
   const [showPhoto, setShowPhoto] = useState(false);
@@ -89,6 +91,7 @@ function FisDetayiInner({ route, navigation }) {
   const load = async () => {
     if (!receiptId || !houseId) return;
     setLoading(true);
+    setScanFailure('');
     try {
       const [receiptRes, membersRes] = await Promise.all([
         receiptsApi.getById(receiptId),
@@ -132,8 +135,11 @@ function FisDetayiInner({ route, navigation }) {
           if (reparsedRes?.data) {
             receiptData = reparsedRes.data;
             normalizedItems = normalizeReceiptItems(receiptData?.items || []);
+            if (normalizedItems.length === 0) setScanFailure('Yeniden okuma da ürün bulamadı. Fotoğrafı tekrar çekmeyi veya kalemleri elle eklemeyi dene.');
           }
-        } catch {}
+        } catch (error) {
+          setScanFailure(error?.response?.data?.message || 'Yeniden okuma şu anda tamamlanamadı. Biraz sonra tekrar dene.');
+        }
       }
 
       const correctedDetectedTotal = toNumber(receiptData?.detectedTotalAmount)
@@ -573,6 +579,17 @@ function FisDetayiInner({ route, navigation }) {
           ) : null}
         </View>
 
+        {receipt && !isConverted && items.length === 0 ? (
+          <View style={styles.missingAmountCard}>
+            <Text style={styles.missingAmountTitle}>Fiş kalemleri okunamadı</Text>
+            <Text style={styles.missingAmountText}>Fotoğraf kaydedildi. Yeniden okumayı deneyebilir veya kalemleri elle ekleyebilirsin; boş fiş harcamaya dönüştürülmez.</Text>
+            {scanFailure ? <Text style={styles.missingAmountText}>{scanFailure}</Text> : null}
+            <TouchableOpacity style={styles.retryOcrButton} onPress={() => load()} disabled={loading}>
+              <Ionicons name="refresh-outline" size={18} color={theme.colors.primary[700]} />
+              <Text style={styles.retryOcrText}>Yeniden oku</Text>
+            </TouchableOpacity>
+          </View>
+        ) : null}
         {!canEdit ? (
           <View style={styles.convertedNotice}>
             <Text style={styles.convertedNoticeTitle}>Harcamaya dönüştürüldü</Text>
@@ -836,78 +853,79 @@ function FisDetayiInner({ route, navigation }) {
                   {getLocale().startsWith('en') ? `Quantity on receipt: ${draftItem.quantity}` : `Fişteki miktar: ${draftItem.quantity}`}
                 </Text>
               ) : null}
-
-              <View style={styles.memberSelectList}>
-                <TouchableOpacity
-                  style={styles.memberSelectRow}
-                  onPress={() => {
-                    Keyboard.dismiss();
-                    setDraftItem((prev) => ({
-                      ...prev,
-                      participantUserIds: memberIds,
-                      shareUnits: normalizeShareUnits(prev.shareUnits, memberIds),
-                    }));
-                  }}
-                >
+              <View style={styles.participantCard}>
+                <View style={styles.participantHeader}>
                   <View style={styles.memberSelectIcon}>
                     <Ionicons name="people-outline" size={19} color={theme.colors.primary[700]} />
                   </View>
-                  <Text style={styles.memberSelectName}>Tüm ev</Text>
-                  <Ionicons
-                    name={draftItem?.participantUserIds?.length === memberIds.length ? 'checkmark-circle' : 'ellipse-outline'}
-                    size={23}
-                    color={draftItem?.participantUserIds?.length === memberIds.length ? theme.colors.primary[600] : theme.colors.neutral[400]}
-                  />
-                </TouchableOpacity>
-                {members.map((member) => {
-                  const active = (draftItem?.participantUserIds || []).includes(Number(member.id));
-                  return (
-                    <TouchableOpacity
-                      key={`draft-${member.id}`}
-                      style={styles.memberSelectRow}
-                      onPress={() => {
-                        Keyboard.dismiss();
-                        setDraftItem((prev) => {
-                          const current = prev?.participantUserIds || [];
-                          const userId = Number(member.id);
-                          const participantUserIds = current.includes(userId)
-                            ? current.filter((id) => id !== userId)
-                            : [...current, userId];
-                          return {
-                            ...prev,
-                            participantUserIds,
-                            shareUnits: normalizeShareUnits(prev.shareUnits, participantUserIds),
-                          };
-                        });
-                      }}
-                    >
-                      <View style={styles.memberAvatar}>
-                        <Text style={styles.memberAvatarText}>{String(member.fullName || '?').charAt(0).toUpperCase()}</Text>
-                      </View>
-                      <Text style={styles.memberSelectName} numberOfLines={1}>{member.fullName}</Text>
-                      <Ionicons
-                        name={active ? 'checkmark-circle' : 'ellipse-outline'}
-                        size={23}
-                        color={active ? theme.colors.primary[600] : theme.colors.neutral[400]}
-                      />
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-
-              {draftItem?.participantUserIds?.length > 0 ? (
-                <TouchableOpacity style={styles.memberSelectRow} onPress={() => {
+                  <View>
+                    <Text style={styles.participantLabel}>Kimin için?</Text>
+                    <Text style={styles.participantValue}>
+                      {hasCustomShareUnits(draftItem?.shareUnits)
+                        ? 'Özel paylaşım'
+                        : draftItem?.participantUserIds?.length === memberIds.length
+                          ? 'Ortak'
+                          : `${draftItem?.participantUserIds?.length || 0} kişi · Eşit`}
+                    </Text>
+                  </View>
+                </View>
+                <View style={styles.chips}>
+                  <TouchableOpacity
+                    style={[styles.chip, draftItem?.participantUserIds?.length === memberIds.length && styles.chipActive]}
+                    onPress={() => {
+                      Keyboard.dismiss();
+                      setDraftItem((prev) => ({
+                        ...prev,
+                        participantUserIds: memberIds,
+                        shareUnits: normalizeShareUnits(prev.shareUnits, memberIds),
+                      }));
+                    }}
+                  >
+                    <Text style={[styles.chipText, draftItem?.participantUserIds?.length === memberIds.length && styles.chipTextActive]}>Ortak</Text>
+                  </TouchableOpacity>
+                  {members.map((member) => {
+                    const active = (draftItem?.participantUserIds || []).includes(Number(member.id));
+                    return (
+                      <TouchableOpacity
+                        key={`draft-${member.id}`}
+                        accessibilityLabel={`${member.fullName} katılımcı`}
+                        style={[styles.chip, active && styles.chipActive]}
+                        onPress={() => {
+                          Keyboard.dismiss();
+                          setDraftItem((prev) => {
+                            const current = prev?.participantUserIds || [];
+                            const userId = Number(member.id);
+                            const participantUserIds = selectParticipant(current, userId, memberIds).map(Number);
+                            return {
+                              ...prev,
+                              participantUserIds,
+                              shareUnits: normalizeShareUnits(prev.shareUnits, participantUserIds),
+                            };
+                          });
+                        }}
+                      >
+                        <Text style={[styles.chipText, active && styles.chipTextActive]}>{member.fullName}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+                <TouchableOpacity style={styles.shareCustomize} disabled={!draftItem?.participantUserIds?.length} onPress={() => {
                   Keyboard.dismiss();
                   setShareDraft(normalizeShareUnits(draftItem.shareUnits, draftItem.participantUserIds));
                   setEditingShares(true);
                 }}>
                   <Ionicons name="options-outline" size={19} color={theme.colors.primary[700]} />
-                  <Text style={styles.memberSelectName}>
-                    {hasCustomShareUnits(draftItem.shareUnits) ? shareUnitsSummary(draftItem.shareUnits, members) : 'Payları özelleştir'}
+                  <Text style={styles.shareCustomizeText}>
+                    {hasCustomShareUnits(draftItem?.shareUnits) ? 'Payları düzenle' : 'Payları özelleştir'}
                   </Text>
                   <Ionicons name="chevron-forward" size={18} color={theme.colors.primary[700]} />
                 </TouchableOpacity>
-              ) : null}
+                {hasCustomShareUnits(draftItem?.shareUnits) ? (
+                  <Text style={styles.shareCustomSummary} numberOfLines={2}>
+                    {shareUnitsSummary(normalizeShareUnits(draftItem.shareUnits, draftItem.participantUserIds), members)}
+                  </Text>
+                ) : null}
+              </View>
 
               <View style={styles.modalActions}>
                 <TouchableOpacity style={styles.modalSecondaryButton} onPress={closeEditor}>
@@ -1205,19 +1223,22 @@ const makeStyles = (theme) => StyleSheet.create({
     backgroundColor: theme.colors.warning[100],
   },
   personalOwnerText: { color: theme.colors.warning[800], fontWeight: '800' },
-  memberSelectList: { borderWidth: 1, borderColor: theme.colors.neutral[200], borderRadius: 8, overflow: 'hidden', marginBottom: 8 },
-  memberSelectRow: { minHeight: 54, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, borderBottomWidth: 1, borderBottomColor: theme.colors.neutral[100], backgroundColor: theme.colors.surface },
+  participantCard: { backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.neutral[200], padding: 14, borderRadius: 8, marginBottom: 10, gap: 10 },
+  participantHeader: { flexDirection: 'row', alignItems: 'center' },
+  participantLabel: { color: theme.colors.text.secondary, fontFamily: theme.typography.medium, fontSize: 12 },
+  participantValue: { color: theme.colors.text.primary, fontFamily: theme.typography.semibold, fontSize: 15, marginTop: 2 },
+  shareCustomize: { minHeight: 40, flexDirection: 'row', alignItems: 'center', gap: 7, paddingHorizontal: 2 },
+  shareCustomizeText: { flex: 1, color: theme.colors.primary[700], fontWeight: '700', fontSize: 13 },
+  shareCustomSummary: { color: theme.colors.text.secondary, fontSize: 12, lineHeight: 18 },
+  retryOcrButton: { alignSelf: 'flex-start', minHeight: 42, flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 },
+  retryOcrText: { color: theme.colors.primary[700], fontWeight: '700' },
   memberSelectIcon: { width: 34, height: 34, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.primary[50], marginRight: 10 },
-  memberAvatar: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.primary[100], marginRight: 10 },
-  memberAvatarText: { color: theme.colors.primary[700], fontWeight: '900' },
-  memberSelectName: { flex: 1, color: theme.colors.text.primary, fontWeight: '800', fontSize: 14 },
-  memberSelectMeta: { color: theme.colors.text.secondary, fontSize: 12, marginTop: 2 },
   input: { borderWidth: 1, borderColor: theme.colors.neutral[200], borderRadius: 12, paddingHorizontal: 12, paddingVertical: 12, color: theme.colors.text.primary, backgroundColor: theme.colors.background, marginBottom: 10 },
-  chips: { flexDirection: 'row', flexWrap: 'wrap' },
-  chip: { paddingVertical: 9, paddingHorizontal: 12, borderRadius: 999, backgroundColor: theme.colors.neutral[100], marginRight: 8, marginBottom: 8 },
-  chipActive: { backgroundColor: theme.colors.primary[600] },
-  chipText: { color: theme.colors.text.primary, fontWeight: '700' },
-  chipTextActive: { color: theme.colors.text.onPrimary },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  chip: { paddingVertical: 8, paddingHorizontal: 12, borderWidth: 1, borderColor: theme.colors.neutral[300], borderRadius: 20, backgroundColor: theme.colors.background },
+  chipActive: { borderColor: theme.colors.primary[600], backgroundColor: theme.colors.primary[50] },
+  chipText: { color: theme.colors.text.primary, fontWeight: '500' },
+  chipTextActive: { color: theme.colors.primary[700], fontWeight: '700' },
   secondaryButton: { borderRadius: 14, borderWidth: 1, borderColor: theme.colors.neutral[200], paddingVertical: 15, alignItems: 'center', marginBottom: 10 },
   secondaryButtonText: { color: theme.colors.text.primary, fontWeight: '800' },
   primaryButton: { borderRadius: 14, backgroundColor: theme.colors.primary[600], paddingVertical: 16, alignItems: 'center' },

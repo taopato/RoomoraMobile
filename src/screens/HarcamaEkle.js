@@ -398,7 +398,15 @@ export default function AddExpenseScreen({ navigation, route }) {
       }
     } catch (error) {
       console.error('Fis yukleme hatasi:', error?.response?.data || error?.message);
-      showToast('Fiş yüklenirken bir hata oluştu.', 'error');
+      const serverMessage = error?.response?.data?.message;
+      const message = typeof serverMessage === 'string' && serverMessage.length < 180
+        ? serverMessage
+        : error?.code === 'ECONNABORTED'
+          ? 'Fiş okuma zaman aşımına uğradı. Bağlantını kontrol edip tekrar dene.'
+          : error?.response?.status >= 500
+            ? 'Fiş okuma servisine ulaşılamadı. Biraz sonra tekrar dene.'
+            : 'Fiş yüklenemedi. Bağlantını kontrol edip tekrar dene.';
+      showToast(message, 'error');
     } finally {
       setScanningReceipt(false);
     }
