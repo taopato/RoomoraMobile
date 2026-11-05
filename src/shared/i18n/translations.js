@@ -1,6 +1,9 @@
 const EN = {
   'Payları özelleştir': 'Customize shares',
   'Ek pay': 'Extra share',
+  'KALEM TUTARI': 'ITEM AMOUNT',
+  'Tutar gerekli': 'Amount required',
+  'Kalem için geçerli bir tutar gir.': 'Enter a valid amount for this item.',
   'Bu kişinin payı': "This person's shares",
   'Payları düzenle': 'Edit shares',
   'Ek payı borçtan sorumlu ev üyesine yaz.': 'Assign extra shares to the group member responsible for them.',

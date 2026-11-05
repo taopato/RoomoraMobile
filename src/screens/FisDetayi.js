@@ -9,6 +9,8 @@ import { useTheme } from '../shared/theme/ThemeProvider';
 import { LoadingState, PageHeader } from '../shared/ui/roomora/CanonicalUI';
 import { BASE_URL } from '../shared/config/env';
 import DateField from '../shared/ui/DateField';
+import MoneyInput from '../shared/ui/roomora/MoneyInput';
+import { formatMoneyInput, parseMoneyInput } from '../shared/format/money';
 import eventBus from '../shared/events/bus';
 import {
   calculateItemsTotal,
@@ -213,7 +215,8 @@ function FisDetayiInner({ route, navigation }) {
       originalName: source.name ?? '',
       price: String(source.price ?? ''),
       quantity: String(source.quantity ?? 1),
-      lineTotal: String(source.lineTotal ?? source.price ?? 0),
+      originalLineTotal: toNumber(source.lineTotal ?? source.price),
+      lineTotal: formatMoneyInput(String(source.lineTotal ?? source.price ?? 0)),
       participantUserIds: getReceiptItemParticipantIds(source, members),
       shareUnits: source.shareUnits || [],
     });
@@ -239,9 +242,15 @@ function FisDetayiInner({ route, navigation }) {
       return;
     }
 
-    const price = toNumber(draftItem.price);
     const quantity = toNumber(draftItem.quantity, 1) || 1;
-    const lineTotal = toNumber(draftItem.lineTotal, price * quantity);
+    const lineTotal = parseMoneyInput(draftItem.lineTotal);
+    if (lineTotal <= 0) {
+      Alert.alert('Tutar gerekli', 'Kalem için geçerli bir tutar gir.');
+      return;
+    }
+    const price = Math.abs(lineTotal - draftItem.originalLineTotal) < 0.005
+      ? toNumber(draftItem.price)
+      : Number((lineTotal / quantity).toFixed(2));
 
     patchItem(editingIndex, {
       name: String(draftItem.name || '').trim(),
@@ -780,7 +789,7 @@ function FisDetayiInner({ route, navigation }) {
                 <ShareUnitsPicker
                   members={members}
                   units={shareDraft}
-                  amount={toNumber(draftItem?.lineTotal)}
+                  amount={parseMoneyInput(draftItem?.lineTotal)}
                   onChange={setShareDraft}
                   onCancel={() => setEditingShares(false)}
                   onApply={() => {
@@ -817,38 +826,16 @@ function FisDetayiInner({ route, navigation }) {
                 onChangeText={(value) => setDraftItem((prev) => ({ ...prev, name: value }))}
               />
 
-              <View style={styles.row}>
-                <TextInput
-                  style={[styles.input, styles.half]}
-                  placeholder="Fiyat"
-                  keyboardType="decimal-pad"
-                  value={draftItem?.price ?? ''}
-                  onChangeText={(value) => setDraftItem((prev) => {
-                    const quantity = toNumber(prev?.quantity, 1) || 1;
-                    const numeric = toNumber(value);
-                    return { ...prev, price: value, lineTotal: String((numeric * quantity).toFixed(2)) };
-                  })}
-                />
-                <TextInput
-                  style={[styles.input, styles.half]}
-                  placeholder="Adet"
-                  keyboardType="decimal-pad"
-                  value={draftItem?.quantity ?? '1'}
-                  onChangeText={(value) => setDraftItem((prev) => {
-                    const price = toNumber(prev?.price);
-                    const numeric = toNumber(value, 1) || 1;
-                    return { ...prev, quantity: value, lineTotal: String((price * numeric).toFixed(2)) };
-                  })}
-                />
-              </View>
-
-              <TextInput
-                style={styles.input}
-                placeholder="Toplam"
-                keyboardType="decimal-pad"
+              <MoneyInput
+                label="KALEM TUTARI"
                 value={draftItem?.lineTotal ?? ''}
-                onChangeText={(value) => setDraftItem((prev) => ({ ...prev, lineTotal: value }))}
+                onChangeText={(value) => setDraftItem((prev) => ({ ...prev, lineTotal: formatMoneyInput(value) }))}
               />
+              {toNumber(draftItem?.quantity, 1) !== 1 ? (
+                <Text style={styles.quantityHint}>
+                  {getLocale().startsWith('en') ? `Quantity on receipt: ${draftItem.quantity}` : `Fişteki miktar: ${draftItem.quantity}`}
+                </Text>
+              ) : null}
 
               <View style={styles.memberSelectList}>
                 <TouchableOpacity
@@ -1245,6 +1232,7 @@ const makeStyles = (theme) => StyleSheet.create({
   modalContent: { paddingBottom: 12 },
   modalTitle: { color: theme.colors.text.primary, fontSize: 18, fontWeight: '900', marginBottom: 6 },
   modalHint: { color: theme.colors.text.secondary, lineHeight: 18, marginBottom: 12 },
+  quantityHint: { color: theme.colors.text.secondary, fontSize: 12, textAlign: 'center', marginTop: -6, marginBottom: 12 },
   modalActions: { flexDirection: 'row', gap: 10, marginTop: 8 },
   modalSecondaryButton: { flex: 1, minHeight: 48, alignItems: 'center', justifyContent: 'center', borderRadius: 14, borderWidth: 1, borderColor: theme.colors.neutral[200] },
   modalSecondaryButtonText: { color: theme.colors.text.primary, fontWeight: '800' },
