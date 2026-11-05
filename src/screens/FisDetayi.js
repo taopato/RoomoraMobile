@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Image, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Image, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { PanGestureHandler, PinchGestureHandler, State as GestureState } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -62,6 +62,7 @@ function FisDetayiInner({ route, navigation }) {
   const { user } = useAuth();
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const receiptId = route?.params?.receiptId;
   const initialReceiptRef = useRef(route?.params?.initialReceipt);
@@ -808,9 +809,9 @@ function FisDetayiInner({ route, navigation }) {
 
       <Modal visible={editingIndex != null && !!draftItem} transparent animationType="slide" onRequestClose={closeEditor}>
         <View style={styles.modalRoot}>
-          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={[styles.modalKeyboard, { paddingTop: insets.top + 8 }]}>
-            <Pressable style={styles.modalDismissArea} onPress={closeEditor} accessibilityLabel="Düzenlemeyi kapat" />
-            <View style={[styles.modalSheet, { paddingBottom: insets.bottom + 12 }]}>
+          <Pressable style={styles.modalBackdrop} onPress={closeEditor} accessibilityLabel="Düzenlemeyi kapat" testID="receipt-editor-backdrop" />
+          <KeyboardAvoidingView pointerEvents="box-none" behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalKeyboard}>
+            <View style={[styles.modalSheet, { maxHeight: windowHeight * 0.7, paddingBottom: insets.bottom + 12 }]}>
               {editingShares ? (
                 <ShareUnitsPicker
                   members={members}
@@ -1281,9 +1282,9 @@ const makeStyles = (theme) => StyleSheet.create({
   deleteReceiptButton: { paddingVertical: 14, alignItems: 'center', marginTop: 6 },
   deleteReceiptButtonText: { color: theme.colors.error[700], fontWeight: '800' },
   modalRoot: { flex: 1, backgroundColor: 'rgba(0,0,0,0.42)' },
-  modalKeyboard: { flex: 1, justifyContent: 'flex-end' },
-  modalDismissArea: { flex: 1 },
-  modalSheet: { maxHeight: '88%', flexShrink: 1, backgroundColor: theme.colors.surface, paddingHorizontal: 16, paddingTop: 18, borderTopLeftRadius: 8, borderTopRightRadius: 8, borderWidth: 1, borderColor: theme.colors.neutral[200] },
+  modalBackdrop: { ...StyleSheet.absoluteFillObject },
+  modalKeyboard: { position: 'absolute', left: 0, right: 0, bottom: 0 },
+  modalSheet: { flexShrink: 1, backgroundColor: theme.colors.surface, paddingHorizontal: 16, paddingTop: 18, borderTopLeftRadius: 8, borderTopRightRadius: 8, borderWidth: 1, borderColor: theme.colors.neutral[200] },
   modalScroll: { flexGrow: 0, flexShrink: 1 },
   modalContent: { paddingBottom: 12 },
   modalTitle: { color: theme.colors.text.primary, fontSize: 18, fontWeight: '900', marginBottom: 6 },

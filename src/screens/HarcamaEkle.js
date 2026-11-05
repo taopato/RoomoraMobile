@@ -707,13 +707,9 @@ export default function AddExpenseScreen({ navigation, route }) {
 
       {scanningReceipt ? (
         <View style={styles.scanOverlay} accessibilityViewIsModal>
-          <View style={styles.scanPanel}>
-            <View style={styles.scanIconWrap}>
-              <Image source={require('../assets/mark-white.png')} style={styles.scanBrandMark} resizeMode="contain" />
-            </View>
-            <ActivityIndicator size="small" color="#fff" style={styles.scanSpinner} />
-            <Text style={styles.scanTitle}>{scanStage === 'preparing' ? 'Fotoğraf hazırlanıyor' : 'Fiş taranıyor'}</Text>
-          </View>
+          <Image source={require('../assets/mark-white.png')} style={styles.scanBrandMark} resizeMode="contain" />
+          <ActivityIndicator size="small" color="#fff" style={styles.scanSpinner} />
+          <Text style={styles.scanTitle}>{scanStage === 'preparing' ? 'Fotoğraf hazırlanıyor' : 'Fiş taranıyor'}</Text>
         </View>
       ) : null}
 
@@ -839,11 +835,9 @@ const makeStyles = (theme) => StyleSheet.create({
     borderColor: theme.colors.neutral[200],
   },
   receiptGhostButtonText: { color: theme.colors.text.primary, fontWeight: '700' },
-  scanOverlay: { ...StyleSheet.absoluteFillObject, zIndex: 50, elevation: 50, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(18,24,29,0.55)', padding: 28 },
-  scanPanel: { alignItems: 'center' },
-  scanIconWrap: { width: 86, height: 86, borderRadius: 43, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.10)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.20)' },
-  scanBrandMark: { width: 62, height: 62 },
-  scanSpinner: { marginTop: 16 },
+  scanOverlay: { ...StyleSheet.absoluteFillObject, zIndex: 50, elevation: 50, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(18,24,29,0.84)' },
+  scanBrandMark: { width: 118, height: 118 },
+  scanSpinner: { marginTop: 8 },
   scanTitle: { color: '#fff', fontFamily: theme.typography?.bold, fontSize: 15, marginTop: 10 },
   label: { fontFamily: theme.typography?.semibold, fontSize: 14, color: theme.colors.text.primary, marginBottom: 8 },
   input: {
