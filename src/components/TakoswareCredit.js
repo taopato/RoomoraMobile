@@ -24,7 +24,7 @@ export default function TakoswareCredit({ compact = false }) {
 
 const makeStyles = (theme, compact) => StyleSheet.create({
   root: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
-  mark: { width: compact ? 30 : 38, height: compact ? 30 : 38 },
+  mark: { width: compact ? 42 : 52, height: compact ? 42 : 52 },
   copy: { flexShrink: 1 },
   title: { color: theme.colors.text.secondary, fontSize: compact ? 11 : 13, fontWeight: '700' },
   subtitle: { color: theme.colors.text.secondary, fontSize: 11, marginTop: 2 },
