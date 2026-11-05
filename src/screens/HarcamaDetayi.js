@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Modal, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -12,6 +12,8 @@ import eventBus from '../shared/events/bus';
 import KeyboardAwareScreen from '../shared/ui/KeyboardAwareScreen';
 import MoneyInput from '../shared/ui/roomora/MoneyInput';
 import { getReceiptItemParticipantIds, getReceiptParticipantSummary } from '../utils/receiptAssignments';
+import ShareUnitsPicker from '../components/ShareUnitsPicker';
+import { hasCustomShareUnits, normalizeShareUnits, shareUnitsSummary } from '../utils/shareUnits';
 
 import { Alert, Text, TextInput } from '../shared/i18n';
 import { getLocale } from '../shared/i18n/runtime';
@@ -41,6 +43,9 @@ export default function HarcamaDetayi({ navigation, route }) {
   const [payerId, setPayerId] = useState('');
   const [participantIds, setParticipantIds] = useState([]);
   const [personal, setPersonal] = useState({});
+  const [shareUnits, setShareUnits] = useState([]);
+  const [shareDraft, setShareDraft] = useState([]);
+  const [shareEditorVisible, setShareEditorVisible] = useState(false);
   const [linkedReceiptId, setLinkedReceiptId] = useState(null);
   const [linkedReceipt, setLinkedReceipt] = useState(null);
 
@@ -59,6 +64,7 @@ export default function HarcamaDetayi({ navigation, route }) {
     );
     if (!selected.size) availableMembers.forEach((member) => selected.add(member.id));
     setParticipantIds(Array.from(selected).map(String));
+    setShareUnits(pick(item, ['shareUnits', 'ShareUnits'], []));
     setPersonal(
       (Array.isArray(personalItems) ? personalItems : []).reduce((result, entry) => {
         const userId = Number(pick(entry, ['userId', 'UserId'], 0));
@@ -115,8 +121,16 @@ export default function HarcamaDetayi({ navigation, route }) {
         }))
         .filter((share) => share.userId > 0);
       setMembers(normalizedMembers);
-      setShares(normalizedShares.length
-        ? normalizedShares
+      const itemPersonal = pick(item, ['sahsiHarcamalar', 'SahsiHarcamalar'], []);
+      const combined = new Map();
+      normalizedShares.forEach(({ userId, value }) => combined.set(userId, (combined.get(userId) || 0) + value));
+      (Array.isArray(itemPersonal) ? itemPersonal : []).forEach((entry) => {
+        const userId = Number(pick(entry, ['userId', 'UserId'], 0));
+        const value = Number(pick(entry, ['tutar', 'Tutar'], 0));
+        if (userId && value > 0) combined.set(userId, (combined.get(userId) || 0) + value);
+      });
+      setShares(combined.size
+        ? Array.from(combined, ([userId, value]) => ({ userId, value }))
         : Array.from(totals, ([userId, value]) => ({ userId, value })));
       setExpense(item);
       setLinkedReceiptId(linkedReceipt?.id || null);
@@ -147,6 +161,7 @@ export default function HarcamaDetayi({ navigation, route }) {
           return nextPersonal;
         });
       }
+      setShareUnits((units) => normalizeShareUnits(units, next));
       return next;
     });
   };
@@ -184,6 +199,7 @@ export default function HarcamaDetayi({ navigation, route }) {
         Note: note.trim(),
         Description: note.trim(),
         SahsiHarcamalar: personalItems,
+        ShareUnits: hasCustomShareUnits(shareUnits) ? normalizeShareUnits(shareUnits, participantIds) : [],
       });
       eventBus.emit('expenses:updated', { houseId: Number(houseId) });
       if (dedicatedEdit) {
@@ -255,6 +271,7 @@ export default function HarcamaDetayi({ navigation, route }) {
       name: String(pick(item, ['name', 'Name'], 'İsimsiz kalem')),
       amount: Number(pick(item, ['lineTotal', 'LineTotal', 'price', 'Price'], 0)),
       participantIds: getReceiptItemParticipantIds(item, members),
+      shareUnits: pick(item, ['shareUnits', 'ShareUnits'], []),
     }))
     .filter((item) => item.amount > 0);
   const visibleNote = note && note.trim() !== title.trim() ? note : '';
@@ -293,7 +310,16 @@ export default function HarcamaDetayi({ navigation, route }) {
               {shares.length ? shares.map((item) => (
                 <View key={String(item.userId)} style={styles.shareRow}>
                   <View style={styles.avatar}><Text style={styles.avatarText}>{memberName(item.userId).charAt(0)}</Text></View>
-                  <Text style={styles.shareName}>{memberName(item.userId)}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.shareName}>{memberName(item.userId)}</Text>
+                    {shareUnits.find((entry) => Number(entry.userId) === item.userId)?.units > 1 ? (
+                      <Text style={styles.shareCaption}>
+                        {shareUnits.find((entry) => Number(entry.userId) === item.userId).units} {getLocale().startsWith('en') ? 'shares' : 'pay'}
+                        {shareUnits.find((entry) => Number(entry.userId) === item.userId).forLabel
+                          ? ` · ${shareUnits.find((entry) => Number(entry.userId) === item.userId).forLabel}` : ''}
+                      </Text>
+                    ) : null}
+                  </View>
                   <Text style={styles.shareValue}>{money(item.value)}</Text>
                 </View>
               )) : <Text style={styles.muted}>Bu harcama için paylaşım satırı bulunmuyor.</Text>}
@@ -337,7 +363,9 @@ export default function HarcamaDetayi({ navigation, route }) {
                     <View style={styles.receiptItemBody}>
                       <Text style={styles.receiptItemName} numberOfLines={2}>{item.name}</Text>
                       <Text style={styles.receiptItemPeople} numberOfLines={1}>
-                        {getReceiptParticipantSummary(item.participantIds, members)}
+                        {hasCustomShareUnits(item.shareUnits)
+                          ? shareUnitsSummary(item.shareUnits, members)
+                          : getReceiptParticipantSummary(item.participantIds, members)}
                       </Text>
                     </View>
                     <Text style={styles.receiptItemAmount}>{money(item.amount)}</Text>
@@ -397,7 +425,11 @@ export default function HarcamaDetayi({ navigation, route }) {
             <View style={styles.chips}>
               <TouchableOpacity
                 style={[styles.chip, participantIds.length === members.length && styles.chipActive]}
-                onPress={() => setParticipantIds(members.map((member) => String(member.id)))}
+                onPress={() => {
+                  const ids = members.map((member) => String(member.id));
+                  setParticipantIds(ids);
+                  setShareUnits((units) => normalizeShareUnits(units, ids));
+                }}
               >
                 <Text style={[styles.chipText, participantIds.length === members.length && styles.chipTextActive]}>Ortak</Text>
               </TouchableOpacity>
@@ -414,6 +446,18 @@ export default function HarcamaDetayi({ navigation, route }) {
                 );
               })}
             </View>
+            {participantIds.length > 0 ? (
+              <TouchableOpacity style={styles.shareOption} onPress={() => {
+                setShareDraft(normalizeShareUnits(shareUnits, participantIds));
+                setShareEditorVisible(true);
+              }}>
+                <Ionicons name="options-outline" size={19} color={theme.colors.primary[700]} />
+                <Text style={styles.shareOptionText}>
+                  {hasCustomShareUnits(shareUnits) ? shareUnitsSummary(shareUnits, members) : 'Payları özelleştir'}
+                </Text>
+                <Ionicons name="chevron-forward" size={17} color={theme.colors.primary[700]} />
+              </TouchableOpacity>
+            ) : null}
             <Text style={styles.fieldLabel}>Kişisel kalemler</Text>
             {members.map((member) => {
               const enabled = participantIds.includes(String(member.id));
@@ -449,6 +493,26 @@ export default function HarcamaDetayi({ navigation, route }) {
           </View>
         )}
       </KeyboardAwareScreen>
+      <Modal visible={shareEditorVisible} transparent animationType="slide" onRequestClose={() => setShareEditorVisible(false)}>
+        <View style={styles.shareModalBackdrop}>
+          <ShareUnitsPicker
+            members={members}
+            units={shareDraft}
+            amount={Math.max(parseMoneyInput(amount) - Object.entries(personal)
+              .filter(([userId]) => participantIds.includes(String(userId)))
+              .reduce((sum, [, value]) => sum + (parseMoneyInput(value) || 0), 0), 0)}
+            onChange={setShareDraft}
+            onCancel={() => setShareEditorVisible(false)}
+            onApply={() => {
+              if (!shareDraft.length) return;
+              setParticipantIds(shareDraft.map((entry) => String(entry.userId)));
+              setShareUnits(hasCustomShareUnits(shareDraft) ? shareDraft : []);
+              setShareEditorVisible(false);
+            }}
+            theme={theme}
+          />
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -497,6 +561,7 @@ const makeStyles = (theme, insets) => StyleSheet.create({
   avatarText: { color: theme.colors.primary[700], fontFamily: theme.typography.bold },
   shareName: { flex: 1, color: theme.colors.text.primary, fontFamily: theme.typography.medium, fontSize: 14 },
   shareValue: { color: theme.colors.text.primary, fontFamily: theme.typography.bold, fontSize: 14 },
+  shareCaption: { color: theme.colors.text.secondary, fontFamily: theme.typography.regular, fontSize: 11, marginTop: 2 },
   personalIcon: { width: 32, height: 32, borderRadius: 16, backgroundColor: theme.colors.warning[50], alignItems: 'center', justifyContent: 'center' },
   personalBody: { flex: 1 },
   personalCaption: { color: theme.colors.text.secondary, fontFamily: theme.typography.regular, fontSize: 11, marginTop: 2 },
@@ -523,6 +588,9 @@ const makeStyles = (theme, insets) => StyleSheet.create({
   input: { minHeight: 50, borderRadius: 8, borderWidth: 1, borderColor: theme.colors.neutral[300], backgroundColor: theme.colors.background, color: theme.colors.text.primary, fontFamily: theme.typography.regular, fontSize: 15, paddingHorizontal: 13 },
   multiline: { height: 88, paddingTop: 12 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
+  shareOption: { minHeight: 46, flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 15, borderTopWidth: 1, borderTopColor: theme.colors.neutral[100] },
+  shareOptionText: { flex: 1, color: theme.colors.primary[700], fontFamily: theme.typography.semibold, fontSize: 13 },
+  shareModalBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: '#0008' },
   chip: { minHeight: 40, justifyContent: 'center', paddingHorizontal: 12, borderRadius: 8, borderWidth: 1, borderColor: theme.colors.neutral[300], backgroundColor: theme.colors.surface },
   chipActive: { borderColor: theme.colors.primary[600], backgroundColor: theme.colors.primary[50] },
   chipText: { color: theme.colors.text.secondary, fontFamily: theme.typography.medium, fontSize: 13 },

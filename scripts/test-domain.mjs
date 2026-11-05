@@ -23,9 +23,22 @@ import { getContainedImageMetrics, getContainedOverlayStyle } from '../src/utils
 import { selectParticipant } from '../src/utils/participantSelection.js';
 import { attachReceiptDates, getTimelineDate, sortExpensesByTimeline } from '../src/utils/expenseTimeline.js';
 import { getReadableReceiptItemName, getReceiptStoreName, getReceiptTitle } from '../src/utils/receiptPresentation.js';
+import { allocateShareUnits, hasCustomShareUnits, normalizeShareUnits, shareUnitsSummary } from '../src/utils/shareUnits.js';
 import { getLocale, setActiveLanguage, translate } from '../src/shared/i18n/runtime.js';
 
 setActiveLanguage('tr');
+
+const chickenUnits = normalizeShareUnits([
+  { userId: 1, units: 1 }, { userId: 2, units: 2, forLabel: 'Sedef için' }, { userId: 3, units: 1 },
+], [1, 2, 3]);
+assert.equal(hasCustomShareUnits(chickenUnits), true);
+assert.deepEqual(allocateShareUnits(400, chickenUnits), [
+  { userId: 1, amount: 100 }, { userId: 2, amount: 200 }, { userId: 3, amount: 100 },
+]);
+assert.equal(allocateShareUnits(99.99, chickenUnits).reduce((sum, entry) => sum + Math.round(entry.amount * 100), 0), 9999);
+assert.equal(normalizeShareUnits(chickenUnits, [1, 3]).length, 2);
+assert.equal(normalizeShareUnits([], [1, 2, 3]).every((entry) => entry.units === 1), true);
+assert.match(shareUnitsSummary(chickenUnits, [{ id: 1, fullName: 'Tarık' }, { id: 2, fullName: 'Tuğfan' }, { id: 3, fullName: 'Berdan' }]), /Tuğfan 2/);
 
 assert.equal(getReceiptStoreName({ storeName: 'e-Arşiv Fatura', rawOcrText: 'A101 YENİ MAĞAZACILIK A.Ş.\nTarih: 08/10/2026' }), 'A101');
 assert.equal(getReceiptTitle({ rawOcrText: 'MİGROS TİCARET A.Ş.\nFiş No: 4' }), 'Migros Fişi');

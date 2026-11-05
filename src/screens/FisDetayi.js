@@ -29,6 +29,8 @@ import {
 } from '../utils/receiptAssignments';
 import { normalizeExpenseCategoryKey } from '../constants/ExpenseEnums';
 import { getReadableReceiptItemName, getReceiptStoreName, getReceiptTitle } from '../utils/receiptPresentation';
+import ShareUnitsPicker from '../components/ShareUnitsPicker';
+import { hasCustomShareUnits, normalizeShareUnits, shareUnitsSummary } from '../utils/shareUnits';
 
 import { Alert, Text, TextInput } from '../shared/i18n';
 import { getLocale } from '../shared/i18n/runtime';
@@ -71,6 +73,8 @@ function FisDetayiInner({ route, navigation }) {
   const [category, setCategory] = useState('Market');
   const [editingIndex, setEditingIndex] = useState(null);
   const [draftItem, setDraftItem] = useState(null);
+  const [editingShares, setEditingShares] = useState(false);
+  const [shareDraft, setShareDraft] = useState([]);
   const [imageFrame, setImageFrame] = useState({ width: 0, height: 260 });
   const [imageZoom, setImageZoom] = useState(1);
   const [showPhoto, setShowPhoto] = useState(false);
@@ -111,7 +115,8 @@ function FisDetayiInner({ route, navigation }) {
       const hasMeaninglessSavedItems = normalizedItems.some((item) => !isMeaningfulReceiptItem(item));
       const receiptIsConverted = String(receiptData?.status ?? '').toLowerCase() === 'converted'
         || Number(receiptData?.status) === 3;
-      const shouldReparse = !receiptIsConverted && (
+      const shouldReparse = !receiptIsConverted
+        && !normalizedItems.some((item) => hasCustomShareUnits(item.shareUnits)) && (
         normalizedItems.length === 0
         || normalizedItems.every((item) => toNumber(item.lineTotal) <= 0)
         || normalizedItems.every((item) => item.boxLeft == null || item.boxTop == null || item.boxWidth == null || item.boxHeight == null)
@@ -211,12 +216,15 @@ function FisDetayiInner({ route, navigation }) {
       quantity: String(source.quantity ?? 1),
       lineTotal: String(source.lineTotal ?? source.price ?? 0),
       participantUserIds: getReceiptItemParticipantIds(source, members),
+      shareUnits: source.shareUnits || [],
     });
+    setEditingShares(false);
   };
 
   const closeEditor = () => {
     setEditingIndex(null);
     setDraftItem(null);
+    setEditingShares(false);
   };
 
   const saveEditor = () => {
@@ -240,6 +248,8 @@ function FisDetayiInner({ route, navigation }) {
       quantity,
       lineTotal,
       ...buildReceiptAssignment(draftItem.participantUserIds, members),
+      shareUnits: hasCustomShareUnits(draftItem.shareUnits)
+        ? normalizeShareUnits(draftItem.shareUnits, draftItem.participantUserIds) : [],
     });
     closeEditor();
   };
@@ -260,6 +270,8 @@ function FisDetayiInner({ route, navigation }) {
       isShared: Boolean(item.isShared),
       personalUserId: item.personalUserId ?? null,
       participantUserIds: getReceiptItemParticipantIds(item, members),
+      shareUnits: hasCustomShareUnits(item.shareUnits)
+        ? normalizeShareUnits(item.shareUnits, getReceiptItemParticipantIds(item, members)) : [],
       sortOrder: index,
     }));
 
@@ -634,7 +646,9 @@ function FisDetayiInner({ route, navigation }) {
 
           {visibleItems.map(({ item, index }) => {
             const participantIds = getReceiptItemParticipantIds(item, members);
-            const participantSummary = getReceiptParticipantSummary(participantIds, members);
+            const participantSummary = hasCustomShareUnits(item.shareUnits)
+              ? shareUnitsSummary(item.shareUnits, members)
+              : getReceiptParticipantSummary(participantIds, members);
             const quantity = toNumber(item.quantity, 1) || 1;
             const unitPrice = toNumber(item.price);
             const lineTotal = toNumber(item.lineTotal);
@@ -767,6 +781,25 @@ function FisDetayiInner({ route, navigation }) {
               extraScrollHeight={20}
               keyboardOpeningTime={0}
             >
+              {editingShares ? (
+                <ShareUnitsPicker
+                  members={members}
+                  units={shareDraft}
+                  amount={toNumber(draftItem?.lineTotal)}
+                  onChange={setShareDraft}
+                  onCancel={() => setEditingShares(false)}
+                  onApply={() => {
+                    if (!shareDraft.length) return;
+                    setDraftItem((prev) => ({
+                      ...prev,
+                      participantUserIds: shareDraft.map((entry) => entry.userId),
+                      shareUnits: hasCustomShareUnits(shareDraft) ? shareDraft : [],
+                    }));
+                    setEditingShares(false);
+                  }}
+                  theme={theme}
+                />
+              ) : <>
               <Text style={styles.modalTitle}>Kalemi düzenle</Text>
               <Text style={styles.modalHint}>Ürün bilgilerini ve tutarı paylaşacak kişileri güncelleyebilirsin.</Text>
               {draftItem?.originalName ? <Text style={styles.originalName}>Fişteki ad: {draftItem.originalName}</Text> : null}
@@ -823,6 +856,7 @@ function FisDetayiInner({ route, navigation }) {
                   onPress={() => setDraftItem((prev) => ({
                     ...prev,
                     participantUserIds: memberIds,
+                    shareUnits: normalizeShareUnits(prev.shareUnits, memberIds),
                   }))}
                 >
                   <View style={styles.memberSelectIcon}>
@@ -844,11 +878,13 @@ function FisDetayiInner({ route, navigation }) {
                       onPress={() => setDraftItem((prev) => {
                         const current = prev?.participantUserIds || [];
                         const userId = Number(member.id);
+                        const participantUserIds = current.includes(userId)
+                          ? current.filter((id) => id !== userId)
+                          : [...current, userId];
                         return {
                           ...prev,
-                          participantUserIds: current.includes(userId)
-                            ? current.filter((id) => id !== userId)
-                            : [...current, userId],
+                          participantUserIds,
+                          shareUnits: normalizeShareUnits(prev.shareUnits, participantUserIds),
                         };
                       })}
                     >
@@ -866,6 +902,19 @@ function FisDetayiInner({ route, navigation }) {
                 })}
               </View>
 
+              {draftItem?.participantUserIds?.length > 0 ? (
+                <TouchableOpacity style={styles.memberSelectRow} onPress={() => {
+                  setShareDraft(normalizeShareUnits(draftItem.shareUnits, draftItem.participantUserIds));
+                  setEditingShares(true);
+                }}>
+                  <Ionicons name="options-outline" size={19} color={theme.colors.primary[700]} />
+                  <Text style={styles.memberSelectName}>
+                    {hasCustomShareUnits(draftItem.shareUnits) ? shareUnitsSummary(draftItem.shareUnits, members) : 'Payları özelleştir'}
+                  </Text>
+                  <Ionicons name="chevron-forward" size={18} color={theme.colors.primary[700]} />
+                </TouchableOpacity>
+              ) : null}
+
               <View style={styles.modalActions}>
                 <TouchableOpacity style={styles.modalSecondaryButton} onPress={closeEditor}>
                   <Text style={styles.modalSecondaryButtonText}>Vazgeç</Text>
@@ -874,6 +923,7 @@ function FisDetayiInner({ route, navigation }) {
                   <Text style={styles.modalPrimaryButtonText}>Kaydet</Text>
                 </TouchableOpacity>
               </View>
+              </>}
             </KeyboardAwareScrollView>
           </View>
         </KeyboardAvoidingView>

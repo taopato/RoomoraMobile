@@ -15,6 +15,8 @@ import { formatMoneyInput, parseMoneyInput } from '../shared/format/money';
 import { selectParticipant } from '../utils/participantSelection';
 import KeyboardAwareScreen from '../shared/ui/KeyboardAwareScreen';
 import MoneyInput from '../shared/ui/roomora/MoneyInput';
+import ShareUnitsPicker from '../components/ShareUnitsPicker';
+import { hasCustomShareUnits, normalizeShareUnits, shareUnitsSummary } from '../utils/shareUnits';
 
 import { Alert, Text, TextInput } from '../shared/i18n';
 
@@ -35,6 +37,7 @@ const mapQuickTemplate = (template) => ({
     category: CATEGORY_ID_TO_KEY[Number(template?.categoryId)] || 'Other',
     payerId: Number(template?.payerUserId || 0),
     participantIds: Array.isArray(template?.participantUserIds) ? template.participantUserIds.map(Number) : [],
+    shareUnits: Array.isArray(template?.shareUnits) ? template.shareUnits : [],
     personal: template?.personalAmounts && typeof template.personalAmounts === 'object'
       ? template.personalAmounts
       : {},
@@ -74,6 +77,9 @@ export default function AddExpenseScreen({ navigation, route }) {
   const [members, setMembers] = useState([]);
   const [payerId, setPayerId] = useState('');
   const [participantIds, setParticipantIds] = useState([]);
+  const [shareUnits, setShareUnits] = useState([]);
+  const [shareDraft, setShareDraft] = useState([]);
+  const [shareEditorVisible, setShareEditorVisible] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showPersonal, setShowPersonal] = useState(false);
   const [personal, setPersonal] = useState({});
@@ -99,6 +105,7 @@ export default function AddExpenseScreen({ navigation, route }) {
       .map(String)
       .filter((id) => activeMemberIds.has(id));
     if (savedParticipants.length) setParticipantIds(savedParticipants);
+    setShareUnits(normalizeShareUnits(snapshot.shareUnits, savedParticipants));
 
     const savedPersonal = snapshot.personal && typeof snapshot.personal === 'object'
       ? Object.fromEntries(
@@ -142,6 +149,7 @@ export default function AddExpenseScreen({ navigation, route }) {
         description: note.trim() || label,
         payerUserId: Number(payerId),
         participantUserIds: participantIds.map(Number),
+        shareUnits: hasCustomShareUnits(shareUnits) ? normalizeShareUnits(shareUnits, participantIds) : [],
         personalAmounts,
       });
       const saved = response?.data?.data ?? response?.data;
@@ -205,6 +213,7 @@ export default function AddExpenseScreen({ navigation, route }) {
 
       setMembers(list);
       setParticipantIds(list.map((member) => String(member.id)));
+      setShareUnits([]);
       const me = list.find((item) => item.id === Number(user?.id));
       if (me) setPayerId(String(me.id));
 
@@ -232,21 +241,34 @@ export default function AddExpenseScreen({ navigation, route }) {
 
   const toggleParticipant = (memberId) => {
     const id = String(memberId);
-    setParticipantIds((current) => {
-      const next = selectParticipant(current, id, members.map((member) => member.id));
-      if (current.includes(id) && !next.includes(id)) {
-        setPersonal((previous) => {
-          const nextPersonal = { ...previous };
-          delete nextPersonal[id];
-          return nextPersonal;
-        });
-      }
-      return next;
-    });
+    const next = selectParticipant(participantIds, id, members.map((member) => member.id));
+    setParticipantIds(next);
+    setShareUnits((units) => normalizeShareUnits(units, next));
+    if (participantIds.includes(id) && !next.includes(id)) {
+      setPersonal((previous) => {
+        const nextPersonal = { ...previous };
+        delete nextPersonal[id];
+        return nextPersonal;
+      });
+    }
   };
 
   const selectAllParticipants = () => {
-    setParticipantIds(members.map((member) => String(member.id)));
+    const ids = members.map((member) => String(member.id));
+    setParticipantIds(ids);
+    setShareUnits((units) => normalizeShareUnits(units, ids));
+  };
+
+  const openShareEditor = () => {
+    setShareDraft(normalizeShareUnits(shareUnits, participantIds));
+    setShareEditorVisible(true);
+  };
+
+  const applyShareEditor = () => {
+    if (!shareDraft.length) return;
+    setParticipantIds(shareDraft.map((entry) => String(entry.userId)));
+    setShareUnits(hasCustomShareUnits(shareDraft) ? shareDraft : []);
+    setShareEditorVisible(false);
   };
 
   const save = async () => {
@@ -309,6 +331,7 @@ export default function AddExpenseScreen({ navigation, route }) {
       ortakHarcamaTutari: sharedAmount,
       sahsiHarcamalar: personalItems,
       participants: participantIds.map(Number),
+      shareUnits: hasCustomShareUnits(shareUnits) ? normalizeShareUnits(shareUnits, participantIds) : [],
     };
 
     try {
@@ -527,7 +550,7 @@ export default function AddExpenseScreen({ navigation, route }) {
           <View style={styles.selectionBody}>
             <Text style={styles.selectionLabel}>Kimin için?</Text>
             <Text style={styles.selectionValue}>
-              {allSelected ? 'Ortak' : `${participantIds.length} kişi · Eşit`}
+              {hasCustomShareUnits(shareUnits) ? 'Özel paylaşım' : allSelected ? 'Ortak' : `${participantIds.length} kişi · Eşit`}
             </Text>
           </View>
           <View style={[styles.chips, styles.selectionChips]}>
@@ -554,6 +577,18 @@ export default function AddExpenseScreen({ navigation, route }) {
               );
             })}
           </View>
+          <TouchableOpacity style={styles.shareCustomize} onPress={openShareEditor} disabled={!participantIds.length}>
+            <Ionicons name="options-outline" size={18} color={theme.colors.primary[700]} />
+            <Text style={styles.shareCustomizeText}>
+              {hasCustomShareUnits(shareUnits) ? 'Payları düzenle' : 'Payları özelleştir'}
+            </Text>
+            <Ionicons name="chevron-forward" size={16} color={theme.colors.primary[700]} />
+          </TouchableOpacity>
+          {hasCustomShareUnits(shareUnits) ? (
+            <Text style={styles.shareCustomSummary} numberOfLines={2}>
+              {shareUnitsSummary(normalizeShareUnits(shareUnits, participantIds), members)}
+            </Text>
+          ) : null}
         </View>
 
         <TouchableOpacity style={styles.toggle} onPress={() => setShowPersonal((prev) => !prev)} activeOpacity={0.8}>
@@ -604,9 +639,11 @@ export default function AddExpenseScreen({ navigation, route }) {
         ) : null}
 
         <View style={styles.splitSummary}>
-          <Text style={styles.splitSummaryText}>{allSelected ? 'Ortak' : `${participantIds.length} kişi`} · Eşit bölüşüm</Text>
+          <Text style={styles.splitSummaryText}>{hasCustomShareUnits(shareUnits) ? 'Özel paylaşım' : `${allSelected ? 'Ortak' : `${participantIds.length} kişi`} · Eşit bölüşüm`}</Text>
           <Text style={styles.splitSummaryValue}>
-            Kişi başı {money(participantIds.length ? Number((sharedAmountForSummary / participantIds.length).toFixed(2)) : 0)}
+            {hasCustomShareUnits(shareUnits)
+              ? money(sharedAmountForSummary)
+              : `Kişi başı ${money(participantIds.length ? Number((sharedAmountForSummary / participantIds.length).toFixed(2)) : 0)}`}
           </Text>
         </View>
 
@@ -655,6 +692,20 @@ export default function AddExpenseScreen({ navigation, route }) {
 
         <Toast visible={toast.visible} message={toast.message} type={toast.type} onHide={hideToast} />
       </KeyboardAwareScreen>
+
+      <Modal visible={shareEditorVisible} transparent animationType="slide" onRequestClose={() => setShareEditorVisible(false)}>
+        <View style={styles.shareModalBackdrop}>
+          <ShareUnitsPicker
+            members={members}
+            units={shareDraft}
+            amount={sharedAmountForSummary}
+            onChange={setShareDraft}
+            onCancel={() => setShareEditorVisible(false)}
+            onApply={applyShareEditor}
+            theme={theme}
+          />
+        </View>
+      </Modal>
 
       <Modal visible={quickModalVisible} transparent animationType="fade" onRequestClose={() => setQuickModalVisible(false)}>
         <View style={styles.modalBackdrop}>
@@ -778,6 +829,10 @@ const makeStyles = (theme) => StyleSheet.create({
   hint: { marginTop: 6, color: theme.colors.text.secondary, fontSize: 12 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   selectionChips: { width: '100%' },
+  shareCustomize: { width: '100%', minHeight: 40, flexDirection: 'row', alignItems: 'center', gap: 7, paddingHorizontal: 2 },
+  shareCustomizeText: { flex: 1, color: theme.colors.primary[700], fontWeight: '700', fontSize: 13 },
+  shareCustomSummary: { width: '100%', color: theme.colors.text.secondary, fontSize: 12, lineHeight: 18 },
+  shareModalBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(8, 25, 40, 0.45)' },
   chip: { paddingVertical: 8, paddingHorizontal: 12, borderWidth: 1, borderColor: theme.colors.neutral[300], borderRadius: 20, backgroundColor: theme.colors.background },
   chipActive: { borderColor: theme.colors.primary[600], backgroundColor: theme.colors.primary[50] },
   chipText: { color: theme.colors.text.primary, fontWeight: '500' },

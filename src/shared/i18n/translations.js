@@ -1,4 +1,12 @@
 const EN = {
+  'Payları özelleştir': 'Customize shares',
+  'Payları düzenle': 'Edit shares',
+  'Ek payı borçtan sorumlu ev üyesine yaz.': 'Assign extra shares to the group member responsible for them.',
+  'Ek pay açıklaması (örn. Sedef için)': 'Extra share note (e.g. for Sedef)',
+  'Paylaştırılmıyor': 'Not included',
+  'Eşit paylaş': 'Split equally',
+  'Uygula': 'Apply',
+  'Özel paylaşım': 'Custom split',
   'Fişi görüntüle': 'View receipt',
   'Fişi gizle': 'Hide receipt',
   'Fiş fotoğrafını görüntüle': 'View receipt photo',
