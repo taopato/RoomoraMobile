@@ -808,8 +808,8 @@ function FisDetayiInner({ route, navigation }) {
 
       <Modal visible={editingIndex != null && !!draftItem} transparent animationType="slide" onRequestClose={closeEditor}>
         <View style={styles.modalRoot}>
-          <Pressable style={styles.modalBackdrop} onPress={closeEditor} />
-          <KeyboardAvoidingView pointerEvents="box-none" behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={[styles.modalKeyboard, { paddingTop: insets.top + 8 }]}>
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={[styles.modalKeyboard, { paddingTop: insets.top + 8 }]}>
+            <Pressable style={styles.modalDismissArea} onPress={closeEditor} accessibilityLabel="Düzenlemeyi kapat" />
             <View style={[styles.modalSheet, { paddingBottom: insets.bottom + 12 }]}>
               {editingShares ? (
                 <ShareUnitsPicker
@@ -1280,10 +1280,10 @@ const makeStyles = (theme) => StyleSheet.create({
   primaryButtonText: { color: theme.colors.text.onPrimary, fontWeight: '900' },
   deleteReceiptButton: { paddingVertical: 14, alignItems: 'center', marginTop: 6 },
   deleteReceiptButtonText: { color: theme.colors.error[700], fontWeight: '800' },
-  modalRoot: { flex: 1, justifyContent: 'flex-end' },
-  modalBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.42)' },
+  modalRoot: { flex: 1, backgroundColor: 'rgba(0,0,0,0.42)' },
   modalKeyboard: { flex: 1, justifyContent: 'flex-end' },
-  modalSheet: { maxHeight: '100%', flexShrink: 1, backgroundColor: theme.colors.surface, paddingHorizontal: 16, paddingTop: 18, borderTopLeftRadius: 8, borderTopRightRadius: 8, borderWidth: 1, borderColor: theme.colors.neutral[200] },
+  modalDismissArea: { flex: 1 },
+  modalSheet: { maxHeight: '88%', flexShrink: 1, backgroundColor: theme.colors.surface, paddingHorizontal: 16, paddingTop: 18, borderTopLeftRadius: 8, borderTopRightRadius: 8, borderWidth: 1, borderColor: theme.colors.neutral[200] },
   modalScroll: { flexGrow: 0, flexShrink: 1 },
   modalContent: { paddingBottom: 12 },
   modalTitle: { color: theme.colors.text.primary, fontSize: 18, fontWeight: '900', marginBottom: 6 },

@@ -708,16 +708,11 @@ export default function AddExpenseScreen({ navigation, route }) {
       {scanningReceipt ? (
         <View style={styles.scanOverlay} accessibilityViewIsModal>
           <View style={styles.scanPanel}>
-            <View style={styles.scanBrand}>
-              <Image source={require('../assets/mark-navy.png')} style={styles.scanBrandMark} resizeMode="contain" />
-              <Text style={styles.scanBrandText}>Roomora</Text>
-            </View>
             <View style={styles.scanIconWrap}>
-              <Ionicons name="receipt-outline" size={30} color={theme.colors.primary[700]} />
-              <ActivityIndicator size="small" color={theme.colors.primary[600]} style={styles.scanSpinner} />
+              <Image source={require('../assets/mark-white.png')} style={styles.scanBrandMark} resizeMode="contain" />
             </View>
+            <ActivityIndicator size="small" color="#fff" style={styles.scanSpinner} />
             <Text style={styles.scanTitle}>{scanStage === 'preparing' ? 'Fotoğraf hazırlanıyor' : 'Fiş taranıyor'}</Text>
-            <Text style={styles.scanSubtitle}>{scanStage === 'preparing' ? 'Görsel işleniyor...' : 'Ürünler ve tutarlar okunuyor...'}</Text>
           </View>
         </View>
       ) : null}
@@ -845,14 +840,11 @@ const makeStyles = (theme) => StyleSheet.create({
   },
   receiptGhostButtonText: { color: theme.colors.text.primary, fontWeight: '700' },
   scanOverlay: { ...StyleSheet.absoluteFillObject, zIndex: 50, elevation: 50, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(18,24,29,0.55)', padding: 28 },
-  scanPanel: { width: '100%', maxWidth: 310, borderRadius: 8, padding: 24, alignItems: 'center', backgroundColor: theme.colors.surface },
-  scanBrand: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 },
-  scanBrandMark: { width: 26, height: 26 },
-  scanBrandText: { color: theme.colors.text.primary, fontFamily: theme.typography?.bold, fontSize: 15 },
-  scanIconWrap: { width: 70, height: 70, borderRadius: 35, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.primary[50] },
-  scanSpinner: { position: 'absolute', right: 0, bottom: 0 },
-  scanTitle: { color: theme.colors.text.primary, fontFamily: theme.typography?.bold, fontSize: 17, marginTop: 18 },
-  scanSubtitle: { color: theme.colors.text.secondary, fontSize: 13, marginTop: 6 },
+  scanPanel: { alignItems: 'center' },
+  scanIconWrap: { width: 86, height: 86, borderRadius: 43, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.10)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.20)' },
+  scanBrandMark: { width: 62, height: 62 },
+  scanSpinner: { marginTop: 16 },
+  scanTitle: { color: '#fff', fontFamily: theme.typography?.bold, fontSize: 15, marginTop: 10 },
   label: { fontFamily: theme.typography?.semibold, fontSize: 14, color: theme.colors.text.primary, marginBottom: 8 },
   input: {
     borderWidth: 1,
