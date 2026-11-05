@@ -71,7 +71,6 @@ function ReceiptRow({ item, houseId, navigation, onDeleted, theme, styles }) {
       friction={2}
       rightThreshold={64}
       overshootRight={false}
-      onSwipeableOpen={(direction) => { if (direction === 'left') confirmDelete(); }}
       renderRightActions={() => (
         <TouchableOpacity style={styles.deleteAction} accessibilityLabel="Fiş taslağını sil" onPress={confirmDelete}>
           <Ionicons name="trash-outline" size={22} color={theme.colors.text.onPrimary} />

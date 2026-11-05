@@ -84,6 +84,7 @@ export default function AddExpenseScreen({ navigation, route }) {
   const [showPersonal, setShowPersonal] = useState(false);
   const [personal, setPersonal] = useState({});
   const [scanningReceipt, setScanningReceipt] = useState(false);
+  const [scanStage, setScanStage] = useState('preparing');
   const [toast, setToast] = useState({ visible: false, message: '', type: 'success' });
   const [quickChoices, setQuickChoices] = useState([]);
   const [quickModalVisible, setQuickModalVisible] = useState(false);
@@ -356,6 +357,8 @@ export default function AddExpenseScreen({ navigation, route }) {
 
     try {
       setScanningReceipt(true);
+      setScanStage('preparing');
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
       let preparedAsset = asset;
       if (Platform.OS !== 'web') {
         const actions = Number(asset.width) > 2200
@@ -385,6 +388,7 @@ export default function AddExpenseScreen({ navigation, route }) {
         ? new File([await (await fetch(preparedAsset.uri)).blob()], fileName, { type: mimeType })
         : { uri: preparedAsset.uri, name: fileName, type: mimeType };
 
+      setScanStage('reading');
       const response = await receiptsApi.scan({
         houseId: activeHouseId,
         image,
@@ -392,7 +396,7 @@ export default function AddExpenseScreen({ navigation, route }) {
 
       const receipt = response?.data;
       if (receipt?.id) {
-        navigation.navigate('FisDetayi', { receiptId: receipt.id, houseId: activeHouseId });
+        navigation.navigate('FisDetayi', { receiptId: receipt.id, houseId: activeHouseId, initialReceipt: receipt });
       } else {
         showToast('Fiş yüklendi ama detay açılamadı.', 'error');
       }
@@ -701,6 +705,19 @@ export default function AddExpenseScreen({ navigation, route }) {
         <Toast visible={toast.visible} message={toast.message} type={toast.type} onHide={hideToast} />
       </KeyboardAwareScreen>
 
+      <Modal visible={scanningReceipt} transparent animationType="fade" onRequestClose={() => {}}>
+        <View style={styles.scanOverlay} accessibilityViewIsModal>
+          <View style={styles.scanPanel}>
+            <View style={styles.scanIconWrap}>
+              <Ionicons name="receipt-outline" size={30} color={theme.colors.primary[700]} />
+              <ActivityIndicator size="small" color={theme.colors.primary[600]} style={styles.scanSpinner} />
+            </View>
+            <Text style={styles.scanTitle}>{scanStage === 'preparing' ? 'Fotoğraf hazırlanıyor' : 'Fiş taranıyor'}</Text>
+            <Text style={styles.scanSubtitle}>{scanStage === 'preparing' ? 'Görsel işleniyor...' : 'Ürünler ve tutarlar okunuyor...'}</Text>
+          </View>
+        </View>
+      </Modal>
+
       <Modal visible={shareEditorVisible} transparent animationType="slide" onRequestClose={() => setShareEditorVisible(false)}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={[styles.shareModalBackdrop, { paddingTop: insets.top + 8 }]}>
           <ShareUnitsPicker
@@ -823,6 +840,12 @@ const makeStyles = (theme) => StyleSheet.create({
     borderColor: theme.colors.neutral[200],
   },
   receiptGhostButtonText: { color: theme.colors.text.primary, fontWeight: '700' },
+  scanOverlay: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(18,24,29,0.48)', padding: 28 },
+  scanPanel: { width: '100%', maxWidth: 310, borderRadius: 8, padding: 24, alignItems: 'center', backgroundColor: theme.colors.surface },
+  scanIconWrap: { width: 70, height: 70, borderRadius: 35, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.primary[50] },
+  scanSpinner: { position: 'absolute', right: 0, bottom: 0 },
+  scanTitle: { color: theme.colors.text.primary, fontFamily: theme.typography?.bold, fontSize: 17, marginTop: 18 },
+  scanSubtitle: { color: theme.colors.text.secondary, fontSize: 13, marginTop: 6 },
   label: { fontFamily: theme.typography?.semibold, fontSize: 14, color: theme.colors.text.primary, marginBottom: 8 },
   input: {
     borderWidth: 1,

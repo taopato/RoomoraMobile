@@ -261,7 +261,7 @@ function ThemedNavigator() {
             <Stack.Screen name="HarcamaDuzenle" component={HarcamaDetayi} options={{ title: '', headerShown: false }} />
             <Stack.Screen name="HarcamaEkle" component={HarcamaEkle} options={{ title: '', headerShown: false }} />
             <Stack.Screen name="FisDetayi" component={FisDetayi} options={{ title: '', headerShown: false }} />
-            <Stack.Screen name="FisGecmisi" component={FisGecmisi} options={{ title: '', headerShown: false }} />
+            <Stack.Screen name="FisGecmisi" component={FisGecmisi} options={{ title: '', headerShown: false, fullScreenGestureEnabled: false }} />
             <Stack.Screen name="YeniEvGrubu" component={YeniEvGrubu} options={{ title: '', headerShown: false }} />
             <Stack.Screen name="DavetEt" component={DavetEt} options={{ title: 'Arkadaş Davet Et', headerShown: false }} />
             <Stack.Screen name="DavetiyeKabul" component={DavetiyeKabul} options={{ title: 'Davet Kabul Et', headerShown: false }} />

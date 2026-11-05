@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Image, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { PanGestureHandler, PinchGestureHandler, State as GestureState } from 'react-native-gesture-handler';
@@ -64,6 +64,7 @@ function FisDetayiInner({ route, navigation }) {
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const receiptId = route?.params?.receiptId;
+  const initialReceiptRef = useRef(route?.params?.initialReceipt);
   const houseId = route?.params?.houseId || user?.defaultHouseId;
   const editConverted = route?.params?.editConverted === true;
 
@@ -95,8 +96,12 @@ function FisDetayiInner({ route, navigation }) {
     setLoading(true);
     setScanFailure('');
     try {
+      const initialReceipt = initialReceiptRef.current;
+      initialReceiptRef.current = null;
       const [receiptRes, membersRes] = await Promise.all([
-        receiptsApi.getById(receiptId),
+        Number(initialReceipt?.id) === Number(receiptId)
+          ? Promise.resolve({ data: initialReceipt })
+          : receiptsApi.getById(receiptId),
         houseApi.getMembers(houseId),
       ]);
 
