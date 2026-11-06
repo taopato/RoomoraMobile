@@ -277,7 +277,7 @@ export default function ProfilDuzenle({ navigation }) {
             prefix="TR"
             value={formatTurkishIbanDigits(ibanDigits)}
             onChangeText={(value) => setIbanDigits(getTurkishIbanDigits(value))}
-            placeholder="00 0000 0000 0000 0000 0000 00"
+            placeholder="IBAN numarası"
             keyboardType="number-pad"
             inputMode="numeric"
             maxLength={29}

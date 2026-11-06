@@ -1,10 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { View, Modal, Platform, StyleSheet } from 'react-native';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import { Keyboard, View, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeProvider';
 
-import { TextInput } from '../i18n';
+import { Text, TextInput } from '../i18n';
 import { getLocale } from '../i18n/runtime';
 
 import { TouchableOpacity } from '../i18n';
@@ -14,6 +13,15 @@ const toISODate = (d) => {
   const m = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
   return `${y}-${m}-${day}`;
+};
+
+const MONTHS = {
+  tr: ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'],
+  en: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
+};
+const WEEKDAYS = {
+  tr: ['Pt', 'Sa', 'Ça', 'Pe', 'Cu', 'Ct', 'Pa'],
+  en: ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'],
 };
 
 const parseISODate = (value) => {
@@ -50,19 +58,13 @@ export default function DateField({ value, onChange, placeholder, minimumDate, m
   const { theme } = useTheme();
   const [show, setShow] = useState(false);
   const [draft, setDraft] = useState(() => formatDisplayDate(value));
+  const [visibleMonth, setVisibleMonth] = useState(() => {
+    const date = parseISODate(value);
+    return new Date(date.getFullYear(), date.getMonth(), 1);
+  });
   const dateValue = parseISODate(value);
 
   useEffect(() => setDraft(formatDisplayDate(value)), [value]);
-
-  const handleChange = (event, selected) => {
-    if (Platform.OS === 'android') setShow(false);
-    if (event?.type === 'dismissed') return;
-    if (selected) {
-      const next = toISODate(selected);
-      onChange(next);
-      setDraft(formatDisplayDate(next));
-    }
-  };
 
   const handleTextChange = (text) => {
     const next = maskDate(text);
@@ -72,6 +74,20 @@ export default function DateField({ value, onChange, placeholder, minimumDate, m
   };
 
   const styles = makeStyles(theme);
+  const language = getLocale().startsWith('tr') ? 'tr' : 'en';
+  const openCalendar = () => {
+    Keyboard.dismiss();
+    setVisibleMonth(new Date(dateValue.getFullYear(), dateValue.getMonth(), 1));
+    setShow((current) => !current);
+  };
+  const firstDayOffset = (visibleMonth.getDay() + 6) % 7;
+  const daysInMonth = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() + 1, 0).getDate();
+  const calendarCells = Array.from({ length: Math.ceil((firstDayOffset + daysInMonth) / 7) * 7 }, (_, index) => {
+    const day = index - firstDayOffset + 1;
+    return day > 0 && day <= daysInMonth ? day : null;
+  });
+  const minTime = minimumDate instanceof Date ? new Date(minimumDate.getFullYear(), minimumDate.getMonth(), minimumDate.getDate()).getTime() : -Infinity;
+  const maxTime = maximumDate instanceof Date ? new Date(maximumDate.getFullYear(), maximumDate.getMonth(), maximumDate.getDate()).getTime() : Infinity;
 
   return (
     <View>
@@ -87,44 +103,50 @@ export default function DateField({ value, onChange, placeholder, minimumDate, m
           placeholder={placeholder || 'gg.aa.yyyy'}
           placeholderTextColor={theme.colors.text.disabled}
         />
-        <TouchableOpacity accessibilityLabel="Takvimden tarih seç" style={styles.calendarButton} onPress={() => setShow(true)} activeOpacity={0.85}>
+        <TouchableOpacity accessibilityLabel="Takvimden tarih seç" style={styles.calendarButton} onPress={openCalendar} activeOpacity={0.85}>
           <Ionicons name="calendar-outline" size={18} color={theme.colors.primary[600]} />
         </TouchableOpacity>
       </View>
 
-      {show && Platform.OS === 'ios' && (
-        <Modal transparent animationType="fade" visible={show} onRequestClose={() => setShow(false)}>
-          <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={() => setShow(false)}>
-            <View style={styles.sheet}>
-              <DateTimePicker
-                value={dateValue}
-                mode="date"
-                display="inline"
-                themeVariant={theme.mode === 'light' ? 'light' : 'dark'}
-                accentColor={theme.colors.primary[600]}
-                onChange={handleChange}
-                minimumDate={minimumDate}
-                maximumDate={maximumDate}
-                locale={getLocale()}
-              />
+      {show && (
+        <View style={styles.sheet}>
+              <View style={styles.monthHeader}>
+                <TouchableOpacity accessibilityLabel="Önceki ay" style={styles.monthButton} onPress={() => setVisibleMonth(new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() - 1, 1))}>
+                  <Ionicons name="chevron-back" size={20} color={theme.colors.primary[700]} />
+                </TouchableOpacity>
+                <Text style={styles.monthTitle}>{MONTHS[language][visibleMonth.getMonth()]} {visibleMonth.getFullYear()}</Text>
+                <TouchableOpacity accessibilityLabel="Sonraki ay" style={styles.monthButton} onPress={() => setVisibleMonth(new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() + 1, 1))}>
+                  <Ionicons name="chevron-forward" size={20} color={theme.colors.primary[700]} />
+                </TouchableOpacity>
+              </View>
+              <View style={styles.calendarGrid}>
+                {Array.from({ length: 7 }, (_, index) => (
+                  <Text key={`weekday-${index}`} style={styles.weekday}>{WEEKDAYS[language][index]}</Text>
+                ))}
+                {calendarCells.map((day, index) => {
+                  const date = day ? new Date(visibleMonth.getFullYear(), visibleMonth.getMonth(), day) : null;
+                  const iso = date ? toISODate(date) : null;
+                  const disabled = date && (date.getTime() < minTime || date.getTime() > maxTime);
+                  return (
+                    <View key={`date-${index}`} style={styles.dayCell}>
+                      {day ? <TouchableOpacity
+                        accessibilityLabel={`${day} ${MONTHS[language][visibleMonth.getMonth()]}`}
+                        disabled={disabled}
+                        style={[styles.dayButton, iso === value && styles.selectedDay]}
+                        onPress={() => { onChange(iso); setDraft(formatDisplayDate(iso)); setShow(false); }}
+                      >
+                        <Text style={[styles.dayText, disabled && styles.disabledDayText, iso === value && styles.selectedDayText]}>{day}</Text>
+                      </TouchableOpacity> : null}
+                    </View>
+                  );
+                })}
+              </View>
               <TouchableOpacity style={styles.doneBtn} onPress={() => setShow(false)} activeOpacity={0.85}>
-                <Text style={styles.doneBtnText}>Tamam</Text>
+                <Text style={styles.doneBtnText}>{language === 'tr' ? 'Kapat' : 'Close'}</Text>
               </TouchableOpacity>
-            </View>
-          </TouchableOpacity>
-        </Modal>
+        </View>
       )}
 
-      {show && Platform.OS === 'android' && (
-        <DateTimePicker
-          value={dateValue}
-          mode="date"
-          display="calendar"
-          onChange={handleChange}
-          minimumDate={minimumDate}
-          maximumDate={maximumDate}
-        />
-      )}
     </View>
   );
 }
@@ -142,14 +164,25 @@ const makeStyles = (theme) => StyleSheet.create({
   },
   input: { flex: 1, color: theme.colors.text.primary, fontSize: 13, paddingVertical: 10 },
   calendarButton: { width: 42, height: 46, alignItems: 'center', justifyContent: 'center' },
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
   sheet: {
     backgroundColor: theme.colors.surface,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 16,
-    paddingBottom: 28,
+    borderRadius: theme.radius.sm,
+    borderWidth: 1,
+    borderColor: theme.colors.neutral[200],
+    marginTop: 8,
+    padding: 10,
   },
+  monthHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
+  monthButton: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+  monthTitle: { color: theme.colors.text.primary, fontSize: 16, fontWeight: '700' },
+  calendarGrid: { flexDirection: 'row', flexWrap: 'wrap' },
+  weekday: { width: '14.2857%', textAlign: 'center', color: theme.colors.text.secondary, fontSize: 12, paddingVertical: 8 },
+  dayCell: { width: '14.2857%', height: 44, alignItems: 'center', justifyContent: 'center' },
+  dayButton: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
+  selectedDay: { backgroundColor: theme.colors.primary[600] },
+  dayText: { color: theme.colors.text.primary, fontSize: 14 },
+  disabledDayText: { color: theme.colors.text.disabled },
+  selectedDayText: { color: theme.colors.text.onPrimary, fontWeight: '700' },
   doneBtn: { marginTop: 12, padding: 14, borderRadius: theme.radius.sm, alignItems: 'center', backgroundColor: theme.colors.primary[600] },
   doneBtnText: { color: theme.colors.text.onPrimary, fontWeight: '700' },
 });

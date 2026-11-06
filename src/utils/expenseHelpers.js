@@ -212,6 +212,9 @@ export const sortByDateDesc = (items) => [...items].sort(compareByRecentDate);
 
 export const getExpenseDisplayTitle = (item) => {
   const rawTitle = String(item?.title || '').trim();
+  if (item?.receiptStoreName && (!rawTitle || /fi[sş]|receipt/i.test(rawTitle))) {
+    return `${item.receiptStoreName} Fişi`;
+  }
   const raw = item?._raw || {};
   const planType = getPlanType(item);
   const categoryLabel = getCategoryDisplayName(item?.key);

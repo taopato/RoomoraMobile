@@ -20,7 +20,9 @@ import {
 import {
   getExpenseDisplayTitle,
   getItemDate,
+  isFutureExpense,
 } from '../../utils/expenseHelpers';
+import { sortExpensesByTimeline } from '../../utils/expenseTimeline';
 import { getCategoryIconName } from '../../constants/ExpenseEnums';
 import BrandMark from '../../components/BrandMark';
 
@@ -47,8 +49,9 @@ export default function RoomoraHome({ navigation }) {
   const screenError = data.errors?.expenses || data.errors?.debt;
   const styles = useMemo(() => makeStyles(theme, insets), [theme, insets]);
   const firstName = String(user?.fullName || 'Kullanıcı').trim().split(/\s+/)[0];
-  const recent = data.expenses.slice(0, 4);
-  const upcomingBill = data.expenses.find((item) =>
+  const isTrip = String(data.groupType || '').toLowerCase() === 'trip';
+  const recent = sortExpensesByTimeline(data.expenses.filter((item) => !isFutureExpense(item))).slice(0, 4);
+  const upcomingBill = !isTrip && data.expenses.find((item) =>
     ['Electricity', 'Water', 'Gas', 'Internet', 'Rent'].includes(item.key)
   );
 
@@ -59,7 +62,7 @@ export default function RoomoraHome({ navigation }) {
       .then(async (response) => {
         const houses = Array.isArray(response?.data) ? response.data : [];
         if (active && houses[0]) {
-          await setDefaultHouseId(houses[0].id, houses[0].name);
+          await setDefaultHouseId(houses[0].id, houses[0].name, houses[0].groupType || 'Home');
         }
       })
       .catch(() => {});
@@ -102,7 +105,6 @@ export default function RoomoraHome({ navigation }) {
           <BrandMark variant="logo" size={40} />
           <View style={styles.brandCopy}>
             <Text style={styles.brandName}>Roomora</Text>
-            <Text style={styles.brandTagline}>Ortak yaşamın kolay hali</Text>
           </View>
           <TouchableOpacity
             style={styles.notificationButton}
@@ -115,15 +117,15 @@ export default function RoomoraHome({ navigation }) {
         </View>
 
         {data.loading ? (
-          <LoadingState label="Ev özeti hazırlanıyor..." />
+          <LoadingState label="Grup özeti hazırlanıyor..." />
         ) : screenError ? (
           <ErrorState description={screenError} onRetry={data.retry} />
         ) : !data.houseId ? (
           <EmptyState
-            icon="home-outline"
-            title="Önce bir ev seçelim"
-            description="Harcamalarını, faturalarını ve bakiyeni görebilmek için bir ev oluştur veya mevcut evini seç."
-            action="Evlerimi Aç"
+            icon="people-outline"
+            title="Önce bir grup seçelim"
+            description="Harcamalarını ve bakiyeni görebilmek için bir ev veya gezi grubu oluştur ya da mevcut grubunu seç."
+            action="Gruplarımı Aç"
             onAction={() => navigation.navigate('GrupListesi')}
           />
         ) : (
@@ -153,17 +155,17 @@ export default function RoomoraHome({ navigation }) {
             {!!upcomingBill && (
               <>
                 <SectionHeader
-                  title="Yaklaşan Faturalar"
+                  title="Son Fatura"
                   action="Tümünü Gör"
                   onAction={() => navigation.navigate('MainTabs', { screen: 'Faturalar' })}
                 />
                 <ListRow
                   icon={getCategoryIconName(upcomingBill.key)}
                   title={getExpenseDisplayTitle(upcomingBill)}
-                  subtitle={`${dayLabel(getItemDate(upcomingBill))} tarihli`}
+                  subtitle={`${upcomingBill.payerName || 'Bir ev üyesi'} ödedi · ${dayLabel(getItemDate(upcomingBill))}`}
                   amount={upcomingBill.amount}
-                  badge="BEKLİYOR"
-                  badgeTone="warning"
+                  badge="PAYLAŞILDI"
+                  badgeTone="success"
                   onPress={() => requireHouse('BillDetail', { billId: upcomingBill.id })}
                 />
               </>
@@ -187,7 +189,7 @@ export default function RoomoraHome({ navigation }) {
                 key={String(item.id)}
                 icon={getCategoryIconName(item.key)}
                 title={getExpenseDisplayTitle(item)}
-                subtitle={`${dayLabel(getItemDate(item))}${item.payerName ? ` · Ödeyen: ${item.payerName}` : ''}`}
+                subtitle={`${dayLabel(item.receiptUploadedAt || getItemDate(item))}${item.payerName ? ` · Ödeyen: ${item.payerName}` : ''}`}
                 amount={item.amount}
                 onPress={() => requireHouse('HarcamaDetayi', { expenseId: item.id })}
               />

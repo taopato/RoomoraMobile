@@ -304,6 +304,18 @@ export const houseApi = {
   createHouse: (houseData) => api.post('/Houses', houseData),
 };
 
+export const quickExpenseTemplatesApi = {
+  list: (houseId) => api.get(`/QuickExpenseTemplates/house/${Number(houseId)}`),
+  create: (body) => api.post('/QuickExpenseTemplates', body),
+  update: (id, body) => api.put(`/QuickExpenseTemplates/${Number(id)}`, body),
+  remove: (id) => api.delete(`/QuickExpenseTemplates/${Number(id)}`),
+};
+
+export const pushDevicesApi = {
+  register: (body) => api.post('/PushDevices', body),
+  unregister: (token) => api.delete('/PushDevices', { params: { token } }),
+};
+
 // ---------------- LEDGER ----------------
 export const ledgerApi = {
   byExpense: (expenseId) => api.get(`/LedgerLines/ByExpense/${expenseId}`),
@@ -398,8 +410,10 @@ export const receiptsApi = {
   },
   getByHouse: (houseId) => api.get(`/Receipts/ByHouse/${houseId}`),
   getById: (receiptId) => api.get(`/Receipts/${receiptId}`),
+  getByExpense: (expenseId) => api.get(`/Receipts/ByExpense/${expenseId}`),
   reparse: (receiptId) => api.post(`/Receipts/${receiptId}/Reparse`),
   update: (receiptId, payload) => api.put(`/Receipts/${receiptId}`, payload),
+  updateConverted: (receiptId, payload) => api.put(`/Receipts/${receiptId}/Converted`, payload),
   convertToExpense: (receiptId, payload) => api.post(`/Receipts/${receiptId}/ConvertToExpense`, payload),
   remove: (receiptId) => api.delete(`/Receipts/${receiptId}`),
 };

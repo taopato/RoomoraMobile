@@ -49,7 +49,7 @@ export const ThemeProvider = ({ children }) => {
         ...base.colors,
         background: variant.background,
         surface: variant.surface,
-        neutral: variant.neutral,
+        neutral: { ...base.colors.neutral, ...variant.neutral },
         primary: variant.primary,
         info: variant.info,
       },

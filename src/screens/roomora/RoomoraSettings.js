@@ -8,6 +8,7 @@ import { useTheme } from '../../shared/theme/ThemeProvider';
 import { resolveMediaUrl } from '../../shared/config/env';
 import { Avatar, PageHeader } from '../../shared/ui/roomora/CanonicalUI';
 import { shadow } from '../../shared/ui/shadow';
+import TakoswareCredit from '../../components/TakoswareCredit';
 
 import { Alert, Text } from '../../shared/i18n';
 
@@ -79,6 +80,10 @@ export default function RoomoraSettings({ navigation }) {
           <Ionicons name="chevron-forward" size={20} color={theme.colors.neutral[400]} />
         </TouchableOpacity>
 
+        <View style={styles.brandCredit}>
+          <TakoswareCredit compact />
+        </View>
+
         {sections.map((section) => (
           <View key={section.title} style={styles.section}>
             <Text style={styles.sectionTitle}>{section.title}</Text>
@@ -135,6 +140,7 @@ const makeStyles = (theme, insets) => StyleSheet.create({
     ...shadow(1, 'rgba(23,40,57,0.08)'),
   },
   profileBody: { flex: 1 },
+  brandCredit: { alignItems: 'center', marginTop: 12 },
   profileName: {
     color: theme.colors.text.primary,
     fontFamily: theme.typography.bold,

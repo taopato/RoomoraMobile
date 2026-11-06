@@ -404,9 +404,6 @@ const GirisYap = ({ navigation, route }) => {
             <Text style={[styles.heading, { color: theme.colors.text.primary }]}>
               Roomora
             </Text>
-            <Text style={[styles.subheading, { color: theme.colors.text.secondary }]}>
-              Ortak yaşamın kolay hali.
-            </Text>
             {!!invitationEmail && (
               <Text style={[styles.inviteNote, { color: theme.colors.success[700], backgroundColor: theme.colors.success[50] }]}>
                 Davet: {invitationEmail}

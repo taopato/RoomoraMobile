@@ -5,6 +5,7 @@ import eventBus from '../shared/events/bus';
 import { isTokenExpired, normalizeAuthUser } from '../shared/auth/session';
 import { sessionStore } from '../shared/auth/sessionStore';
 import { authApi } from '../services/api';
+import { unregisterPushNotifications } from '../services/pushNotifications';
 
 const AuthContext = createContext();
 const favoriteHouseStorageKey = (userId) => `roomora:favorite-house:${userId}`;
@@ -23,6 +24,7 @@ const restoreFavoriteHouse = async (nextUser) => {
       ...nextUser,
       defaultHouseId: houseId,
       ...(favorite?.name ? { defaultHouseName: favorite.name } : {}),
+      defaultHouseType: favorite?.groupType || 'Home',
     };
   } catch {
     await AsyncStorage.removeItem(favoriteHouseStorageKey(nextUser.id));
@@ -154,7 +156,7 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
-  const setDefaultHouseId = useCallback(async (houseId, houseName) => {
+  const setDefaultHouseId = useCallback(async (houseId, houseName, groupType = 'Home') => {
     const hid = Number(houseId);
     if (!hid) return;
     const currentUser = userRef.current;
@@ -162,18 +164,20 @@ export const AuthProvider = ({ children }) => {
 
     await AsyncStorage.setItem(
       favoriteHouseStorageKey(currentUser.id),
-      JSON.stringify({ id: hid, name: houseName || '' })
+      JSON.stringify({ id: hid, name: houseName || '', groupType })
     );
 
     await updateUser((prev) => ({
       ...(prev || {}),
       defaultHouseId: hid,
       ...(houseName ? { defaultHouseName: houseName } : {}),
+      defaultHouseType: groupType || 'Home',
     }));
   }, [updateUser]);
 
   const logout = useCallback(async () => {
     try {
+      await unregisterPushNotifications().catch(() => {});
       await authApi.logout().catch(() => {});
       await sessionStore.clearTokens();
       await AsyncStorage.removeItem('user');

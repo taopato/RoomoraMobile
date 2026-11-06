@@ -37,7 +37,7 @@ export default function GroupListScreen({ navigation, route }) {
       const list = Array.isArray(response?.data) ? response.data : [];
       setHouses(list);
       if (!user?.defaultHouseId && list[0]) {
-        await setDefaultHouseId(list[0].id, list[0].name);
+        await setDefaultHouseId(list[0].id, list[0].name, list[0].groupType || 'Home');
       }
     } catch (error) {
       setHouses([]);
@@ -52,7 +52,7 @@ export default function GroupListScreen({ navigation, route }) {
 
   const continueTo = (house) => {
     const redirectTo = route?.params?.redirectTo;
-    const params = { houseId: house.id, houseName: house.name };
+    const params = { houseId: house.id, houseName: house.name, groupType: house.groupType || 'Home' };
     if (!redirectTo) {
       navigation.navigate('EvUyeleri', params);
       return;
@@ -71,7 +71,7 @@ export default function GroupListScreen({ navigation, route }) {
   };
 
   const selectHouse = async (house) => {
-    await setDefaultHouseId(house.id, house.name);
+    await setDefaultHouseId(house.id, house.name, house.groupType || 'Home');
     continueTo(house);
   };
 
@@ -82,8 +82,8 @@ export default function GroupListScreen({ navigation, route }) {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} />}
       >
         <PageHeader
-          title="Evlerim"
-          subtitle="Ortak yaşam alanlarını yönet"
+          title="Gruplarım"
+          subtitle="Evlerini ve gezilerini yönet"
           onBack={() => navigation.goBack()}
         />
 
@@ -121,7 +121,7 @@ export default function GroupListScreen({ navigation, route }) {
                       {house.coverImageUrl ? (
                         <Image source={{ uri: resolveMediaUrl(house.coverImageUrl) }} style={styles.houseImage} />
                       ) : (
-                        <Ionicons name="home" size={34} color={theme.colors.primary[700]} />
+                        <Ionicons name={String(house.groupType).toLowerCase() === 'trip' ? 'airplane' : 'home'} size={34} color={theme.colors.primary[700]} />
                       )}
                     </View>
                     <View style={styles.houseBody}>
@@ -134,7 +134,8 @@ export default function GroupListScreen({ navigation, route }) {
                         )}
                       </View>
                       <Text style={styles.houseSub}>
-                        {active ? 'Her girişte bu ev açılır' : 'Favori yap ve ev bilgilerini görüntüle'}
+                        {String(house.groupType).toLowerCase() === 'trip' ? 'Gezi grubu' : 'Ev grubu'}
+                        {' · '}{active ? 'Açılışta gösterilir' : 'Seçmek için dokun'}
                       </Text>
                     </View>
                     <Ionicons name="chevron-forward" size={20} color={theme.colors.neutral[400]} />
@@ -142,7 +143,7 @@ export default function GroupListScreen({ navigation, route }) {
                 );
               })}
             </View>
-            <PrimaryButton label="Yeni Ev Oluştur" icon="add" onPress={() => navigation.navigate('YeniEvGrubu')} />
+            <PrimaryButton label="Yeni Grup Oluştur" icon="add" onPress={() => navigation.navigate('YeniEvGrubu')} />
           </>
         )}
       </ScrollView>

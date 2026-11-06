@@ -14,7 +14,9 @@ import { useTheme } from '../shared/theme/ThemeProvider';
 import DateField from '../shared/ui/DateField';
 import Toast from '../components/Toast';
 import { formatMoneyInput, parseMoneyInput } from '../shared/format/money';
+import { selectParticipant } from '../utils/participantSelection';
 import MoneyInput from '../shared/ui/roomora/MoneyInput';
+import MemberSelectionCard from '../components/MemberSelectionCard';
 
 import { Text, TextInput } from '../shared/i18n';
 import { getLocale } from '../shared/i18n/runtime';
@@ -83,6 +85,7 @@ export default function FaturaEkle({ route, navigation }) {
   const [toast, setToast] = useState({ visible: false, message: '', type: 'success' });
 
   const selectedType = BILL_TYPES.find((item) => item.key === billType) || BILL_TYPES[0];
+  const isVariableWaterBill = billType === 'Water';
 
   useEffect(() => {
     if (!initialBill || !isEditing) return;
@@ -157,7 +160,7 @@ export default function FaturaEkle({ route, navigation }) {
       setToast({ visible: true, message: 'Geçerli bir tarih seç.', type: 'warning' });
       return;
     }
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(dueDate)) {
+    if (!isVariableWaterBill && !/^\d{4}-\d{2}-\d{2}$/.test(dueDate)) {
       setToast({ visible: true, message: 'Geçerli bir son ödeme tarihi seç.', type: 'warning' });
       return;
     }
@@ -174,7 +177,7 @@ export default function FaturaEkle({ route, navigation }) {
     const title = `${selectedType.label} Faturası`;
     const description = note.trim() || title;
     const date = `${billDate}T12:00:00`;
-    const paymentDueDate = `${dueDate}T12:00:00`;
+    const paymentDueDate = `${isVariableWaterBill ? billDate : dueDate}T12:00:00`;
     const participants = participantIds.map(Number);
 
     setSaving(true);
@@ -230,11 +233,10 @@ export default function FaturaEkle({ route, navigation }) {
   };
 
   const toggleParticipant = (userId) => {
-    const id = String(userId);
-    setParticipantIds((current) => (
-      current.includes(id)
-        ? (current.length > 1 ? current.filter((item) => item !== id) : current)
-        : [...current, id]
+    setParticipantIds((current) => selectParticipant(
+      current,
+      userId,
+      members.map((member) => member.userId)
     ));
   };
 
@@ -300,84 +302,50 @@ export default function FaturaEkle({ route, navigation }) {
             </View>
           </View>
 
-          <View style={styles.sectionBlock}>
-            <Text style={styles.sectionTitle}>Ödemeyi yapan</Text>
-            <View style={styles.memberWrap}>
-              {members.map((member) => {
-                const selected = member.userId === Number(responsibleUserId);
-                return (
-                  <TouchableOpacity
-                    key={member.userId}
-                    style={[styles.memberChip, selected && styles.memberChipSelected]}
-                    onPress={() => setResponsibleUserId(member.userId)}
-                    activeOpacity={0.85}
-                  >
-                    <View style={[styles.memberInitial, selected && styles.memberInitialSelected]}>
-                      <Text style={[styles.memberInitialText, selected && styles.memberInitialTextSelected]}>
-                        {member.fullName.trim().charAt(0).toUpperCase()}
-                      </Text>
-                    </View>
-                    <Text style={[styles.memberText, selected && styles.memberTextSelected]} numberOfLines={1}>
-                      {member.fullName}
-                    </Text>
-                    {selected && <Ionicons name="checkmark-circle" size={18} color={theme.colors.primary[600]} />}
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </View>
+          <MemberSelectionCard
+            label="Ödeyen"
+            value={members.find((member) => member.userId === Number(responsibleUserId))?.fullName}
+            icon="person-outline"
+            members={members.map((member) => ({ id: member.userId, fullName: member.fullName }))}
+            selectedIds={responsibleUserId ? [responsibleUserId] : []}
+            onSelect={setResponsibleUserId}
+          />
 
-          <View style={styles.sectionBlock}>
-            <View style={styles.sectionHeadingRow}>
-              <Text style={[styles.sectionTitle, styles.sectionTitleInline]}>Kimlerle paylaşılacak?</Text>
-              <Text style={styles.sectionMeta}>{participantIds.length} kişi</Text>
-            </View>
-            <View style={styles.participantWrap}>
-              <TouchableOpacity
-                style={[styles.participantChip, participantIds.length === members.length && styles.participantChipSelected]}
-                onPress={() => setParticipantIds(members.map((member) => String(member.userId)))}
-                activeOpacity={0.85}
-              >
-                {participantIds.length === members.length && <Ionicons name="checkmark-circle" size={16} color={theme.colors.primary[600]} />}
-                <Text style={[styles.participantText, participantIds.length === members.length && styles.participantTextSelected]}>
-                  Tüm ev
-                </Text>
-              </TouchableOpacity>
-              {members.map((member) => {
-                const selected = participantIds.includes(String(member.userId));
-                return (
-                  <TouchableOpacity
-                    key={`participant-${member.userId}`}
-                    style={[styles.participantChip, selected && styles.participantChipSelected]}
-                    onPress={() => toggleParticipant(member.userId)}
-                    activeOpacity={0.85}
-                  >
-                    {selected && <Ionicons name="checkmark-circle" size={16} color={theme.colors.primary[600]} />}
-                    <Text style={[styles.participantText, selected && styles.participantTextSelected]}>
-                      {member.fullName.split(' ')[0]}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-            <View style={styles.splitSummary}>
+          <MemberSelectionCard
+            label="Kimin için?"
+            value={participantIds.length === members.length && members.length ? 'Ortak' : `${participantIds.length} kişi · Eşit`}
+            icon="people-outline"
+            members={members.map((member) => ({ id: member.userId, fullName: member.fullName }))}
+            selectedIds={participantIds}
+            onSelect={toggleParticipant}
+            allLabel="Ortak"
+            onSelectAll={() => setParticipantIds(members.map((member) => String(member.userId)))}
+            footer={<View style={styles.splitSummary}>
               <Text style={styles.splitSummaryText}>Eşit bölüşüm</Text>
               <Text style={styles.splitSummaryValue}>
                 Yaklaşık kişi başı {new Intl.NumberFormat(getLocale(), { style: 'currency', currency: 'TRY', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(perPersonAmount)}
               </Text>
-            </View>
-          </View>
+            </View>}
+          />
 
           <View style={styles.dateRow}>
             <View style={styles.dateColumn}>
-              <Text style={styles.sectionTitle}>Fatura tarihi</Text>
+              <Text style={styles.sectionTitle}>{isVariableWaterBill ? 'Ödeme tarihi' : 'Fatura tarihi'}</Text>
               <DateField value={billDate} onChange={setBillDate} placeholder="Tarih seç" />
             </View>
-            <View style={styles.dateColumn}>
-              <Text style={styles.sectionTitle}>Son ödeme</Text>
-              <DateField value={dueDate} onChange={setDueDate} placeholder="Tarih seç" />
-            </View>
+            {!isVariableWaterBill && (
+              <View style={styles.dateColumn}>
+                <Text style={styles.sectionTitle}>Son ödeme</Text>
+                <DateField value={dueDate} onChange={setDueDate} placeholder="Tarih seç" />
+              </View>
+            )}
           </View>
+          {isVariableWaterBill && (
+            <View style={styles.waterInfo}>
+              <Ionicons name="information-circle-outline" size={18} color={theme.colors.primary[700]} />
+              <Text style={styles.waterInfoText}>Su faturası ödenmiş gider olarak kaydedilir; ayrıca son ödeme tarihi gerekmez.</Text>
+            </View>
+          )}
 
           <View style={styles.sectionBlock}>
             <Text style={styles.sectionTitle}>Not <Text style={styles.optional}>(isteğe bağlı)</Text></Text>
@@ -506,20 +474,21 @@ const makeStyles = (theme, insets) => StyleSheet.create({
   participantText: { color: theme.colors.text.secondary, fontSize: 12, fontWeight: '700' },
   participantTextSelected: { color: theme.colors.primary[700] },
   splitSummary: {
+    width: '100%',
     minHeight: 44,
     marginTop: 9,
     borderRadius: 8,
     backgroundColor: theme.colors.primary[50],
     paddingHorizontal: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 8,
+    paddingVertical: 9,
+    gap: 3,
   },
   splitSummaryText: { color: theme.colors.primary[700], fontSize: 12, fontWeight: '700' },
-  splitSummaryValue: { color: theme.colors.primary[700], fontSize: 13, fontWeight: '800' },
-  dateRow: { flexDirection: 'row', gap: 10, marginBottom: 14 },
-  dateColumn: { flex: 1 },
+  splitSummaryValue: { color: theme.colors.primary[700], fontSize: 13, fontWeight: '800', textAlign: 'right' },
+  dateRow: { gap: 14, marginBottom: 14 },
+  dateColumn: { width: '100%' },
+  waterInfo: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, borderWidth: 1, borderColor: theme.colors.primary[200], backgroundColor: theme.colors.primary[50], borderRadius: 8, padding: 12, marginBottom: 14 },
+  waterInfoText: { flex: 1, color: theme.colors.text.secondary, fontFamily: theme.typography.regular, fontSize: 12, lineHeight: 17 },
   noteInput: {
     minHeight: 84,
     borderRadius: 8,

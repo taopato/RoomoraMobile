@@ -6,6 +6,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../shared/theme/ThemeProvider';
 import BrandMark from '../components/BrandMark';
+import TakoswareCredit from '../components/TakoswareCredit';
+import { registerPushNotifications, syncBillReminders, syncInactivityReminder } from '../services/pushNotifications';
 
 import { Text } from '../shared/i18n';
 
@@ -15,6 +17,7 @@ const notificationDefaults = {
   payment: true,
   bill: true,
   house: true,
+  inactivity: false,
 };
 
 const LEGAL_LAST_UPDATED = '28.07.2026';
@@ -75,12 +78,16 @@ export function NotificationSettingsScreen({ navigation }) {
     const next = { ...values, [key]: value };
     setValues(next);
     AsyncStorage.setItem('notification_preferences', JSON.stringify(next)).catch(() => {});
+    if (key === 'inactivity') syncInactivityReminder(value).catch(() => {});
+    else registerPushNotifications(next).catch(() => {});
+    if (key === 'bill' && !value) syncBillReminders([], false).catch(() => {});
   };
 
   const items = [
     ['payment', 'Ödeme bildirimleri', 'Yeni ödeme ve onay sonuçları'],
     ['bill', 'Fatura hatırlatmaları', 'Yaklaşan ve geciken faturalar'],
-    ['house', 'Ev hareketleri', 'Davetler, üyeler ve ev notları'],
+    ['house', 'Grup hareketleri', 'Harcamalar, davetler ve üyeler'],
+    ['inactivity', 'Ara verme hatırlatması', '2 gün uygulamaya girmezsen bir kez hatırlat'],
   ];
 
   return (
@@ -90,17 +97,20 @@ export function NotificationSettingsScreen({ navigation }) {
           <Text style={styles.intro}>Sadece sana yardımcı olacak bildirimleri seç.</Text>
           <View style={styles.card}>
             {items.map(([key, title, desc], index) => (
-              <View key={key} style={[styles.settingRow, index > 0 && styles.divider]}>
+              <View key={key} testID={`notification-row-${key}`} style={[styles.settingRow, index > 0 && styles.divider]}>
                 <View style={styles.rowCopy}>
                   <Text style={styles.rowTitle}>{title}</Text>
                   <Text style={styles.rowDesc}>{desc}</Text>
                 </View>
-                <Switch
-                  value={values[key]}
-                  onValueChange={(value) => change(key, value)}
-                  trackColor={{ false: theme.colors.neutral[300], true: theme.colors.primary[200] }}
-                  thumbColor={values[key] ? theme.colors.primary[600] : theme.colors.surface}
-                />
+                <View style={styles.switchColumn}>
+                  <Switch
+                    accessibilityLabel={title}
+                    value={values[key]}
+                    onValueChange={(value) => change(key, value)}
+                    trackColor={{ false: theme.colors.neutral[300], true: theme.colors.primary[200] }}
+                    thumbColor={values[key] ? theme.colors.primary[600] : theme.colors.surface}
+                  />
+                </View>
               </View>
             ))}
           </View>
@@ -163,8 +173,8 @@ export function AboutScreen({ navigation }) {
         <ScrollView contentContainerStyle={[styles.content, styles.aboutContent]}>
           <BrandMark variant="logo" size={156} />
           <Text style={styles.brand}>Roomora</Text>
-          <Text style={styles.tagline}>Ortak yaşamın kolay hali</Text>
           <Text style={styles.version}>Sürüm {version}</Text>
+          <View style={styles.aboutCredit}><TakoswareCredit /></View>
         </ScrollView>
       )}
     </ScreenShell>
@@ -201,9 +211,10 @@ const makeStyles = (theme, insets) => StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 14,
   },
-  settingRow: { minHeight: 72, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  settingRow: { minHeight: 76, flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 },
+  switchColumn: { width: 54, alignSelf: 'stretch', alignItems: 'flex-end', justifyContent: 'center' },
   divider: { borderTopWidth: 1, borderTopColor: theme.colors.neutral[200] },
-  rowCopy: { flex: 1 },
+  rowCopy: { flex: 1, minWidth: 0, justifyContent: 'center' },
   rowTitle: { color: theme.colors.text.primary, fontFamily: theme.typography?.bold, fontSize: 15 },
   rowDesc: { color: theme.colors.text.secondary, fontFamily: theme.typography?.regular, fontSize: 12, marginTop: 3, lineHeight: 17 },
   iconTitle: { minHeight: 84, flexDirection: 'row', alignItems: 'center' },
@@ -219,4 +230,5 @@ const makeStyles = (theme, insets) => StyleSheet.create({
   brand: { color: theme.colors.text.primary, fontFamily: theme.typography?.extrabold, fontSize: 28, marginTop: 16 },
   tagline: { color: theme.colors.text.secondary, fontFamily: theme.typography?.regular, fontSize: 16, marginTop: 5 },
   version: { color: theme.colors.text.secondary, fontFamily: theme.typography?.medium, fontSize: 13, marginTop: 20 },
+  aboutCredit: { marginTop: 30 },
 });

@@ -1,6 +1,13 @@
 const toNumber = (value, fallback = 0) => {
+  if (value == null || String(value).trim() === '') return fallback;
   const parsed = Number(String(value ?? '').replace(',', '.'));
   return Number.isFinite(parsed) ? parsed : fallback;
+};
+
+export const getReceiptQuantityHint = (item) => {
+  if (item == null) return null;
+  const quantity = toNumber(item.quantity, 1);
+  return quantity > 0 && quantity !== 1 ? quantity : null;
 };
 
 export const parseReceiptAmount = (value) => {
@@ -33,7 +40,9 @@ const RECEIPT_META_KEYWORDS = [
 
 export const isReceiptMetaName = (value) => {
   const upper = String(value || '').trim().toUpperCase();
+  const compact = upper.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Z0-9]/g, '');
   if (!upper) return true;
+  if (compact.startsWith('ARATOP') || compact.startsWith('TOPLAM') || compact.startsWith('TOPKDV') || compact.includes('HATADUZELT')) return true;
   if (RECEIPT_META_KEYWORDS.some((keyword) => upper.includes(keyword))) return true;
   if (/^\d{6,}$/.test(upper)) return true;
   if (/^\d+\s+AD(?:ET)?\s+X\s+\d/.test(upper)) return true;
@@ -181,21 +190,23 @@ const synthesizeItemsFromRawText = (rawText, detectedTotalAmount = 0) => {
   return detectedTotalAmount > 0 ? [{ ...makeItem('Fiş Toplamı', detectedTotalAmount), sortOrder: 0 }] : [];
 };
 
-export const normalizeReceiptItems = (items = []) => items.map((item, index) => ({
-  ...item,
-  sortOrder: item?.sortOrder ?? index,
-  name: item?.name ?? '',
-  price: toNumber(item?.price),
-  quantity: toNumber(item?.quantity, 1),
-  lineTotal: toNumber(item?.lineTotal ?? item?.price),
-  discountAmount: toNumber(item?.discountAmount),
-  originalLineTotal: item?.originalLineTotal == null ? undefined : toNumber(item.originalLineTotal),
-  isAssigned: item?.isAssigned === true,
-  isShared: item?.isShared !== false,
-  participantUserIds: Array.isArray(item?.participantUserIds)
-    ? [...new Set(item.participantUserIds.map(Number).filter((id) => Number.isInteger(id) && id > 0))]
-    : [],
-}));
+export const normalizeReceiptItems = (items = []) => (Array.isArray(items) ? items : [])
+  .filter((item) => item && typeof item === 'object' && !Array.isArray(item))
+  .map((item, index) => ({
+    ...item,
+    sortOrder: item.sortOrder ?? index,
+    name: item.name ?? '',
+    price: toNumber(item.price),
+    quantity: toNumber(item.quantity, 1),
+    lineTotal: toNumber(item.lineTotal ?? item.price),
+    discountAmount: toNumber(item.discountAmount),
+    originalLineTotal: item.originalLineTotal == null ? undefined : toNumber(item.originalLineTotal),
+    isAssigned: item.isAssigned === true,
+    isShared: item.isShared !== false,
+    participantUserIds: Array.isArray(item.participantUserIds)
+      ? [...new Set(item.participantUserIds.map(Number).filter((id) => Number.isInteger(id) && id > 0))]
+      : [],
+  }));
 
 export const extractDetectedTotalFromRawText = (rawText) => {
   const lines = String(rawText || '').split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
@@ -203,9 +214,12 @@ export const extractDetectedTotalFromRawText = (rawText) => {
   for (const priority of priorities) {
     for (let index = lines.length - 1; index >= 0; index -= 1) {
       const line = lines[index];
-      if (!priority.test(line) || /TOPLAM KDV/i.test(line)) continue;
+      const compact = line.toLocaleUpperCase('tr-TR').normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '').replace(/[^A-Z0-9]/g, '');
+      if (!priority.test(line) || compact.startsWith('ARATOP') || compact.startsWith('TOPLAMKDV')) continue;
       const matches = [...line.matchAll(/\d{1,3}(?:[ .]\d{3})*(?:[.,]\d{2})/g)];
-      const amount = parseReceiptAmount(matches.at(-1)?.[0]);
+      const amounts = matches.map((match) => parseReceiptAmount(match[0])).filter((amount) => amount > 0);
+      const amount = compact.startsWith('TOPKDVTOPLAM') ? Math.max(...amounts) : amounts.at(-1);
       if (amount > 0) return amount;
     }
   }
@@ -230,6 +244,18 @@ export const calculateItemsTotal = (items = []) => items.reduce(
   (sum, item) => sum + toNumber(item?.lineTotal ?? item?.price),
   0
 );
+
+export const receiptTotalsMatch = (detectedTotal, items = []) => {
+  const total = toNumber(detectedTotal);
+  if (total <= 0 || items.length === 0) return false;
+  if (items.some((item) => {
+    const name = String(item?.name || '').toLocaleUpperCase('tr-TR').normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+    return toNumber(item?.lineTotal ?? item?.price) <= 0
+      || name.startsWith('FIS TOPLAM') || name.startsWith('ORTAK KALAN');
+  })) return false;
+  return Math.abs(total - calculateItemsTotal(items)) <= 0.02;
+};
 
 export const resolveReceiptItems = (preferredItems = [], rawText = '', detectedTotalAmount = 0) => {
   const sanitizedPreferred = normalizeResolvedItems(normalizeReceiptItems(preferredItems));

@@ -25,6 +25,15 @@
         "buildType": "apk"
       }
     },
+    "testing": {
+      "distribution": "store",
+      "channel": "testing",
+      "environment": "production",
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://api-roomora.takosware.com"
+      }
+    },
     "production": {
       "autoIncrement": true,
       "channel": "production",
@@ -38,12 +47,17 @@
     }
   },
   "submit": {
+    "testing": {
+      "ios": {
+        "ascAppId": "6800784560"
+      }
+    },
     "production": {
       "ios": {
         "ascAppId": "6800784560"
       },
       "android": {
-        "track": "roomora-kapali-test",
+        "track": "production",
         "releaseStatus": "completed"
       }
     }

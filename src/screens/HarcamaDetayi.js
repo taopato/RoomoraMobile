@@ -1,15 +1,20 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { KeyboardAvoidingView, Modal, Platform, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { expensesApi, houseApi, ledgerApi } from '../services/api';
+import { expensesApi, houseApi, ledgerApi, receiptsApi } from '../services/api';
 import { useTheme } from '../shared/theme/ThemeProvider';
 import { EmptyState, LoadingState, PageHeader, PrimaryButton, money } from '../shared/ui/roomora/CanonicalUI';
 import { formatMoneyInput, parseMoneyInput } from '../shared/format/money';
+import { selectParticipant } from '../utils/participantSelection';
 import eventBus from '../shared/events/bus';
 import KeyboardAwareScreen from '../shared/ui/KeyboardAwareScreen';
 import MoneyInput from '../shared/ui/roomora/MoneyInput';
+import { getReceiptItemParticipantIds, getReceiptParticipantSummary } from '../utils/receiptAssignments';
+import ShareUnitsPicker from '../components/ShareUnitsPicker';
+import MemberSelectionCard from '../components/MemberSelectionCard';
+import { hasCustomShareUnits, normalizeShareUnits, shareUnitsSummary } from '../utils/shareUnits';
 
 import { Alert, Text, TextInput } from '../shared/i18n';
 import { getLocale } from '../shared/i18n/runtime';
@@ -39,6 +44,11 @@ export default function HarcamaDetayi({ navigation, route }) {
   const [payerId, setPayerId] = useState('');
   const [participantIds, setParticipantIds] = useState([]);
   const [personal, setPersonal] = useState({});
+  const [shareUnits, setShareUnits] = useState([]);
+  const [shareDraft, setShareDraft] = useState([]);
+  const [shareEditorVisible, setShareEditorVisible] = useState(false);
+  const [linkedReceiptId, setLinkedReceiptId] = useState(null);
+  const [linkedReceipt, setLinkedReceipt] = useState(null);
 
   const hydrateForm = useCallback((item, availableMembers = []) => {
     setTitle(String(pick(item, ['tur', 'Tur', 'description', 'Description'], 'Harcama')));
@@ -55,6 +65,7 @@ export default function HarcamaDetayi({ navigation, route }) {
     );
     if (!selected.size) availableMembers.forEach((member) => selected.add(member.id));
     setParticipantIds(Array.from(selected).map(String));
+    setShareUnits(pick(item, ['shareUnits', 'ShareUnits'], []));
     setPersonal(
       (Array.isArray(personalItems) ? personalItems : []).reduce((result, entry) => {
         const userId = Number(pick(entry, ['userId', 'UserId'], 0));
@@ -72,10 +83,11 @@ export default function HarcamaDetayi({ navigation, route }) {
     }
     if (!initialExpense) setLoading(true);
     try {
-      const [expenseResult, ledgerResult, memberResult] = await Promise.allSettled([
+      const [expenseResult, ledgerResult, memberResult, receiptResult] = await Promise.allSettled([
         expensesApi.getById(expenseId),
         ledgerApi.byExpense(expenseId),
         houseId ? houseApi.getMembers(houseId) : Promise.resolve({ data: [] }),
+        receiptsApi.getByExpense(expenseId),
       ]);
       const item = expenseResult.status === 'fulfilled'
         ? expenseResult.value?.data?.data ?? expenseResult.value?.data
@@ -86,6 +98,9 @@ export default function HarcamaDetayi({ navigation, route }) {
       const memberList = memberResult.status === 'fulfilled'
         ? memberResult.value?.data?.data ?? memberResult.value?.data ?? []
         : [];
+      const linkedReceipt = receiptResult.status === 'fulfilled'
+        ? receiptResult.value?.data?.data ?? receiptResult.value?.data
+        : null;
       const normalizedMembers = (Array.isArray(memberList) ? memberList : []).map((member) => {
         const id = Number(pick(member, ['userId', 'UserId', 'id'], 0));
         return {
@@ -107,10 +122,20 @@ export default function HarcamaDetayi({ navigation, route }) {
         }))
         .filter((share) => share.userId > 0);
       setMembers(normalizedMembers);
-      setShares(normalizedShares.length
-        ? normalizedShares
+      const itemPersonal = pick(item, ['sahsiHarcamalar', 'SahsiHarcamalar'], []);
+      const combined = new Map();
+      normalizedShares.forEach(({ userId, value }) => combined.set(userId, (combined.get(userId) || 0) + value));
+      (Array.isArray(itemPersonal) ? itemPersonal : []).forEach((entry) => {
+        const userId = Number(pick(entry, ['userId', 'UserId'], 0));
+        const value = Number(pick(entry, ['tutar', 'Tutar'], 0));
+        if (userId && value > 0) combined.set(userId, (combined.get(userId) || 0) + value);
+      });
+      setShares(combined.size
+        ? Array.from(combined, ([userId, value]) => ({ userId, value }))
         : Array.from(totals, ([userId, value]) => ({ userId, value })));
       setExpense(item);
+      setLinkedReceiptId(linkedReceipt?.id || null);
+      setLinkedReceipt(linkedReceipt || null);
       if (item) hydrateForm(item, normalizedMembers);
     } catch {
       setExpense(null);
@@ -129,16 +154,16 @@ export default function HarcamaDetayi({ navigation, route }) {
   const toggleParticipant = (memberId) => {
     const id = String(memberId);
     setParticipantIds((current) => {
-      if (current.includes(id)) {
-        if (current.length === 1) return current;
+      const next = selectParticipant(current, id, members.map((member) => member.id));
+      if (current.includes(id) && !next.includes(id)) {
         setPersonal((values) => {
-          const next = { ...values };
-          delete next[id];
-          return next;
+          const nextPersonal = { ...values };
+          delete nextPersonal[id];
+          return nextPersonal;
         });
-        return current.filter((value) => value !== id);
       }
-      return [...current, id];
+      setShareUnits((units) => normalizeShareUnits(units, next));
+      return next;
     });
   };
 
@@ -175,6 +200,7 @@ export default function HarcamaDetayi({ navigation, route }) {
         Note: note.trim(),
         Description: note.trim(),
         SahsiHarcamalar: personalItems,
+        ShareUnits: hasCustomShareUnits(shareUnits) ? normalizeShareUnits(shareUnits, participantIds) : [],
       });
       eventBus.emit('expenses:updated', { houseId: Number(houseId) });
       if (dedicatedEdit) {
@@ -240,6 +266,15 @@ export default function HarcamaDetayi({ navigation, route }) {
       name: pick(item, ['kullaniciAdi', 'KullaniciAdi'], ''),
     }))
     .filter((item) => item.userId > 0 && item.value > 0);
+  const receiptItems = (Array.isArray(linkedReceipt?.items) ? linkedReceipt.items : [])
+    .map((item) => ({
+      id: pick(item, ['id', 'Id']),
+      name: String(pick(item, ['name', 'Name'], 'İsimsiz kalem')),
+      amount: Number(pick(item, ['lineTotal', 'LineTotal', 'price', 'Price'], 0)),
+      participantIds: getReceiptItemParticipantIds(item, members),
+      shareUnits: pick(item, ['shareUnits', 'ShareUnits'], []),
+    }))
+    .filter((item) => item.amount > 0);
   const visibleNote = note && note.trim() !== title.trim() ? note : '';
 
   return (
@@ -276,7 +311,16 @@ export default function HarcamaDetayi({ navigation, route }) {
               {shares.length ? shares.map((item) => (
                 <View key={String(item.userId)} style={styles.shareRow}>
                   <View style={styles.avatar}><Text style={styles.avatarText}>{memberName(item.userId).charAt(0)}</Text></View>
-                  <Text style={styles.shareName}>{memberName(item.userId)}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.shareName}>{memberName(item.userId)}</Text>
+                    {shareUnits.find((entry) => Number(entry.userId) === item.userId)?.units > 1 ? (
+                      <Text style={styles.shareCaption}>
+                        {shareUnits.find((entry) => Number(entry.userId) === item.userId).units} {getLocale().startsWith('en') ? 'shares' : 'pay'}
+                        {shareUnits.find((entry) => Number(entry.userId) === item.userId).forLabel
+                          ? ` · ${shareUnits.find((entry) => Number(entry.userId) === item.userId).forLabel}` : ''}
+                      </Text>
+                    ) : null}
+                  </View>
                   <Text style={styles.shareValue}>{money(item.value)}</Text>
                 </View>
               )) : <Text style={styles.muted}>Bu harcama için paylaşım satırı bulunmuyor.</Text>}
@@ -301,15 +345,58 @@ export default function HarcamaDetayi({ navigation, route }) {
               </View>
             )}
 
+            {receiptItems.length > 0 && (
+              <View style={styles.card}>
+                <View style={styles.receiptSectionHeader}>
+                  <View style={styles.receiptSectionTitleBlock}>
+                    <Text style={styles.sectionTitle}>Fiş kalemleri</Text>
+                    <Text style={styles.sectionDescription}>Borcun hangi ürünlerden oluştuğunu kalem kalem görebilirsin.</Text>
+                  </View>
+                  <View style={styles.receiptCountBadge}>
+                    <Text style={styles.receiptCountText}>{receiptItems.length}</Text>
+                  </View>
+                </View>
+                {receiptItems.map((item, index) => (
+                  <View key={`receipt-item-${item.id || index}`} style={styles.receiptItemRow}>
+                    <View style={styles.receiptItemNumber}>
+                      <Text style={styles.receiptItemNumberText}>{index + 1}</Text>
+                    </View>
+                    <View style={styles.receiptItemBody}>
+                      <Text style={styles.receiptItemName} numberOfLines={2}>{item.name}</Text>
+                      <Text style={styles.receiptItemPeople} numberOfLines={1}>
+                        {hasCustomShareUnits(item.shareUnits)
+                          ? shareUnitsSummary(item.shareUnits, members)
+                          : getReceiptParticipantSummary(item.participantIds, members)}
+                      </Text>
+                    </View>
+                    <Text style={styles.receiptItemAmount}>{money(item.amount)}</Text>
+                  </View>
+                ))}
+                <TouchableOpacity
+                  style={styles.receiptOpenButton}
+                  onPress={() => navigation.navigate('FisDetayi', { receiptId: linkedReceiptId, houseId })}
+                >
+                  <Ionicons name="receipt-outline" size={18} color={theme.colors.primary[700]} />
+                  <Text style={styles.receiptOpenButtonText}>Fişi ve paylaşımı görüntüle</Text>
+                  <Ionicons name="chevron-forward" size={18} color={theme.colors.primary[700]} />
+                </TouchableOpacity>
+              </View>
+            )}
+
             <TouchableOpacity
               style={styles.editButton}
-              onPress={() => navigation.navigate('HarcamaDuzenle', {
-                expenseId,
-                houseId,
-                houseName: route?.params?.houseName,
-                initialExpense: expense,
-                startEditing: true,
-              })}
+              onPress={() => navigation.navigate(
+                linkedReceiptId ? 'FisDetayi' : 'HarcamaDuzenle',
+                linkedReceiptId
+                  ? { receiptId: linkedReceiptId, houseId, editConverted: true }
+                  : {
+                    expenseId,
+                    houseId,
+                    houseName: route?.params?.houseName,
+                    initialExpense: expense,
+                    startEditing: true,
+                  }
+              )}
             >
               <Ionicons name="pencil-outline" size={19} color={theme.colors.primary[700]} />
               <Text style={styles.editText}>Düzenle</Text>
@@ -318,44 +405,42 @@ export default function HarcamaDetayi({ navigation, route }) {
         ) : (
           <View style={styles.editContent}>
             <MoneyInput label="HARCAMA TUTARI" value={amount} onChangeText={(value) => setAmount(formatMoneyInput(value))} />
-            <View style={styles.formCard}>
+            <View style={styles.editForm}>
             <Field label="Harcama adı" value={title} onChangeText={setTitle} styles={styles} theme={theme} />
-            <Text style={styles.fieldLabel}>Ödemeyi yapan</Text>
-            <View style={styles.chips}>
-              {members.map((member) => {
-                const active = payerId === String(member.id);
-                return (
-                  <TouchableOpacity
-                    key={`payer-${member.id}`}
-                    style={[styles.chip, active && styles.chipActive]}
-                    onPress={() => setPayerId(String(member.id))}
-                  >
-                    <Text style={[styles.chipText, active && styles.chipTextActive]}>{member.fullName}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-            <Text style={styles.fieldLabel}>Kimin için?</Text>
-            <View style={styles.chips}>
-              <TouchableOpacity
-                style={[styles.chip, participantIds.length === members.length && styles.chipActive]}
-                onPress={() => setParticipantIds(members.map((member) => String(member.id)))}
-              >
-                <Text style={[styles.chipText, participantIds.length === members.length && styles.chipTextActive]}>Ortak</Text>
+            <MemberSelectionCard
+              label="Ödeyen"
+              value={members.find((member) => String(member.id) === payerId)?.fullName}
+              icon="person-outline"
+              members={members}
+              selectedIds={payerId ? [payerId] : []}
+              onSelect={(id) => setPayerId(String(id))}
+            />
+            <MemberSelectionCard
+              label="Kimin için?"
+              value={hasCustomShareUnits(shareUnits) ? 'Özel paylaşım' : participantIds.length === members.length && members.length ? 'Ortak' : `${participantIds.length} kişi · Eşit`}
+              icon="people-outline"
+              members={members}
+              selectedIds={participantIds}
+              onSelect={toggleParticipant}
+              allLabel="Ortak"
+              onSelectAll={() => {
+                const ids = members.map((member) => String(member.id));
+                setParticipantIds(ids);
+                setShareUnits((units) => normalizeShareUnits(units, ids));
+              }}
+              footer={participantIds.length > 0 ? (
+              <TouchableOpacity style={styles.shareOption} onPress={() => {
+                setShareDraft(normalizeShareUnits(shareUnits, participantIds));
+                setShareEditorVisible(true);
+              }}>
+                <Ionicons name="options-outline" size={19} color={theme.colors.primary[700]} />
+                <Text style={styles.shareOptionText}>
+                  {hasCustomShareUnits(shareUnits) ? shareUnitsSummary(shareUnits, members) : 'Payları özelleştir'}
+                </Text>
+                <Ionicons name="chevron-forward" size={17} color={theme.colors.primary[700]} />
               </TouchableOpacity>
-              {members.map((member) => {
-                const active = participantIds.includes(String(member.id));
-                return (
-                  <TouchableOpacity
-                    key={`participant-${member.id}`}
-                    style={[styles.chip, active && styles.chipActive]}
-                    onPress={() => toggleParticipant(member.id)}
-                  >
-                    <Text style={[styles.chipText, active && styles.chipTextActive]}>{member.fullName}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
+              ) : null}
+            />
             <Text style={styles.fieldLabel}>Kişisel kalemler</Text>
             {members.map((member) => {
               const enabled = participantIds.includes(String(member.id));
@@ -391,6 +476,26 @@ export default function HarcamaDetayi({ navigation, route }) {
           </View>
         )}
       </KeyboardAwareScreen>
+      <Modal visible={shareEditorVisible} transparent animationType="slide" onRequestClose={() => setShareEditorVisible(false)}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={[styles.shareModalBackdrop, { paddingTop: insets.top + 8 }]}>
+          <ShareUnitsPicker
+            members={members}
+            units={shareDraft}
+            amount={Math.max(parseMoneyInput(amount) - Object.entries(personal)
+              .filter(([userId]) => participantIds.includes(String(userId)))
+              .reduce((sum, [, value]) => sum + (parseMoneyInput(value) || 0), 0), 0)}
+            onChange={setShareDraft}
+            onCancel={() => setShareEditorVisible(false)}
+            onApply={() => {
+              if (!shareDraft.length) return;
+              setParticipantIds(shareDraft.map((entry) => String(entry.userId)));
+              setShareUnits(hasCustomShareUnits(shareDraft) ? shareDraft : []);
+              setShareEditorVisible(false);
+            }}
+            theme={theme}
+          />
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   );
 }
@@ -439,19 +544,36 @@ const makeStyles = (theme, insets) => StyleSheet.create({
   avatarText: { color: theme.colors.primary[700], fontFamily: theme.typography.bold },
   shareName: { flex: 1, color: theme.colors.text.primary, fontFamily: theme.typography.medium, fontSize: 14 },
   shareValue: { color: theme.colors.text.primary, fontFamily: theme.typography.bold, fontSize: 14 },
+  shareCaption: { color: theme.colors.text.secondary, fontFamily: theme.typography.regular, fontSize: 11, marginTop: 2 },
   personalIcon: { width: 32, height: 32, borderRadius: 16, backgroundColor: theme.colors.warning[50], alignItems: 'center', justifyContent: 'center' },
   personalBody: { flex: 1 },
   personalCaption: { color: theme.colors.text.secondary, fontFamily: theme.typography.regular, fontSize: 11, marginTop: 2 },
+  receiptSectionHeader: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 4 },
+  receiptSectionTitleBlock: { flex: 1, paddingRight: 10 },
+  receiptCountBadge: { minWidth: 28, height: 28, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.primary[50] },
+  receiptCountText: { color: theme.colors.primary[700], fontFamily: theme.typography.bold, fontSize: 13 },
+  receiptItemRow: { minHeight: 58, flexDirection: 'row', alignItems: 'center', gap: 10, borderTopWidth: 1, borderTopColor: theme.colors.neutral[100] },
+  receiptItemNumber: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.primary[100] },
+  receiptItemNumberText: { color: theme.colors.primary[700], fontFamily: theme.typography.bold, fontSize: 12 },
+  receiptItemBody: { flex: 1, minWidth: 0 },
+  receiptItemName: { color: theme.colors.text.primary, fontFamily: theme.typography.semibold, fontSize: 13 },
+  receiptItemPeople: { color: theme.colors.text.secondary, fontFamily: theme.typography.regular, fontSize: 11, marginTop: 2 },
+  receiptItemAmount: { color: theme.colors.text.primary, fontFamily: theme.typography.bold, fontSize: 13 },
+  receiptOpenButton: { minHeight: 46, flexDirection: 'row', alignItems: 'center', gap: 8, borderTopWidth: 1, borderTopColor: theme.colors.neutral[100], marginTop: 2 },
+  receiptOpenButtonText: { flex: 1, color: theme.colors.primary[700], fontFamily: theme.typography.bold, fontSize: 13 },
   muted: { color: theme.colors.text.secondary, fontFamily: theme.typography.regular, fontSize: 13, paddingVertical: 8 },
   editButton: { minHeight: 52, borderRadius: 8, borderWidth: 1, borderColor: theme.colors.primary[300], flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: theme.colors.surface },
   editText: { color: theme.colors.primary[700], fontFamily: theme.typography.bold, fontSize: 15 },
   editContent: { gap: 12, paddingTop: 8 },
-  formCard: { borderRadius: 8, borderWidth: 1, borderColor: theme.colors.neutral[200], backgroundColor: theme.colors.surface, padding: 16 },
+  editForm: { gap: 12 },
   field: { marginBottom: 15 },
   fieldLabel: { color: theme.colors.text.primary, fontFamily: theme.typography.semibold, fontSize: 13, marginBottom: 7 },
   input: { minHeight: 50, borderRadius: 8, borderWidth: 1, borderColor: theme.colors.neutral[300], backgroundColor: theme.colors.background, color: theme.colors.text.primary, fontFamily: theme.typography.regular, fontSize: 15, paddingHorizontal: 13 },
   multiline: { height: 88, paddingTop: 12 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
+  shareOption: { width: '100%', minHeight: 46, flexDirection: 'row', alignItems: 'center', gap: 8, borderTopWidth: 1, borderTopColor: theme.colors.neutral[100] },
+  shareOptionText: { flex: 1, color: theme.colors.primary[700], fontFamily: theme.typography.semibold, fontSize: 13 },
+  shareModalBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: '#0008' },
   chip: { minHeight: 40, justifyContent: 'center', paddingHorizontal: 12, borderRadius: 8, borderWidth: 1, borderColor: theme.colors.neutral[300], backgroundColor: theme.colors.surface },
   chipActive: { borderColor: theme.colors.primary[600], backgroundColor: theme.colors.primary[50] },
   chipText: { color: theme.colors.text.secondary, fontFamily: theme.typography.medium, fontSize: 13 },

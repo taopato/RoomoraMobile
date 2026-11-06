@@ -3,15 +3,15 @@
 Mobil build, TestFlight, Google Play Internal Testing, OTA ve sürüm yükseltme
 akışı için [Mobil Sürüm Akışı](docs/MOBILE_RELEASE_FLOW.md) belgesine bakın.
 
-Roomora, ev arkadaşlarının ortak harcamaları, faturaları, notları ve ödemeleri tek yerde yönetmesini sağlayan Expo tabanlı mobil uygulamadır.
-
-> Ortak yaşamın kolay hali.
+Roomora, ev ve gezi gruplarının ortak harcamalarını kişi bazında paylaşan Expo tabanlı mobil uygulamadır. Aynı hesaplama akışı kira ve faturalar için de otel, yemek ve ulaşım için de çalışır.
 
 ## Uygulama
 
 | Ana Sayfa | Giderler | Faturalar |
 | --- | --- | --- |
-| ![Ana Sayfa](docs/implemented-screens/home.png) | ![Giderler](docs/implemented-screens/expenses.png) | ![Faturalar](docs/implemented-screens/bills.png) |
+| ![Ana Sayfa](media/store/home-tr-01-home.png) | ![Giderler](media/store/home-tr-02-expenses.png) | ![Faturalar](media/store/home-tr-05-bills.png) |
+
+Ekranlardaki ad ve tutarlar kurgusal demo verisidir; gercek kullanici hesabindan alinmamistir.
 
 ## Öne Çıkanlar
 
@@ -21,6 +21,7 @@ Roomora, ev arkadaşlarının ortak harcamaları, faturaları, notları ve ödem
 - Paylaşımlı alışveriş ve ev notları
 - Fiş tarama ve manuel düzeltme akışı
 - Kalıcı favori ev, profil ve ev fotoğrafı
+- Otel, yemek ve ulasim icin gezi grubu ve secili uyelerle paylasim
 - Açık/koyu tema ve Türkçe/İngilizce dil altyapısı
 
 ## Yerel Çalıştırma
@@ -30,7 +31,7 @@ npm install
 npm start
 ```
 
-Telefon ve bilgisayar aynı ağdayken Expo Go ile terminaldeki QR kodu okutun. API varsayılan olarak yerel ağdaki `5118` portunu kullanır; adresi `.env` veya `app.json` üzerinden yapılandırın.
+Yerel Android/iOS testi icin Expo development client kullanin; Expo Go, projedeki native modullerin tumunu calistirmaz. API adresini `.env` veya `app.json` uzerinden yapilandirin. Uretim hesabi yerine test hesabi kullanin.
 
 ```bash
 npm test
@@ -47,6 +48,8 @@ npm run export:ios
 - `src/context/AuthContext.js`: Oturum ve favori ev
 - `src/shared/theme`: Roomora tasarım sistemi
 - `docs/store`: App Store ve Google Play hazırlıkları
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md): ekran, API ve hesap akisinin haritasi
+- `scripts/capture-demo-store.mjs`: yalniz yerel ornek veriyle magaza gorseli taslagi uretimi; gercek cihaz ekran goruntusunun yerine gecmez
 
 ## Bağlı Projeler
 

@@ -6,7 +6,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../shared/theme/ThemeProvider';
 import { useAuth } from '../context/AuthContext';
 import { paymentsApi } from '../services/api';
-import BrandMark from '../components/BrandMark';
 import { PageHeader } from '../shared/ui/roomora/CanonicalUI';
 
 import { Text } from '../shared/i18n';
@@ -82,8 +81,7 @@ export default function Bildirimler({ navigation }) {
         <Text style={styles.subtitle}>Onay bekleyen ödemeler ve hatırlatmalar burada listelenir.</Text>
 
         {items.length === 0 ? (
-          <View style={[styles.emptyCard, styles.emptyState]}>
-            <BrandMark variant="logo" size={170} subtle style={styles.emptyWatermark} />
+          <View style={styles.emptyCard}>
             <View style={[styles.emptyIconWrap, { backgroundColor: theme.colors.primary[50] }]}>
               <Ionicons name="notifications-outline" size={30} color={theme.colors.primary[600]} />
             </View>
@@ -155,13 +153,6 @@ const makeStyles = (theme) =>
       borderWidth: 1,
       borderColor: theme.colors.neutral[200],
       borderRadius: 8,
-    },
-    emptyState: { position: 'relative', overflow: 'hidden' },
-    emptyWatermark: {
-      position: 'absolute',
-      opacity: 0.06,
-      right: -20,
-      bottom: -16,
     },
     emptyIconWrap: {
       width: 64,

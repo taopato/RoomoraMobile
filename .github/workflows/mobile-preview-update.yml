@@ -1,8 +1,6 @@
 name: Mobile Preview Update
 
 on:
-  push:
-    branches: [development]
   workflow_dispatch:
 
 concurrency:

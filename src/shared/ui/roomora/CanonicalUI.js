@@ -71,7 +71,7 @@ export function PageHeader({
       <View style={styles.header}>
         <View style={styles.headerSide}>
           {onBack ? (
-            <TouchableOpacity style={styles.iconButton} onPress={onBack} activeOpacity={0.82}>
+            <TouchableOpacity style={styles.iconButton} onPress={onBack} activeOpacity={0.82} accessibilityRole="button" accessibilityLabel="Geri">
               <Ionicons name="arrow-back" size={24} color={theme.colors.text.primary} />
             </TouchableOpacity>
           ) : null}
@@ -95,7 +95,7 @@ export function PageHeader({
     <View style={styles.header}>
       <View style={styles.headerLeading}>
         {onBack ? (
-          <TouchableOpacity style={styles.iconButton} onPress={onBack} activeOpacity={0.82}>
+          <TouchableOpacity style={styles.iconButton} onPress={onBack} activeOpacity={0.82} accessibilityRole="button" accessibilityLabel="Geri">
             <Ionicons name="arrow-back" size={24} color={theme.colors.text.primary} />
           </TouchableOpacity>
         ) : null}
@@ -205,6 +205,7 @@ export function ListRow({
   icon = 'receipt-outline',
   title,
   subtitle,
+  subtitleLines = 1,
   amount,
   amountTone = 'default',
   badge,
@@ -238,7 +239,7 @@ export function ListRow({
       </View>
       <View style={styles.listBody}>
         <Text style={styles.listTitle} numberOfLines={1}>{title}</Text>
-        {!!subtitle && <Text style={styles.listSubtitle} numberOfLines={1}>{subtitle}</Text>}
+        {!!subtitle && <Text style={styles.listSubtitle} numberOfLines={subtitleLines}>{subtitle}</Text>}
       </View>
       <View style={styles.listEnd}>
         {amount !== undefined && <Text style={[styles.listAmount, { color: amountColor }]}>{money(amount)}</Text>}

@@ -1,6 +1,6 @@
 import 'react-native-gesture-handler';
 import React from 'react';
-import { LogBox, Platform, View } from 'react-native';
+import { AppState, LogBox, Platform, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
@@ -21,6 +21,7 @@ import { ThemeProvider, useTheme } from './src/shared/theme/ThemeProvider';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { LanguageProvider, useLanguage } from './src/context/LanguageContext';
 import MainTabBar from './src/shared/ui/MainTabBar';
+import { refreshInactivityReminder, registerPushNotifications, subscribeToNotificationNavigation } from './src/services/pushNotifications';
 
 import GirisYap from './src/screens/GirisYap';
 import KayitOl from './src/screens/KayitOl';
@@ -144,6 +145,8 @@ const linking = {
 };
 
 function MainTabs() {
+  const { user } = useAuth();
+  const isTrip = String(user?.defaultHouseType || '').toLowerCase() === 'trip';
   return (
     <Tab.Navigator
       screenOptions={{ headerShown: false }}
@@ -154,7 +157,7 @@ function MainTabs() {
       <Tab.Screen name="Home" component={RoomoraHome} />
       <Tab.Screen name="TumHarcamalar" component={RoomoraExpenses} />
       <Tab.Screen name="Notlar" component={EvNotlari} />
-      <Tab.Screen name="Faturalar" component={RoomoraBills} />
+      {!isTrip && <Tab.Screen name="Faturalar" component={RoomoraBills} />}
       <Tab.Screen name="Ayarlar" component={RoomoraSettings} />
     </Tab.Navigator>
   );
@@ -165,6 +168,28 @@ function ThemedNavigator() {
   useLanguage();
   const { user, loading } = useAuth();
   const colors = theme.colors;
+  const navigationRef = React.useRef(null);
+
+  React.useEffect(() => {
+    if (!user?.id) return undefined;
+    registerPushNotifications().catch(() => {});
+    const unsubscribe = subscribeToNotificationNavigation((data) => {
+      const route = data?.route;
+      if (!route || !navigationRef.current) return;
+      if (route === 'Faturalar') {
+        navigationRef.current.navigate('MainTabs', { screen: 'Faturalar' });
+      } else {
+        navigationRef.current.navigate(route, data);
+      }
+    });
+    const appState = AppState.addEventListener('change', (state) => {
+      if (state === 'active') refreshInactivityReminder().catch(() => {});
+    });
+    return () => {
+      unsubscribe();
+      appState.remove();
+    };
+  }, [user?.id]);
 
   React.useEffect(() => {
     if (!loading) {
@@ -180,6 +205,7 @@ function ThemedNavigator() {
 
   return (
     <NavigationContainer
+      ref={navigationRef}
       linking={linking}
       theme={{
         dark: theme.mode !== 'light',
@@ -242,7 +268,7 @@ function ThemedNavigator() {
             <Stack.Screen name="HarcamaDuzenle" component={HarcamaDetayi} options={{ title: '', headerShown: false }} />
             <Stack.Screen name="HarcamaEkle" component={HarcamaEkle} options={{ title: '', headerShown: false }} />
             <Stack.Screen name="FisDetayi" component={FisDetayi} options={{ title: '', headerShown: false }} />
-            <Stack.Screen name="FisGecmisi" component={FisGecmisi} options={{ title: '', headerShown: false }} />
+            <Stack.Screen name="FisGecmisi" component={FisGecmisi} options={{ title: '', headerShown: false, fullScreenGestureEnabled: false }} />
             <Stack.Screen name="YeniEvGrubu" component={YeniEvGrubu} options={{ title: '', headerShown: false }} />
             <Stack.Screen name="DavetEt" component={DavetEt} options={{ title: 'Arkadaş Davet Et', headerShown: false }} />
             <Stack.Screen name="DavetiyeKabul" component={DavetiyeKabul} options={{ title: 'Davet Kabul Et', headerShown: false }} />

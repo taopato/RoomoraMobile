@@ -14,15 +14,17 @@ try {
   await page.getByText('EN', { exact: true }).click();
   await page.getByText('Sign In', { exact: true }).waitFor();
   const english = await page.locator('body').innerText();
-  assert.match(english, /Shared living made simple\./);
+  assert.match(english, /Roomora/);
   assert.match(english, /Email address/);
   assert.doesNotMatch(english, /Ortak yaşamın kolay hali/);
+  assert.doesNotMatch(english, /Shared living made simple/);
   await page.screenshot({ path: 'artifacts/i18n-login-en.png', fullPage: true });
 
   await page.getByText('TR', { exact: true }).click();
   await page.getByText('Giriş Yap', { exact: true }).waitFor();
   const turkish = await page.locator('body').innerText();
-  assert.match(turkish, /Ortak yaşamın kolay hali\./);
+  assert.match(turkish, /Roomora/);
+  assert.doesNotMatch(turkish, /Ortak yaşamın kolay hali/);
 
   if (process.env.ROOMORA_TEST_EMAIL && process.env.ROOMORA_TEST_PASSWORD) {
     await page.getByPlaceholder('ornek@email.com').fill(process.env.ROOMORA_TEST_EMAIL);
