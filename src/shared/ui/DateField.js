@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Modal, Pressable, StyleSheet } from 'react-native';
+import { Keyboard, View, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeProvider';
 
@@ -13,6 +13,15 @@ const toISODate = (d) => {
   const m = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
   return `${y}-${m}-${day}`;
+};
+
+const MONTHS = {
+  tr: ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'],
+  en: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
+};
+const WEEKDAYS = {
+  tr: ['Pt', 'Sa', 'Ça', 'Pe', 'Cu', 'Ct', 'Pa'],
+  en: ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'],
 };
 
 const parseISODate = (value) => {
@@ -65,9 +74,11 @@ export default function DateField({ value, onChange, placeholder, minimumDate, m
   };
 
   const styles = makeStyles(theme);
+  const language = getLocale().startsWith('tr') ? 'tr' : 'en';
   const openCalendar = () => {
+    Keyboard.dismiss();
     setVisibleMonth(new Date(dateValue.getFullYear(), dateValue.getMonth(), 1));
-    setShow(true);
+    setShow((current) => !current);
   };
   const firstDayOffset = (visibleMonth.getDay() + 6) % 7;
   const daysInMonth = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() + 1, 0).getDate();
@@ -98,22 +109,19 @@ export default function DateField({ value, onChange, placeholder, minimumDate, m
       </View>
 
       {show && (
-        <Modal transparent animationType="fade" visible={show} onRequestClose={() => setShow(false)}>
-          <View style={styles.backdrop}>
-            <Pressable style={StyleSheet.absoluteFill} onPress={() => setShow(false)} />
-            <View style={styles.sheet}>
+        <View style={styles.sheet}>
               <View style={styles.monthHeader}>
                 <TouchableOpacity accessibilityLabel="Önceki ay" style={styles.monthButton} onPress={() => setVisibleMonth(new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() - 1, 1))}>
                   <Ionicons name="chevron-back" size={20} color={theme.colors.primary[700]} />
                 </TouchableOpacity>
-                <Text style={styles.monthTitle}>{new Intl.DateTimeFormat(getLocale(), { month: 'long', year: 'numeric' }).format(visibleMonth)}</Text>
+                <Text style={styles.monthTitle}>{MONTHS[language][visibleMonth.getMonth()]} {visibleMonth.getFullYear()}</Text>
                 <TouchableOpacity accessibilityLabel="Sonraki ay" style={styles.monthButton} onPress={() => setVisibleMonth(new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() + 1, 1))}>
                   <Ionicons name="chevron-forward" size={20} color={theme.colors.primary[700]} />
                 </TouchableOpacity>
               </View>
               <View style={styles.calendarGrid}>
                 {Array.from({ length: 7 }, (_, index) => (
-                  <Text key={`weekday-${index}`} style={styles.weekday}>{new Intl.DateTimeFormat(getLocale(), { weekday: 'short' }).format(new Date(2024, 0, index + 1))}</Text>
+                  <Text key={`weekday-${index}`} style={styles.weekday}>{WEEKDAYS[language][index]}</Text>
                 ))}
                 {calendarCells.map((day, index) => {
                   const date = day ? new Date(visibleMonth.getFullYear(), visibleMonth.getMonth(), day) : null;
@@ -122,7 +130,7 @@ export default function DateField({ value, onChange, placeholder, minimumDate, m
                   return (
                     <View key={`date-${index}`} style={styles.dayCell}>
                       {day ? <TouchableOpacity
-                        accessibilityLabel={`${day} ${new Intl.DateTimeFormat(getLocale(), { month: 'long' }).format(visibleMonth)}`}
+                        accessibilityLabel={`${day} ${MONTHS[language][visibleMonth.getMonth()]}`}
                         disabled={disabled}
                         style={[styles.dayButton, iso === value && styles.selectedDay]}
                         onPress={() => { onChange(iso); setDraft(formatDisplayDate(iso)); setShow(false); }}
@@ -134,11 +142,9 @@ export default function DateField({ value, onChange, placeholder, minimumDate, m
                 })}
               </View>
               <TouchableOpacity style={styles.doneBtn} onPress={() => setShow(false)} activeOpacity={0.85}>
-                <Text style={styles.doneBtnText}>Kapat</Text>
+                <Text style={styles.doneBtnText}>{language === 'tr' ? 'Kapat' : 'Close'}</Text>
               </TouchableOpacity>
-            </View>
-          </View>
-        </Modal>
+        </View>
       )}
 
     </View>
@@ -158,13 +164,13 @@ const makeStyles = (theme) => StyleSheet.create({
   },
   input: { flex: 1, color: theme.colors.text.primary, fontSize: 13, paddingVertical: 10 },
   calendarButton: { width: 42, height: 46, alignItems: 'center', justifyContent: 'center' },
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
   sheet: {
     backgroundColor: theme.colors.surface,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 16,
-    paddingBottom: 28,
+    borderRadius: theme.radius.sm,
+    borderWidth: 1,
+    borderColor: theme.colors.neutral[200],
+    marginTop: 8,
+    padding: 10,
   },
   monthHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
   monthButton: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },

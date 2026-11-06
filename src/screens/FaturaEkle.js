@@ -329,7 +329,7 @@ export default function FaturaEkle({ route, navigation }) {
           />
 
           <View style={styles.dateRow}>
-            <View style={[styles.dateColumn, isVariableWaterBill && styles.dateColumnFull]}>
+            <View style={styles.dateColumn}>
               <Text style={styles.sectionTitle}>{isVariableWaterBill ? 'Ödeme tarihi' : 'Fatura tarihi'}</Text>
               <DateField value={billDate} onChange={setBillDate} placeholder="Tarih seç" />
             </View>
@@ -485,9 +485,8 @@ const makeStyles = (theme, insets) => StyleSheet.create({
   },
   splitSummaryText: { color: theme.colors.primary[700], fontSize: 12, fontWeight: '700' },
   splitSummaryValue: { color: theme.colors.primary[700], fontSize: 13, fontWeight: '800', textAlign: 'right' },
-  dateRow: { flexDirection: 'row', gap: 10, marginBottom: 14 },
-  dateColumn: { flex: 1 },
-  dateColumnFull: { flexBasis: '100%' },
+  dateRow: { gap: 14, marginBottom: 14 },
+  dateColumn: { width: '100%' },
   waterInfo: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, borderWidth: 1, borderColor: theme.colors.primary[200], backgroundColor: theme.colors.primary[50], borderRadius: 8, padding: 12, marginBottom: 14 },
   waterInfoText: { flex: 1, color: theme.colors.text.secondary, fontFamily: theme.typography.regular, fontSize: 12, lineHeight: 17 },
   noteInput: {
