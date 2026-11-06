@@ -13,6 +13,7 @@ import KeyboardAwareScreen from '../shared/ui/KeyboardAwareScreen';
 import MoneyInput from '../shared/ui/roomora/MoneyInput';
 import { getReceiptItemParticipantIds, getReceiptParticipantSummary } from '../utils/receiptAssignments';
 import ShareUnitsPicker from '../components/ShareUnitsPicker';
+import MemberSelectionCard from '../components/MemberSelectionCard';
 import { hasCustomShareUnits, normalizeShareUnits, shareUnitsSummary } from '../utils/shareUnits';
 
 import { Alert, Text, TextInput } from '../shared/i18n';
@@ -404,49 +405,30 @@ export default function HarcamaDetayi({ navigation, route }) {
         ) : (
           <View style={styles.editContent}>
             <MoneyInput label="HARCAMA TUTARI" value={amount} onChangeText={(value) => setAmount(formatMoneyInput(value))} />
-            <View style={styles.formCard}>
+            <View style={styles.editForm}>
             <Field label="Harcama adı" value={title} onChangeText={setTitle} styles={styles} theme={theme} />
-            <Text style={styles.fieldLabel}>Ödemeyi yapan</Text>
-            <View style={styles.chips}>
-              {members.map((member) => {
-                const active = payerId === String(member.id);
-                return (
-                  <TouchableOpacity
-                    key={`payer-${member.id}`}
-                    style={[styles.chip, active && styles.chipActive]}
-                    onPress={() => setPayerId(String(member.id))}
-                  >
-                    <Text style={[styles.chipText, active && styles.chipTextActive]}>{member.fullName}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-            <Text style={styles.fieldLabel}>Kimin için?</Text>
-            <View style={styles.chips}>
-              <TouchableOpacity
-                style={[styles.chip, participantIds.length === members.length && styles.chipActive]}
-                onPress={() => {
-                  const ids = members.map((member) => String(member.id));
-                  setParticipantIds(ids);
-                  setShareUnits((units) => normalizeShareUnits(units, ids));
-                }}
-              >
-                <Text style={[styles.chipText, participantIds.length === members.length && styles.chipTextActive]}>Ortak</Text>
-              </TouchableOpacity>
-              {members.map((member) => {
-                const active = participantIds.includes(String(member.id));
-                return (
-                  <TouchableOpacity
-                    key={`participant-${member.id}`}
-                    style={[styles.chip, active && styles.chipActive]}
-                    onPress={() => toggleParticipant(member.id)}
-                  >
-                    <Text style={[styles.chipText, active && styles.chipTextActive]}>{member.fullName}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-            {participantIds.length > 0 ? (
+            <MemberSelectionCard
+              label="Ödeyen"
+              value={members.find((member) => String(member.id) === payerId)?.fullName}
+              icon="person-outline"
+              members={members}
+              selectedIds={payerId ? [payerId] : []}
+              onSelect={(id) => setPayerId(String(id))}
+            />
+            <MemberSelectionCard
+              label="Kimin için?"
+              value={hasCustomShareUnits(shareUnits) ? 'Özel paylaşım' : participantIds.length === members.length && members.length ? 'Ortak' : `${participantIds.length} kişi · Eşit`}
+              icon="people-outline"
+              members={members}
+              selectedIds={participantIds}
+              onSelect={toggleParticipant}
+              allLabel="Ortak"
+              onSelectAll={() => {
+                const ids = members.map((member) => String(member.id));
+                setParticipantIds(ids);
+                setShareUnits((units) => normalizeShareUnits(units, ids));
+              }}
+              footer={participantIds.length > 0 ? (
               <TouchableOpacity style={styles.shareOption} onPress={() => {
                 setShareDraft(normalizeShareUnits(shareUnits, participantIds));
                 setShareEditorVisible(true);
@@ -457,7 +439,8 @@ export default function HarcamaDetayi({ navigation, route }) {
                 </Text>
                 <Ionicons name="chevron-forward" size={17} color={theme.colors.primary[700]} />
               </TouchableOpacity>
-            ) : null}
+              ) : null}
+            />
             <Text style={styles.fieldLabel}>Kişisel kalemler</Text>
             {members.map((member) => {
               const enabled = participantIds.includes(String(member.id));
@@ -582,13 +565,13 @@ const makeStyles = (theme, insets) => StyleSheet.create({
   editButton: { minHeight: 52, borderRadius: 8, borderWidth: 1, borderColor: theme.colors.primary[300], flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: theme.colors.surface },
   editText: { color: theme.colors.primary[700], fontFamily: theme.typography.bold, fontSize: 15 },
   editContent: { gap: 12, paddingTop: 8 },
-  formCard: { borderRadius: 8, borderWidth: 1, borderColor: theme.colors.neutral[200], backgroundColor: theme.colors.surface, padding: 16 },
+  editForm: { gap: 12 },
   field: { marginBottom: 15 },
   fieldLabel: { color: theme.colors.text.primary, fontFamily: theme.typography.semibold, fontSize: 13, marginBottom: 7 },
   input: { minHeight: 50, borderRadius: 8, borderWidth: 1, borderColor: theme.colors.neutral[300], backgroundColor: theme.colors.background, color: theme.colors.text.primary, fontFamily: theme.typography.regular, fontSize: 15, paddingHorizontal: 13 },
   multiline: { height: 88, paddingTop: 12 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
-  shareOption: { minHeight: 46, flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 15, borderTopWidth: 1, borderTopColor: theme.colors.neutral[100] },
+  shareOption: { width: '100%', minHeight: 46, flexDirection: 'row', alignItems: 'center', gap: 8, borderTopWidth: 1, borderTopColor: theme.colors.neutral[100] },
   shareOptionText: { flex: 1, color: theme.colors.primary[700], fontFamily: theme.typography.semibold, fontSize: 13 },
   shareModalBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: '#0008' },
   chip: { minHeight: 40, justifyContent: 'center', paddingHorizontal: 12, borderRadius: 8, borderWidth: 1, borderColor: theme.colors.neutral[300], backgroundColor: theme.colors.surface },

@@ -32,6 +32,7 @@ import {
 import { normalizeExpenseCategoryKey } from '../constants/ExpenseEnums';
 import { getReadableReceiptItemName, getReceiptStoreName, getReceiptTitle } from '../utils/receiptPresentation';
 import ShareUnitsPicker from '../components/ShareUnitsPicker';
+import MemberSelectionCard from '../components/MemberSelectionCard';
 import { hasCustomShareUnits, normalizeShareUnits, shareUnitsSummary } from '../utils/shareUnits';
 import { selectParticipant } from '../utils/participantSelection';
 
@@ -749,23 +750,14 @@ function FisDetayiInner({ route, navigation }) {
               />
             </View>
 
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Ödeyen</Text>
-              <View style={styles.chips}>
-                {members.map((member) => {
-                  const active = String(member.id) === String(payerUserId);
-                  return (
-                    <TouchableOpacity
-                      key={String(member.id)}
-                      style={[styles.chip, active && styles.chipActive]}
-                      onPress={() => setPayerUserId(String(member.id))}
-                    >
-                      <Text style={[styles.chipText, active && styles.chipTextActive]}>{member.fullName}</Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            </View>
+            <MemberSelectionCard
+              label="Ödeyen"
+              value={members.find((member) => String(member.id) === String(payerUserId))?.fullName}
+              icon="person-outline"
+              members={members}
+              selectedIds={payerUserId ? [payerUserId] : []}
+              onSelect={(id) => setPayerUserId(String(id))}
+            />
 
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Kategori</Text>
@@ -864,63 +856,28 @@ function FisDetayiInner({ route, navigation }) {
                   {getLocale().startsWith('en') ? `Quantity on receipt: ${quantityHint}` : `Fişteki miktar: ${quantityHint}`}
                 </Text>
               ) : null}
-              <View style={styles.participantCard}>
-                <View style={styles.participantHeader}>
-                  <View style={styles.memberSelectIcon}>
-                    <Ionicons name="people-outline" size={19} color={theme.colors.primary[700]} />
-                  </View>
-                  <View>
-                    <Text style={styles.participantLabel}>Kimin için?</Text>
-                    <Text style={styles.participantValue}>
-                      {hasCustomShareUnits(draftItem?.shareUnits)
-                        ? 'Özel paylaşım'
-                        : draftItem?.participantUserIds?.length === memberIds.length
-                          ? 'Ortak'
-                          : `${draftItem?.participantUserIds?.length || 0} kişi · Eşit`}
-                    </Text>
-                  </View>
-                </View>
-                <View style={styles.chips}>
-                  <TouchableOpacity
-                    style={[styles.chip, draftItem?.participantUserIds?.length === memberIds.length && styles.chipActive]}
-                    onPress={() => {
-                      Keyboard.dismiss();
-                      setDraftItem((prev) => ({
-                        ...prev,
-                        participantUserIds: memberIds,
-                        shareUnits: normalizeShareUnits(prev.shareUnits, memberIds),
-                      }));
-                    }}
-                  >
-                    <Text style={[styles.chipText, draftItem?.participantUserIds?.length === memberIds.length && styles.chipTextActive]}>Ortak</Text>
-                  </TouchableOpacity>
-                  {members.map((member) => {
-                    const active = (draftItem?.participantUserIds || []).includes(Number(member.id));
-                    return (
-                      <TouchableOpacity
-                        key={`draft-${member.id}`}
-                        accessibilityLabel={`${member.fullName} katılımcı`}
-                        style={[styles.chip, active && styles.chipActive]}
-                        onPress={() => {
-                          Keyboard.dismiss();
-                          setDraftItem((prev) => {
-                            const current = prev?.participantUserIds || [];
-                            const userId = Number(member.id);
-                            const participantUserIds = selectParticipant(current, userId, memberIds).map(Number);
-                            return {
-                              ...prev,
-                              participantUserIds,
-                              shareUnits: normalizeShareUnits(prev.shareUnits, participantUserIds),
-                            };
-                          });
-                        }}
-                      >
-                        <Text style={[styles.chipText, active && styles.chipTextActive]}>{member.fullName}</Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-                <TouchableOpacity style={styles.shareCustomize} disabled={!draftItem?.participantUserIds?.length} onPress={() => {
+              <MemberSelectionCard
+                label="Kimin için?"
+                value={hasCustomShareUnits(draftItem?.shareUnits) ? 'Özel paylaşım'
+                  : draftItem?.participantUserIds?.length === memberIds.length && memberIds.length ? 'Ortak'
+                    : `${draftItem?.participantUserIds?.length || 0} kişi · Eşit`}
+                icon="people-outline"
+                members={members}
+                selectedIds={draftItem?.participantUserIds || []}
+                onSelect={(id) => {
+                  Keyboard.dismiss();
+                  setDraftItem((prev) => {
+                    const participantUserIds = selectParticipant(prev?.participantUserIds || [], Number(id), memberIds).map(Number);
+                    return { ...prev, participantUserIds, shareUnits: normalizeShareUnits(prev.shareUnits, participantUserIds) };
+                  });
+                }}
+                allLabel="Ortak"
+                onSelectAll={() => {
+                  Keyboard.dismiss();
+                  setDraftItem((prev) => ({ ...prev, participantUserIds: memberIds, shareUnits: normalizeShareUnits(prev.shareUnits, memberIds) }));
+                }}
+                footer={<>
+                <TouchableOpacity style={[styles.shareCustomize, { width: '100%' }]} disabled={!draftItem?.participantUserIds?.length} onPress={() => {
                   Keyboard.dismiss();
                   setShareDraft(normalizeShareUnits(draftItem.shareUnits, draftItem.participantUserIds));
                   setEditingShares(true);
@@ -932,11 +889,12 @@ function FisDetayiInner({ route, navigation }) {
                   <Ionicons name="chevron-forward" size={18} color={theme.colors.primary[700]} />
                 </TouchableOpacity>
                 {hasCustomShareUnits(draftItem?.shareUnits) ? (
-                  <Text style={styles.shareCustomSummary} numberOfLines={2}>
+                  <Text style={[styles.shareCustomSummary, { width: '100%' }]} numberOfLines={2}>
                     {shareUnitsSummary(normalizeShareUnits(draftItem.shareUnits, draftItem.participantUserIds), members)}
                   </Text>
                 ) : null}
-              </View>
+                </>}
+              />
 
               <View style={styles.modalActions}>
                 <TouchableOpacity style={styles.modalSecondaryButton} onPress={closeEditor}>

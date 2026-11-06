@@ -12,6 +12,7 @@ import eventBus from '../shared/events/bus';
 import { getCategoryDisplayName, toExpenseCategory } from '../constants/ExpenseEnums';
 import { formatMoneyInput, parseMoneyInput } from '../shared/format/money';
 import MoneyInput from '../shared/ui/roomora/MoneyInput';
+import MemberSelectionCard from '../components/MemberSelectionCard';
 
 import { Text, Alert, TextInput } from '../shared/i18n';
 import { getLocale } from '../shared/i18n/runtime';
@@ -329,19 +330,14 @@ export default function DuzenliGiderEkle({ navigation, route }) {
           </View>
         </View>}
 
-        <View style={styles.sectionBlock}>
-          <Text style={styles.sectionTitle}>Ödemeyi yapacak kişi</Text>
-          <View style={styles.rowWrap}>
-            {members.map((member) => (
-              <Chip
-                key={String(member.userId)}
-                title={member.fullName}
-                active={String(payerUserId) === String(member.userId)}
-                onPress={() => setPayerUserId(String(member.userId))}
-              />
-            ))}
-          </View>
-        </View>
+        <MemberSelectionCard
+          label="Ödeyen"
+          value={members.find((member) => String(member.userId) === payerUserId)?.fullName}
+          icon="person-outline"
+          members={members.map((member) => ({ id: member.userId, fullName: member.fullName }))}
+          selectedIds={payerUserId ? [payerUserId] : []}
+          onSelect={(id) => setPayerUserId(String(id))}
+        />
 
           {mode === 'installment' && (
             <View style={styles.sectionBlock}>
@@ -387,33 +383,24 @@ export default function DuzenliGiderEkle({ navigation, route }) {
             </View>
           )}
 
-        <View style={styles.sectionBlock}>
-          <View style={styles.sectionHeadingRow}>
-            <Text style={[styles.sectionTitle, styles.sectionTitleInline]}>Paylaşılacak kişiler</Text>
-            <Text style={styles.sectionMeta}>{participants.length} kişi</Text>
-          </View>
-              <View style={styles.rowWrap}>
-                {members.map((member) => {
-                  const id = String(member.userId);
-                  const active = participants.includes(id);
-                  return (
-                    <Chip
-                      key={id}
-                      title={member.fullName}
-                      active={active}
-                      onPress={() => setParticipants((prev) => (active ? prev.filter((x) => x !== id) : [...prev, id]))}
-                    />
-                  );
-                })}
-              </View>
-          <View style={styles.splitSummary}>
+        <MemberSelectionCard
+          label="Kimin için?"
+          value={participants.length === members.length && members.length ? 'Ortak' : `${participants.length} kişi · Eşit`}
+          icon="people-outline"
+          members={members.map((member) => ({ id: member.userId, fullName: member.fullName }))}
+          selectedIds={participants}
+          onSelect={(id) => setParticipants((current) => current.includes(String(id))
+            ? current.filter((value) => value !== String(id)) : [...current, String(id)])}
+          allLabel="Ortak"
+          onSelectAll={() => setParticipants(members.map((member) => String(member.userId)))}
+          footer={<View style={styles.splitSummary}>
             <View style={styles.splitSummaryCopy}>
               <Text style={styles.splitSummaryText}>{participants.length} kişi · Eşit bölüşüm</Text>
               {mode === 'installment' && <Text style={styles.splitSummaryHint}>Aylık taksit {formatCurrency(periodAmount)}</Text>}
             </View>
             <Text style={styles.splitSummaryValue}>Kişi başı {formatCurrency(perPersonAmount)}</Text>
-          </View>
-        </View>
+          </View>}
+        />
 
         <View style={styles.sectionBlock}>
           <Text style={styles.sectionTitle}>Ödeme planı</Text>
@@ -565,6 +552,7 @@ const makeStyles = (theme, insets) => StyleSheet.create({
   },
   noteInput: { minHeight: 84, paddingTop: 12, marginBottom: 0, backgroundColor: theme.colors.surface },
   splitSummary: {
+    width: '100%',
     minHeight: 44,
     marginTop: 9,
     borderRadius: 8,

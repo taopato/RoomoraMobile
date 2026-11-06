@@ -259,6 +259,10 @@ test('bill creation and payment forms open at narrow mobile width', async ({ pag
   await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
   await page.getByText('Faturalar', { exact: true }).last().click();
   await page.getByText('Yeni Fatura Ekle', { exact: true }).last().click();
+  await expect(page.getByText('Ödeyen', { exact: true })).toBeVisible();
+  await expect(page.getByText('Kimin için?', { exact: true })).toBeVisible();
+  await page.getByLabel('Ece Arslan Ödeyen').click();
+  await page.getByLabel('Ece Arslan Kimin için?').click();
   await page.screenshot({ path: testInfo.outputPath('bill-create-320.png') });
   expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(2);
   await page.getByLabel('Geri').click();
