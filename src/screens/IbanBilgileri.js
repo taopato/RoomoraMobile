@@ -59,7 +59,7 @@ export default function IbanBilgileri({ navigation }) {
               style={styles.input}
               value={formatTurkishIbanDigits(digits)}
               onChangeText={(value) => setDigits(getTurkishIbanDigits(value))}
-              placeholder="00 0000 0000 0000 0000 0000 00"
+              placeholder="IBAN numarası"
               placeholderTextColor={theme.colors.text.disabled}
               keyboardType="number-pad"
               inputMode="numeric"

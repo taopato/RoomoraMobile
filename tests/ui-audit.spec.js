@@ -29,6 +29,7 @@ async function useDemoSession(page, receipt = null, theme = 'light') {
 }
 
 test('settings and notifications stay aligned on mobile widths', async ({ page }, testInfo) => {
+  test.setTimeout(120_000);
   const errors = [];
   page.on('pageerror', (error) => errors.push(error.message));
   await useDemoSession(page);
@@ -38,6 +39,9 @@ test('settings and notifications stay aligned on mobile widths', async ({ page }
     await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
     await page.getByText('Ayarlar', { exact: true }).last().click();
     await expect(page.getByText('Bir Takosware projesi')).toBeVisible();
+    const brandImage = page.locator('img[aria-hidden="true"]').first();
+    await expect(brandImage).toBeVisible();
+    await expect.poll(() => brandImage.evaluate((img) => ({ complete: img.complete, width: img.naturalWidth }))).toEqual({ complete: true, width: 1254 });
     await page.screenshot({ path: testInfo.outputPath(`settings-${width}.png`) });
 
     await page.getByText('Bildirim Ayarları', { exact: true }).last().click();
@@ -198,5 +202,65 @@ test('expense shares and receipt item editor open and close cleanly', async ({ p
   await page.screenshot({ path: testInfo.outputPath('receipt-editor.png') });
   await page.getByTestId('receipt-editor-backdrop').click({ position: { x: 10, y: 10 }, force: true });
   await expect(page.getByText('Kalemi düzenle', { exact: true })).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
+test('account and group settings render on a narrow screen', async ({ page }, testInfo) => {
+  test.setTimeout(120_000);
+  const errors = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  await useDemoSession(page);
+  await page.setViewportSize({ width: 320, height: 700 });
+  await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
+  await page.getByText('Ayarlar', { exact: true }).last().click();
+  for (const [label, visibleText, name] of [
+    ['Profil Düzenle', 'Profili Düzenle', 'profile'],
+    ['Evlerim ve Favori Ev', 'Gruplarım', 'groups'],
+    ['IBAN Bilgileri', 'Türkiye IBAN’ı', 'iban'],
+    ['Gizlilik Politikası', 'Topladığımız bilgiler', 'privacy'],
+    ['Kullanım Koşulları', 'Hizmetin kapsamı', 'terms'],
+  ]) {
+    await page.getByText(label, { exact: true }).last().click();
+    await expect(page.getByText(visibleText, { exact: true }).last()).toBeVisible();
+    await page.screenshot({ path: testInfo.outputPath(`${name}-320.png`) });
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    expect(overflow, name).toBeLessThanOrEqual(2);
+    await page.getByLabel('Geri').click();
+  }
+  expect(errors).toEqual([]);
+});
+
+test('sign-in and account entry screens render without clipping', async ({ page }, testInfo) => {
+  test.setTimeout(90_000);
+  const errors = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  await page.setViewportSize({ width: 320, height: 700 });
+  await page.addInitScript(() => localStorage.setItem('appLanguage', 'tr'));
+  await page.goto(`${baseUrl}/login`, { waitUntil: 'domcontentloaded' });
+  await expect(page.getByText('Giriş Yap', { exact: true }).last()).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath('login-320.png') });
+  await page.getByText('Şifremi unuttum', { exact: true }).click();
+  await page.screenshot({ path: testInfo.outputPath('forgot-password-320.png') });
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  expect(overflow).toBeLessThanOrEqual(2);
+  expect(errors).toEqual([]);
+});
+
+test('bill creation and payment forms open at narrow mobile width', async ({ page }, testInfo) => {
+  test.setTimeout(120_000);
+  const errors = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  await useDemoSession(page);
+  await page.setViewportSize({ width: 320, height: 700 });
+  await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
+  await page.getByText('Faturalar', { exact: true }).last().click();
+  await page.getByText('Yeni Fatura Ekle', { exact: true }).last().click();
+  await page.screenshot({ path: testInfo.outputPath('bill-create-320.png') });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(2);
+  await page.getByLabel('Geri').click();
+  await page.getByText('Ana Sayfa', { exact: true }).last().click();
+  await page.getByText('Ödeme Yap', { exact: true }).last().click();
+  await page.screenshot({ path: testInfo.outputPath('payment-320.png') });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(2);
   expect(errors).toEqual([]);
 });
