@@ -10,11 +10,19 @@ Ev, gezi ve arkadaş gruplarında ortak harcamaları kaydetmek, paylaştırmak v
 2. **Google ile giriş yap** Google hesabıyla oturum açar. **Hesabın yok mu? Kayıt ol** yeni hesap akışına gider.
 3. Şifrenizi hatırlamıyorsanız **Şifremi unuttum**'a dokunun, e-posta adresinizi yazıp **Kod Gönder**'i seçin. Gelen kodla şifrenizi yenileyin.
 
+Yeni hesap için **Kayıt ol** ekranında ad soyad, e-posta, şifre ve şifre tekrarını doldurun. Şifre kuralını alanın altından okuyun. **Hesap Oluştur** sonrasında gelen e-posta doğrulama koduyla kaydı tamamlayın. **Giriş Yap** mevcut hesabınız varsa kayıt ekranından geri döner.
+
+![Kayıt olma formu](screens/register-320.png)
+
 ![Şifre yenileme](screens/forgot-password-320.png)
 
-**Ayarlar > Evlerim ve Favori Ev** evlerinizi ve gezi gruplarınızı yönetir. Henüz grubunuz yoksa **Yeni Ev Oluştur** ile bir grup kurun. Bir gruba davet edildiyseniz davet bağlantısını kendi hesabınızla açın. İşlem yapmadan önce ana ekranda doğru grubun adını kontrol edin.
+**Ayarlar > Evlerim ve Favori Ev** evlerinizi ve gezi gruplarınızı yönetir. Henüz grubunuz yoksa **Yeni Ev Oluştur** ile bir grup kurun. **Ortak Ev** faturalar ve ev giderleri, **Gezi** tatil ve seyahat harcamaları için ayrı grup türleridir. Türü seçin, gruba bir ad verin, **Evi Oluştur** veya **Geziyi Oluştur**'a dokunun. Bir gruba davet edildiyseniz davet bağlantısını kendi hesabınızla açın. İşlem yapmadan önce ana ekranda doğru grubun adını kontrol edin.
 
 ![Gruplar](screens/groups-320.png)
+
+| Ortak ev | Gezi |
+|---|---|
+| ![Yeni ev grubu](screens/new-group-320.png) | ![Yeni gezi grubu](screens/new-trip-320.png) |
 
 ## 2. Ana ekran
 
@@ -92,6 +100,12 @@ Dönüştürülmüş fiş **salt okunur** durumdadır; bağlı harcamayı **Gide
 
 Bir faturanın kuruma ödenmesiyle ev arkadaşlarının birbirine olan borcu ayrı kavramlardır. Kuruma ödeme yapmış kişinin alacağı, diğerleri ona gerçekte para aktarıp ödemeyi uygulamada bildirdiğinde azalır.
 
+**Düzenli veya taksitli gider ekle** ekranında **Sabit aylık** ile aynı tutarda yinelenen planı, **Taksitli gider** ile kalan toplam tutarı ve kalan ay sayısını seçin. Gider adını, isteğe bağlı notu, ödemeyi yapacak kişiyi ve katılımcıları girin. **Ödeme planı** alanından ayın gününü/başlangıcı seçin, kişi başı özeti denetleyin, ardından ilgili **Kaydet** düğmesine dokunun. Bu bir plan oluşturur; her ayın kuruma ödendiği anlamına gelmez.
+
+| Sabit aylık | Taksitli gider |
+|---|---|
+| ![Sabit aylık gider](screens/recurring-320.png) | ![Taksitli gider](screens/installment-320.png) |
+
 ## 7. Üyelere ödeme ve onay
 
 ![Ödeme bildir](screens/payment-320.png)
@@ -115,6 +129,10 @@ Onay veya ret kararını gerçek banka/elden ödeme durumunu kontrol ederek veri
 
 **Ev Üyeleri** grubun kimlerden oluştuğunu gösterir. Yeni birini eklemek için grup içindeki davet akışını kullanın; davet edilen kişinin doğru hesapla katıldığını ve grup adını kontrol edin. Gezi için ayrı grup açmak, ev giderleriyle tatil harcamalarının karışmasını önler.
 
+**Arkadaş Davet Et** ekranında grup adını kontrol edin, arkadaşınızın e-posta adresini yazıp **Daveti Gönder**'e dokunun. **Vazgeç** işlem yapmadan döner. Davetli e-postadaki bağlantıyı açıp doğru hesabıyla kabul etmelidir; e-posta görünmüyorsa spam klasörüne de bakın.
+
+![Arkadaş davet etme](screens/invite-320.png)
+
 ## 9. Bildirimler ve ayarlar
 
 ![Bildirim merkezi](screens/bildirimler.png)
@@ -135,6 +153,10 @@ Zil, uygulama içindeki bildirim merkezini açar. Telefon bildirimi gelmesi içi
 ![Güvenlik ekranı](screens/09-security.png)
 
 **Güvenlik > Hesabımı sil** kalıcı hesap kapatma akışını başlatır; yanlışlıkla dokunmayın, onay metnini dikkatle okuyun. Bu, **Çıkış Yap** ile aynı işlem değildir. **Gizlilik Politikası** hangi verilerin kullanıldığını, **Kullanım Koşulları** hizmetin kapsamını gösterir.
+
+Hesap silme ekranında profil ve iletişim bilgilerinin kaldırılması, ortak kayıtların bütünlüğünün korunması anlatılır. İşlemi sürdürmek için **SİL** yazılması gerekir; bu kılavuz için silme işlemi yapılmadı.
+
+![Hesap silme onayı](screens/delete-account-320.png)
 
 | Gizlilik | Kullanım koşulları |
 |---|---|

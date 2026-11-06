@@ -268,3 +268,54 @@ test('bill creation and payment forms open at narrow mobile width', async ({ pag
   expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(2);
   expect(errors).toEqual([]);
 });
+
+test('registration screen fits a narrow viewport', async ({ page }, testInfo) => {
+  test.setTimeout(60_000);
+  const errors = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  await page.setViewportSize({ width: 320, height: 700 });
+  await page.addInitScript(() => localStorage.setItem('appLanguage', 'tr'));
+  await page.goto(`${baseUrl}/register`, { waitUntil: 'domcontentloaded' });
+  await expect(page.getByText('Hesap Oluştur', { exact: true }).first()).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath('register-320.png') });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(2);
+  expect(errors).toEqual([]);
+});
+
+test('group, invite, recurring charge, and account safety screens fit', async ({ page }, testInfo) => {
+  test.setTimeout(180_000);
+  const errors = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  await useDemoSession(page);
+  await page.setViewportSize({ width: 320, height: 700 });
+  await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
+  await page.getByText('Ayarlar', { exact: true }).last().click();
+  await page.getByText('Evlerim ve Favori Ev', { exact: true }).last().click();
+  await page.getByText('Yeni Ev Oluştur', { exact: true }).click();
+  await expect(page.getByText('Yeni Grup Oluştur', { exact: true })).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath('new-group-320.png') });
+  await page.getByText('Gezi', { exact: true }).click();
+  await expect(page.getByText('Gezi Adı', { exact: true })).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath('new-trip-320.png') });
+  await page.getByLabel('Geri').last().click();
+  await page.getByLabel('Geri').last().click();
+  await page.getByText('Faturalar', { exact: true }).last().click();
+  await page.getByText('Düzenli veya taksitli gider ekle', { exact: true }).click();
+  await expect(page.getByText('Düzenli Gider Ekle', { exact: true })).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath('recurring-320.png') });
+  await page.getByText('Taksitli gider', { exact: true }).click();
+  await expect(page.getByText('Kalan taksit sayısı', { exact: true })).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath('installment-320.png') });
+  await page.getByLabel('Geri').last().click();
+  await page.getByText('Ayarlar', { exact: true }).last().click();
+  await page.getByText('Güvenlik', { exact: true }).last().click();
+  await page.getByText('Hesabımı sil', { exact: true }).click();
+  await expect(page.getByText('Hesabını ve kişisel verilerini sil')).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath('delete-account-320.png') });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(2);
+  await page.goto(`${baseUrl}/davet-et`, { waitUntil: 'domcontentloaded' });
+  await expect(page.getByText('Arkadaş Davet Et', { exact: true })).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath('invite-320.png') });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(2);
+  expect(errors).toEqual([]);
+});
