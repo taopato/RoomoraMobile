@@ -194,8 +194,12 @@ test('expense shares and receipt item editor open and close cleanly', async ({ p
   await expect(page.getByText('Ek pay', { exact: true })).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath('expense-shares.png') });
   await page.getByLabel('Kapat').click();
+  await expect(page.getByLabel('Kapat')).toBeHidden();
+  await page.getByText('Fiş ile eklemek ister misin?').scrollIntoViewIfNeeded();
+  await page.screenshot({ path: testInfo.outputPath('add-expense-receipt-actions.png') });
   await page.getByText('Fiş Geçmişi', { exact: true }).last().click();
   await page.getByText('Migros', { exact: false }).first().click();
+  await page.screenshot({ path: testInfo.outputPath('receipt-draft.png') });
   await page.getByLabel('Tavuk, kalemi düzenle').click();
   await expect(page.getByText('Kalemi düzenle', { exact: true })).toBeVisible();
   await page.waitForTimeout(400);
