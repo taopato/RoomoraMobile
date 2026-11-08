@@ -9,6 +9,7 @@ import { isSixDigitCode, isStrongPassword, isValidEmail, normalizeEmail, PASSWOR
 import { PageHeader, PrimaryButton } from '../../shared/ui/roomora/CanonicalUI';
 import BrandMark from '../../components/BrandMark';
 import KeyboardAwareScreen from '../../shared/ui/KeyboardAwareScreen';
+import PasswordInput from '../../shared/ui/PasswordInput';
 
 import { Alert, Text, TextInput } from '../../shared/i18n';
 
@@ -84,7 +85,16 @@ export function ResetPasswordScreen({ route, navigation }) {
   return (
     <AuthLayout navigation={navigation} title="Yeni Şifre Belirle" subtitle={`${email || 'E-posta adresin'} için gönderilen kodu ve yeni şifreni gir.`} icon="lock-closed-outline">
       <Field label="Doğrulama kodu" value={code} onChangeText={(text) => setCode(text.replace(/\D/g, '').slice(0, 6))} keyboardType="number-pad" placeholder="000000" />
-      <Field label="Yeni şifre" value={password} onChangeText={setPassword} secureTextEntry placeholder="En az 8 karakter" />
+      <View style={styles.field}>
+        <Text style={styles.label}>Yeni şifre</Text>
+        <PasswordInput
+          value={password}
+          onChangeText={setPassword}
+          placeholder="En az 8 karakter"
+          style={styles.input}
+          toggleColor={theme.colors.text.secondary}
+        />
+      </View>
       <Text style={styles.helper}>{PASSWORD_RULES_TEXT}</Text>
       <PrimaryButton label={loading ? 'Güncelleniyor...' : 'Şifreyi Güncelle'} icon="checkmark" onPress={submit} disabled={loading} />
     </AuthLayout>

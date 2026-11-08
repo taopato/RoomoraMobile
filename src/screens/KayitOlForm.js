@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, StyleSheet, ActivityIndicator } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { useTheme } from '../shared/theme/ThemeProvider';
+import PasswordInput from '../shared/ui/PasswordInput';
 import { authApi } from '../services/api';
 import {
   PASSWORD_RULES_TEXT,
@@ -115,7 +116,7 @@ const RegisterScreen = ({ navigation }) => {
           />
 
           <Text style={[styles.label, { color: theme.colors.text.primary }]}>Şifre</Text>
-          <TextInput
+          <PasswordInput
             style={[
               styles.input,
               {
@@ -127,14 +128,14 @@ const RegisterScreen = ({ navigation }) => {
             placeholder="Güçlü şifre oluşturun"
             value={password}
             onChangeText={setPassword}
-            secureTextEntry
+            toggleColor={theme.colors.text.secondary}
             placeholderTextColor={theme.colors.text.disabled}
           />
 
           <Text style={[styles.info, { color: theme.colors.text.secondary }]}>{PASSWORD_RULES_TEXT}</Text>
 
           <Text style={[styles.label, { color: theme.colors.text.primary }]}>Şifre Tekrar</Text>
-          <TextInput
+          <PasswordInput
             style={[
               styles.input,
               {
@@ -146,7 +147,7 @@ const RegisterScreen = ({ navigation }) => {
             placeholder="Şifrenizi tekrar girin"
             value={confirm}
             onChangeText={setConfirm}
-            secureTextEntry
+            toggleColor={theme.colors.text.secondary}
             placeholderTextColor={theme.colors.text.disabled}
           />
 

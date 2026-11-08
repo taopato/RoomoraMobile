@@ -8,6 +8,7 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../shared/theme/ThemeProvider';
 import { shadow } from '../shared/ui/shadow';
 import { getPasswordValidationErrors } from '../shared/validation/authValidation';
+import PasswordInput from '../shared/ui/PasswordInput';
 
 import { Alert, Text, TextInput } from '../shared/i18n';
 
@@ -228,21 +229,21 @@ export default function DavetiyeKabul({ navigation, route }) {
                 keyboardType="email-address"
                 editable={!invitedEmail}
               />
-              <TextInput
+              <PasswordInput
                 style={styles.input}
                 placeholder="Şifre"
                 placeholderTextColor={theme.colors.text.disabled}
                 value={password}
                 onChangeText={setPassword}
-                secureTextEntry
+                toggleColor={theme.colors.text.secondary}
               />
-              <TextInput
+              <PasswordInput
                 style={styles.input}
                 placeholder="Şifre tekrar"
                 placeholderTextColor={theme.colors.text.disabled}
                 value={confirm}
                 onChangeText={setConfirm}
-                secureTextEntry
+                toggleColor={theme.colors.text.secondary}
               />
               <TouchableOpacity style={styles.primaryButton} onPress={registerAndJoin} disabled={loading}>
                 {loading ? (
