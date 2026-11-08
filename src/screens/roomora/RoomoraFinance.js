@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { FlatList, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
@@ -20,6 +20,7 @@ import {
   money,
 } from '../../shared/ui/roomora/CanonicalUI';
 import MoneyInput from '../../shared/ui/roomora/MoneyInput';
+import KeyboardAwareScreen from '../../shared/ui/KeyboardAwareScreen';
 
 import { Alert, Text, TextInput } from '../../shared/i18n';
 import { getLocale } from '../../shared/i18n/runtime';
@@ -119,14 +120,14 @@ function Screen({ children, scroll = true, refreshControl }) {
   const styles = useMemo(() => createStyles(theme), [theme]);
   if (!scroll) return <View style={[styles.screen, { paddingTop: insets.top }]}>{children}</View>;
   return (
-    <ScrollView
+    <KeyboardAwareScreen
       style={styles.screen}
       contentContainerStyle={[styles.content, { paddingTop: insets.top + 4 }]}
       refreshControl={refreshControl}
       keyboardShouldPersistTaps="handled"
     >
       {children}
-    </ScrollView>
+    </KeyboardAwareScreen>
   );
 }
 

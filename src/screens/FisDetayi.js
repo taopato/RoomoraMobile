@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Image, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, Image, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { PanGestureHandler, PinchGestureHandler, State as GestureState } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -10,6 +10,7 @@ import { LoadingState, PageHeader } from '../shared/ui/roomora/CanonicalUI';
 import { BASE_URL } from '../shared/config/env';
 import DateField from '../shared/ui/DateField';
 import MoneyInput from '../shared/ui/roomora/MoneyInput';
+import KeyboardAwareScreen from '../shared/ui/KeyboardAwareScreen';
 import { formatMoneyInput, parseMoneyInput } from '../shared/format/money';
 import eventBus from '../shared/events/bus';
 import {
@@ -534,7 +535,7 @@ function FisDetayiInner({ route, navigation }) {
 
   return (
     <View style={styles.screen}>
-      <ScrollView
+      <KeyboardAwareScreen
         style={styles.screen}
         contentContainerStyle={[styles.content, { paddingTop: insets.top + 4 }]}
         directionalLockEnabled
@@ -796,7 +797,7 @@ function FisDetayiInner({ route, navigation }) {
             )}
           </>
         ) : null}
-      </ScrollView>
+      </KeyboardAwareScreen>
 
       <View pointerEvents="none" style={[styles.statusBarGuard, { height: insets.top }]} />
 
@@ -823,7 +824,7 @@ function FisDetayiInner({ route, navigation }) {
                   }}
                   theme={theme}
                 />
-              ) : <ScrollView
+              ) : <KeyboardAwareScreen
                 style={styles.modalScroll}
                 keyboardShouldPersistTaps="handled"
                 keyboardDismissMode="interactive"
@@ -904,7 +905,7 @@ function FisDetayiInner({ route, navigation }) {
                   <Text style={styles.modalPrimaryButtonText}>Kaydet</Text>
                 </TouchableOpacity>
               </View>
-              </ScrollView>}
+              </KeyboardAwareScreen>}
             </View>
           </KeyboardAvoidingView>
         </View>

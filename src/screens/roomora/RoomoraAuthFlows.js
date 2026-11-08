@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { authApi } from '../../services/api';
@@ -8,6 +8,7 @@ import { useTheme } from '../../shared/theme/ThemeProvider';
 import { isSixDigitCode, isStrongPassword, isValidEmail, normalizeEmail, PASSWORD_RULES_TEXT } from '../../shared/validation/authValidation';
 import { PageHeader, PrimaryButton } from '../../shared/ui/roomora/CanonicalUI';
 import BrandMark from '../../components/BrandMark';
+import KeyboardAwareScreen from '../../shared/ui/KeyboardAwareScreen';
 
 import { Alert, Text, TextInput } from '../../shared/i18n';
 
@@ -18,16 +19,14 @@ function AuthLayout({ navigation, title, subtitle, icon, children }) {
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   return (
-    <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top + 4 }]} keyboardShouldPersistTaps="handled">
-        <PageHeader title="" onBack={() => navigation.goBack()} />
-        <View style={styles.brand}><BrandMark variant="mark" size={62} /><Text style={styles.brandName}>Roomora</Text></View>
-        <View style={styles.icon}><Ionicons name={icon} size={28} color={theme.colors.primary[700]} /></View>
-        <Text style={styles.title}>{title}</Text>
-        <Text style={styles.subtitle}>{subtitle}</Text>
-        <View style={styles.form}>{children}</View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+    <KeyboardAwareScreen style={styles.screen} contentContainerStyle={[styles.content, { paddingTop: insets.top + 4 }]} bottomOffset={56}>
+      <PageHeader title="" onBack={() => navigation.goBack()} />
+      <View style={styles.brand}><BrandMark variant="mark" size={62} /><Text style={styles.brandName}>Roomora</Text></View>
+      <View style={styles.icon}><Ionicons name={icon} size={28} color={theme.colors.primary[700]} /></View>
+      <Text style={styles.title}>{title}</Text>
+      <Text style={styles.subtitle}>{subtitle}</Text>
+      <View style={styles.form}>{children}</View>
+    </KeyboardAwareScreen>
   );
 }
 
