@@ -25,8 +25,17 @@ import { attachReceiptDates, getTimelineDate, sortExpensesByTimeline } from '../
 import { getReadableReceiptItemName, getReceiptStoreName, getReceiptTitle } from '../src/utils/receiptPresentation.js';
 import { allocateShareUnits, hasCustomShareUnits, normalizeShareUnits, shareUnitsSummary } from '../src/utils/shareUnits.js';
 import { getLocale, setActiveLanguage, translate } from '../src/shared/i18n/runtime.js';
+import { compareVersions, getRequiredUpdate } from '../src/shared/version/requiredUpdate.js';
 
 setActiveLanguage('tr');
+
+assert.equal(compareVersions('1.0.1', '1.0.2'), -1);
+assert.equal(compareVersions('1.0.2', '1.0.2'), 0);
+assert.equal(compareVersions('1.1.0', '1.0.9'), 1);
+assert.equal(compareVersions('invalid', '1.0.2'), null);
+assert.equal(getRequiredUpdate({ ios: { minimumVersion: '1.0.2' } }, 'ios', '1.0.1')?.minimumVersion, '1.0.2');
+assert.equal(getRequiredUpdate({ ios: { minimumVersion: '1.0.1' } }, 'ios', '1.0.1'), null);
+assert.equal(getRequiredUpdate({ android: { minimumVersion: '1.0.2', storeUrl: 'https://example.com' } }, 'android', '1.0.1')?.storeUrl, 'https://play.google.com/store/apps/details?id=com.taopato.roomora');
 
 const chickenUnits = normalizeShareUnits([
   { userId: 1, units: 1 }, { userId: 2, units: 2, forLabel: 'bir arkadaşın için' }, { userId: 3, units: 1 },

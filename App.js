@@ -21,6 +21,7 @@ import { ThemeProvider, useTheme } from './src/shared/theme/ThemeProvider';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { LanguageProvider, useLanguage } from './src/context/LanguageContext';
 import MainTabBar from './src/shared/ui/MainTabBar';
+import RequiredUpdateGate from './src/shared/version/RequiredUpdateGate';
 import { refreshInactivityReminder, registerPushNotifications, subscribeToNotificationNavigation } from './src/services/pushNotifications';
 
 import GirisYap from './src/screens/GirisYap';
@@ -328,7 +329,9 @@ export default function App() {
             <LanguageProvider>
               <AuthProvider>
                 <ThemedStatusBar />
-                <ThemedNavigator />
+                <RequiredUpdateGate>
+                  <ThemedNavigator />
+                </RequiredUpdateGate>
               </AuthProvider>
             </LanguageProvider>
           </ThemeProvider>
