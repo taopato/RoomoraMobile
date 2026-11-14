@@ -1,4 +1,11 @@
 const EN = {
+  'Uzun fişi iki fotoğrafla ekle': 'Scan a long receipt in two photos',
+  'Tek fotoğrafa dön': 'Use one photo',
+  'Üst ve alt kısmı sırayla çek. Aynı ürün satırını iki kareye alma.': 'Capture the top and bottom in order. Do not include the same item in both photos.',
+  '1. Üst kısım': '1. Top section',
+  '2. Alt kısım': '2. Bottom section',
+  'İki parçayı tara': 'Scan both photos',
+  'Fişin alt kısmı': 'Bottom of receipt',
   'Bir Takosware projesi': 'A Takosware project',
   'Tarık Çetintürk tarafından geliştirildi.': 'Built by Tarık Çetintürk.',
   'Roomora seni bekliyor': 'Roomora is waiting for you',

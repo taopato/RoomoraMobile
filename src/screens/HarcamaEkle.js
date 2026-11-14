@@ -84,6 +84,8 @@ export default function AddExpenseScreen({ navigation, route }) {
   const [showPersonal, setShowPersonal] = useState(false);
   const [personal, setPersonal] = useState({});
   const [scanningReceipt, setScanningReceipt] = useState(false);
+  const [twoPartReceipt, setTwoPartReceipt] = useState(false);
+  const [receiptParts, setReceiptParts] = useState([null, null]);
   const [scanStage, setScanStage] = useState('preparing');
   const [toast, setToast] = useState({ visible: false, message: '', type: 'success' });
   const [quickChoices, setQuickChoices] = useState([]);
@@ -352,46 +354,36 @@ export default function AddExpenseScreen({ navigation, route }) {
     }
   };
 
-  const uploadReceipt = async (asset) => {
+  const uploadReceipt = async (asset, secondAsset = null) => {
     if (!asset?.uri) return;
 
     try {
       setScanningReceipt(true);
       setScanStage('preparing');
       await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-      let preparedAsset = asset;
-      if (Platform.OS !== 'web') {
-        const actions = Number(asset.width) > 2200
-          ? [{ resize: { width: 2200 } }]
-          : [];
-        const processed = await ImageManipulator.manipulateAsync(
-          asset.uri,
-          actions,
-          { compress: 0.9, format: ImageManipulator.SaveFormat.JPEG }
-        );
-        preparedAsset = {
-          ...asset,
-          ...processed,
-          fileName: `fis-${Date.now()}.jpg`,
-          mimeType: 'image/jpeg',
-        };
-      }
-
-      const fileName = preparedAsset.fileName
-        || preparedAsset.uri.split('/').pop()
-        || `fis-${Date.now()}.jpg`;
-      const mimeType = preparedAsset.mimeType || 'image/jpeg';
-
-      // Web'de FormData gerçek bir File/Blob bekler; RN'in {uri,name,type}
-      // nesnesi native'de çalışır ama web'de görsel hiç gönderilmez.
-      const image = Platform.OS === 'web'
-        ? new File([await (await fetch(preparedAsset.uri)).blob()], fileName, { type: mimeType })
-        : { uri: preparedAsset.uri, name: fileName, type: mimeType };
+      const prepareImage = async (source, part) => {
+        let prepared = source;
+        if (Platform.OS !== 'web') {
+          const actions = Number(source.width) > 2200 ? [{ resize: { width: 2200 } }] : [];
+          const processed = await ImageManipulator.manipulateAsync(
+            source.uri, actions, { compress: 0.9, format: ImageManipulator.SaveFormat.JPEG }
+          );
+          prepared = { ...source, ...processed, fileName: `fis-${Date.now()}-${part}.jpg`, mimeType: 'image/jpeg' };
+        }
+        const fileName = prepared.fileName || prepared.uri.split('/').pop() || `fis-${part}.jpg`;
+        const mimeType = prepared.mimeType || 'image/jpeg';
+        return Platform.OS === 'web'
+          ? new File([await (await fetch(prepared.uri)).blob()], fileName, { type: mimeType })
+          : { uri: prepared.uri, name: fileName, type: mimeType };
+      };
+      const image = await prepareImage(asset, 1);
+      const image2 = secondAsset ? await prepareImage(secondAsset, 2) : null;
 
       setScanStage('reading');
       const response = await receiptsApi.scan({
         houseId: activeHouseId,
         image,
+        image2,
       });
 
       const receipt = response?.data;
@@ -416,42 +408,31 @@ export default function AddExpenseScreen({ navigation, route }) {
     }
   };
 
-  const openGallery = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+  const chooseReceiptImage = async (source, partIndex = null) => {
+    const camera = source === 'camera';
+    const { status } = camera
+      ? await ImagePicker.requestCameraPermissionsAsync()
+      : await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('İzin gerekli', 'Galeriden fiş yüklemek için izin vermelisin.');
+      Alert.alert('İzin gerekli', camera ? 'Kamera izni vermelisin.' : 'Galeri izni vermelisin.');
       return;
     }
-
-    const result = await ImagePicker.launchImageLibraryAsync({
+    const picker = camera ? ImagePicker.launchCameraAsync : ImagePicker.launchImageLibraryAsync;
+    const result = await picker({
       mediaTypes: ['images'],
       allowsEditing: false,
       quality: 1,
-      selectionLimit: 1,
+      ...(camera ? {} : { selectionLimit: 1 }),
     });
-
-    if (!result.canceled) {
-      await uploadReceipt(result.assets?.[0]);
+    const asset = result.canceled ? null : result.assets?.[0];
+    if (asset?.uri) {
+      if (partIndex == null) await uploadReceipt(asset);
+      else setReceiptParts((current) => current.map((part, index) => index === partIndex ? asset : part));
     }
   };
 
-  const openCamera = async () => {
-    const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('İzin gerekli', 'Kamera ile fiş çekmek için izin vermelisin.');
-      return;
-    }
-
-    const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ['images'],
-      allowsEditing: false,
-      quality: 1,
-    });
-
-    if (!result.canceled) {
-      await uploadReceipt(result.assets?.[0]);
-    }
-  };
+  const openGallery = () => chooseReceiptImage('gallery');
+  const openCamera = () => chooseReceiptImage('camera');
 
   return (
     <View style={styles.screen}>
@@ -685,14 +666,45 @@ export default function AddExpenseScreen({ navigation, route }) {
               Fişi taratarak harcama bilgilerini otomatik doldurabilirsin.
             </Text>
           </View>
-          <View style={styles.receiptActions}>
-            <TouchableOpacity style={styles.receiptPrimaryButton} onPress={openCamera} disabled={scanningReceipt} activeOpacity={0.9}>
-              {scanningReceipt ? <ActivityIndicator color={theme.colors.text.onPrimary} /> : <Text style={styles.receiptPrimaryButtonText}>Kamerayı Aç</Text>}
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.receiptSecondaryButton} onPress={openGallery} disabled={scanningReceipt} activeOpacity={0.9}>
-              <Text style={styles.receiptSecondaryButtonText}>Galeriden Seç</Text>
-            </TouchableOpacity>
-          </View>
+          {twoPartReceipt ? (
+            <>
+              <Text style={styles.twoPartHint}>Üst ve alt kısmı sırayla çek. Aynı ürün satırını iki kareye alma.</Text>
+              {[0, 1].map((partIndex) => (
+                <View key={partIndex} style={styles.receiptPartRow}>
+                  {receiptParts[partIndex] ? (
+                    <Image source={{ uri: receiptParts[partIndex].uri }} style={styles.receiptPartPreview} />
+                  ) : <Ionicons name="image-outline" size={25} color={theme.colors.text.secondary} style={styles.receiptPartPlaceholder} />}
+                  <Text style={styles.receiptPartLabel}>{partIndex === 0 ? '1. Üst kısım' : '2. Alt kısım'}</Text>
+                  <TouchableOpacity onPress={() => chooseReceiptImage('camera', partIndex)} accessibilityLabel={`${partIndex + 1}. kısmı kamerayla çek`}>
+                    <Ionicons name="camera-outline" size={24} color={theme.colors.primary[700]} />
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => chooseReceiptImage('gallery', partIndex)} accessibilityLabel={`${partIndex + 1}. kısmı galeriden seç`}>
+                    <Ionicons name="images-outline" size={24} color={theme.colors.primary[700]} />
+                  </TouchableOpacity>
+                </View>
+              ))}
+              <TouchableOpacity
+                style={[styles.receiptPrimaryButton, styles.twoPartScanButton, (!receiptParts[0] || !receiptParts[1] || scanningReceipt) && styles.disabledButton]}
+                onPress={() => uploadReceipt(receiptParts[0], receiptParts[1])}
+                disabled={!receiptParts[0] || !receiptParts[1] || scanningReceipt}
+              >
+                <Text style={styles.receiptPrimaryButtonText}>İki parçayı tara</Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <View style={styles.receiptActions}>
+              <TouchableOpacity style={styles.receiptPrimaryButton} onPress={openCamera} disabled={scanningReceipt} activeOpacity={0.9}>
+                {scanningReceipt ? <ActivityIndicator color={theme.colors.text.onPrimary} /> : <Text style={styles.receiptPrimaryButtonText}>Kamerayı Aç</Text>}
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.receiptSecondaryButton} onPress={openGallery} disabled={scanningReceipt} activeOpacity={0.9}>
+                <Text style={styles.receiptSecondaryButtonText}>Galeriden Seç</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+          <TouchableOpacity style={styles.receiptModeButton} onPress={() => setTwoPartReceipt((value) => !value)}>
+            <Ionicons name={twoPartReceipt ? 'remove-circle-outline' : 'add-circle-outline'} size={18} color={theme.colors.primary[700]} />
+            <Text style={styles.receiptModeText}>{twoPartReceipt ? 'Tek fotoğrafa dön' : 'Uzun fişi iki fotoğrafla ekle'}</Text>
+          </TouchableOpacity>
           <TouchableOpacity
             style={styles.receiptGhostButton}
             activeOpacity={0.85}
@@ -802,6 +814,14 @@ const makeStyles = (theme) => StyleSheet.create({
   receiptHeader: { marginBottom: 14 },
   receiptTitle: { fontFamily: theme.typography?.bold, fontSize: 17, color: theme.colors.text.primary },
   receiptSubtitle: { fontFamily: theme.typography?.regular, fontSize: 13, color: theme.colors.text.secondary, marginTop: 4, lineHeight: 18 },
+  receiptModeButton: { flexDirection: 'row', alignItems: 'center', gap: 7, minHeight: 42, marginBottom: 8 },
+  receiptModeText: { color: theme.colors.primary[700], fontSize: 13, fontWeight: '700' },
+  twoPartHint: { color: theme.colors.text.secondary, fontSize: 12, lineHeight: 18, marginBottom: 10 },
+  receiptPartRow: { flexDirection: 'row', alignItems: 'center', gap: 14, minHeight: 70, borderWidth: 1, borderColor: theme.colors.neutral[200], borderRadius: 8, paddingHorizontal: 10, marginBottom: 8 },
+  receiptPartPreview: { width: 42, height: 56, borderRadius: 4 },
+  receiptPartPlaceholder: { width: 42, textAlign: 'center' },
+  receiptPartLabel: { flex: 1, color: theme.colors.text.primary, fontSize: 13, fontWeight: '700' },
+  twoPartScanButton: { flex: 0, marginBottom: 8 },
   receiptActions: { flexDirection: 'row', gap: 10, marginBottom: 10 },
   receiptPrimaryButton: {
     flex: 1,

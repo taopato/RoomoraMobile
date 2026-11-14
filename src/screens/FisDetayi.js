@@ -28,7 +28,7 @@ import {
   buildReceiptAssignment,
   getMemberIds,
   getReceiptItemParticipantIds,
-  getReceiptParticipantSummary,
+  toggleReceiptParticipant,
 } from '../utils/receiptAssignments';
 import { normalizeExpenseCategoryKey } from '../constants/ExpenseEnums';
 import { getReadableReceiptItemName, getReceiptStoreName, getReceiptTitle } from '../utils/receiptPresentation';
@@ -187,6 +187,9 @@ function FisDetayiInner({ route, navigation }) {
   const imageUri = receipt?.imageUrl
     ? (receipt.imageUrl.startsWith('http') ? receipt.imageUrl : `${BASE_URL}${receipt.imageUrl}`)
     : null;
+  const secondImageUri = receipt?.secondImageUrl
+    ? (receipt.secondImageUrl.startsWith('http') ? receipt.secondImageUrl : `${BASE_URL}${receipt.secondImageUrl}`)
+    : null;
 
   const patchItem = (index, next) => {
     if (!canEdit) return;
@@ -218,6 +221,21 @@ function FisDetayiInner({ route, navigation }) {
     setItems((prev) => prev
       .filter((_, itemIndex) => itemIndex !== index)
       .map((item, itemIndex) => ({ ...item, sortOrder: itemIndex })));
+  };
+
+  const selectItemParticipant = (index, memberId) => {
+    if (!canEdit) return;
+    setItems((current) => current.map((item, itemIndex) => {
+      if (index !== itemIndex) return item;
+      const assignment = memberId == null
+        ? buildReceiptAssignment(getMemberIds(members), members)
+        : toggleReceiptParticipant(item, memberId, members);
+      return {
+        ...item,
+        ...assignment,
+        shareUnits: normalizeShareUnits(item.shareUnits, assignment.participantUserIds),
+      };
+    }));
   };
 
   const openEditor = (index) => {
@@ -671,6 +689,12 @@ function FisDetayiInner({ route, navigation }) {
                 </PanGestureHandler>
               </View>
             </PinchGestureHandler>
+            {secondImageUri ? (
+              <View style={styles.secondPhoto}>
+                <Text style={styles.secondPhotoLabel}>Fişin alt kısmı</Text>
+                <Image source={{ uri: secondImageUri }} style={styles.secondPhotoImage} resizeMode="contain" />
+              </View>
+            ) : null}
           </>
         ) : null}
 
@@ -686,9 +710,7 @@ function FisDetayiInner({ route, navigation }) {
 
           {visibleItems.map(({ item, index }) => {
             const participantIds = getReceiptItemParticipantIds(item, members);
-            const participantSummary = hasCustomShareUnits(item.shareUnits)
-              ? `${getReceiptParticipantSummary(participantIds, members)} · ${shareUnitsSummary(item.shareUnits, members)}`
-              : getReceiptParticipantSummary(participantIds, members);
+            const allParticipantsSelected = memberIds.length > 0 && memberIds.every((id) => participantIds.includes(id));
             const quantity = toNumber(item.quantity, 1) || 1;
             const unitPrice = toNumber(item.price);
             const lineTotal = toNumber(item.lineTotal);
@@ -716,20 +738,42 @@ function FisDetayiInner({ route, navigation }) {
                   </View>
                 </TouchableOpacity>
 
-                <View style={styles.itemFooter}>
-                  <TouchableOpacity style={[styles.assignmentButton, { flex: 1 }]} onPress={() => openEditor(index)} disabled={!canEdit} activeOpacity={0.82}>
-                    <View style={styles.assignmentIcon}>
-                      <Ionicons name="people-outline" size={18} color={theme.colors.primary[700]} />
-                    </View>
-                    <View style={styles.assignmentBody}>
-                      <Text style={styles.assignmentLabel}>Paylaşım</Text>
-                      <Text style={styles.assignmentValue} numberOfLines={2}>{participantSummary}</Text>
-                    </View>
-                  </TouchableOpacity>
-                  {canEdit ? (
-                    <TouchableOpacity style={styles.deleteItemButton} onPress={() => removeItem(index)} accessibilityLabel="Kalemi sil">
-                      <Ionicons name="trash-outline" size={18} color={theme.colors.error[600]} />
+                <View style={styles.itemParticipants}>
+                  <View style={styles.itemParticipantsHeader}>
+                    <Text style={styles.itemParticipantsLabel}>Kimin için?</Text>
+                    {canEdit ? (
+                      <TouchableOpacity onPress={() => removeItem(index)} accessibilityLabel="Kalemi sil">
+                        <Ionicons name="trash-outline" size={18} color={theme.colors.error[600]} />
+                      </TouchableOpacity>
+                    ) : null}
+                  </View>
+                  <View style={styles.itemParticipantChips}>
+                    <TouchableOpacity
+                      style={[styles.itemParticipantChip, allParticipantsSelected && styles.itemParticipantChipActive]}
+                      onPress={() => selectItemParticipant(index, null)}
+                      disabled={!canEdit}
+                      accessibilityLabel={`${getReadableReceiptItemName(item.name)} tüm ev için`}
+                    >
+                      <Text style={[styles.itemParticipantChipText, allParticipantsSelected && styles.itemParticipantChipTextActive]}>Ortak</Text>
                     </TouchableOpacity>
+                    {members.map((member) => {
+                      const selected = participantIds.includes(member.id);
+                      return (
+                        <TouchableOpacity
+                          key={String(member.id)}
+                          style={[styles.itemParticipantChip, selected && styles.itemParticipantChipActive]}
+                          onPress={() => selectItemParticipant(index, member.id)}
+                          disabled={!canEdit}
+                          accessibilityLabel={`${getReadableReceiptItemName(item.name)} ${member.fullName} için`}
+                          testID={`receipt-item-${index}-participant-${member.id}`}
+                        >
+                          <Text style={[styles.itemParticipantChipText, selected && styles.itemParticipantChipTextActive]}>{member.fullName}</Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                  {hasCustomShareUnits(item.shareUnits) ? (
+                    <Text style={styles.itemShareSummary}>{shareUnitsSummary(item.shareUnits, members)}</Text>
                   ) : null}
                 </View>
               </View>
@@ -1109,6 +1153,18 @@ const makeStyles = (theme) => StyleSheet.create({
   filterButtonText: { color: theme.colors.text.primary, fontWeight: '700', textAlign: 'center' },
   filterButtonTextActive: { color: theme.colors.primary[700] },
   itemCard: { backgroundColor: theme.colors.surface, borderRadius: 8, padding: 12, borderWidth: 1, borderColor: theme.colors.neutral[200], marginBottom: 10 },
+  itemParticipants: { borderTopWidth: 1, borderColor: theme.colors.neutral[200], marginTop: 12, paddingTop: 12 },
+  itemParticipantsHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
+  itemParticipantsLabel: { color: theme.colors.text.secondary, fontSize: 12, fontWeight: '700' },
+  itemParticipantChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  itemParticipantChip: { minHeight: 38, paddingHorizontal: 12, justifyContent: 'center', borderRadius: 20, borderWidth: 1, borderColor: theme.colors.neutral[300], backgroundColor: theme.colors.background },
+  itemParticipantChipActive: { borderColor: theme.colors.primary[600], backgroundColor: theme.colors.primary[50] },
+  itemParticipantChipText: { color: theme.colors.text.primary, fontSize: 13, fontWeight: '500' },
+  itemParticipantChipTextActive: { color: theme.colors.primary[700], fontWeight: '700' },
+  itemShareSummary: { color: theme.colors.text.secondary, fontSize: 12, marginTop: 8 },
+  secondPhoto: { height: 280, marginBottom: 14, backgroundColor: theme.colors.neutral[100], borderRadius: 8, overflow: 'hidden' },
+  secondPhotoLabel: { color: theme.colors.text.secondary, fontSize: 12, fontWeight: '700', padding: 8 },
+  secondPhotoImage: { flex: 1, width: '100%' },
   itemFooter: { flexDirection: 'row', alignItems: 'center', borderTopWidth: 1, borderColor: theme.colors.neutral[200] },
   deleteItemButton: { width: 44, height: 48, alignItems: 'center', justifyContent: 'center' },
   originalName: { color: theme.colors.text.secondary, fontSize: 12, marginBottom: 8 },
