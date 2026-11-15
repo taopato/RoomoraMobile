@@ -25,7 +25,7 @@ export default function MoneyInput({
         <Text style={styles.currency}>₺</Text>
         <TextInput
           testID={testID}
-          style={[styles.input, Platform.OS === 'web' && styles.webInput]}
+          style={[styles.input, Platform.OS === 'android' && styles.androidInput, Platform.OS === 'web' && styles.webInput]}
           value={value}
           onChangeText={onChangeText}
           placeholder={placeholder}
@@ -90,6 +90,15 @@ const makeStyles = (theme) => StyleSheet.create({
     lineHeight: 52,
     textAlign: 'left',
     paddingVertical: 0,
+  },
+  androidInput: {
+    fontFamily: undefined,
+    fontWeight: '700',
+    fontSize: 40,
+    lineHeight: 48,
+    minHeight: 60,
+    includeFontPadding: false,
+    textAlignVertical: 'center',
   },
   webInput: {
     width: 160,
