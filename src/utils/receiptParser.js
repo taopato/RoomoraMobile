@@ -257,6 +257,31 @@ export const receiptTotalsMatch = (detectedTotal, items = []) => {
   return Math.abs(total - calculateItemsTotal(items)) <= 0.02;
 };
 
+export const getReceiptQuantityIssues = (rawText, items = []) => {
+  const lines = String(rawText || '').split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  const issues = [];
+  for (let index = 0; index < lines.length - 1; index += 1) {
+    const match = lines[index].match(/^(\d+(?:[.,]\d{1,3})?)\s*(?:ad(?:et)?|kg|gr|g)\s*[x×]\s*(\d+(?:[.,]\d{2}))$/i);
+    if (!match) continue;
+    const quantity = Number(match[1].replace(',', '.'));
+    const unitPrice = parseReceiptAmount(match[2]);
+    if (!(quantity > 0 && quantity <= 1000 && unitPrice > 0)) continue;
+
+    for (const nextLine of lines.slice(index + 1, index + 3)) {
+      const amounts = [...nextLine.matchAll(/\*\s*((?:\d{1,3}(?:[ .]\d{3})+|\d+)(?:[.,]\d{2}))/g)];
+      if (!amounts.length) continue;
+      const lineTotal = parseReceiptAmount(amounts.at(-1)[1]);
+      if (Math.abs(quantity * unitPrice - lineTotal) > 0.02) break;
+      const matchingItems = items.filter((item) => Math.abs(toNumber(item?.lineTotal) - lineTotal) <= 0.02);
+      if (!matchingItems.some((item) => Math.abs(toNumber(item.quantity, 1) - quantity) <= 0.001)) {
+        issues.push({ quantity, lineTotal, productLine: nextLine });
+      }
+      break;
+    }
+  }
+  return issues;
+};
+
 export const resolveReceiptItems = (preferredItems = [], rawText = '', detectedTotalAmount = 0) => {
   const sanitizedPreferred = normalizeResolvedItems(normalizeReceiptItems(preferredItems));
   if (sanitizedPreferred.length) return sanitizedPreferred;

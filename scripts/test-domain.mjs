@@ -12,7 +12,7 @@ import { formatMoneyInput, parseMoneyInput } from '../src/shared/format/money.js
 import { normalizeExpenseCategoryKey } from '../src/constants/ExpenseEnums.js';
 import { getTokenUserId, isTokenExpired, normalizeAuthUser } from '../src/shared/auth/session.js';
 import { getPaymentOutcome } from '../src/shared/finance/paymentOutcome.js';
-import { extractDetectedTotalFromRawText, getReceiptQuantityHint, normalizeReceiptItems, receiptTotalsMatch, resolveReceiptItems } from '../src/utils/receiptParser.js';
+import { extractDetectedTotalFromRawText, getReceiptQuantityHint, getReceiptQuantityIssues, normalizeReceiptItems, receiptTotalsMatch, resolveReceiptItems } from '../src/utils/receiptParser.js';
 import {
   buildReceiptAssignment,
   getReceiptItemParticipantIds,
@@ -185,6 +185,11 @@ assert.equal(getReceiptQuantityHint(null), null);
 assert.equal(getReceiptQuantityHint({ quantity: null }), null);
 assert.equal(getReceiptQuantityHint({ quantity: 1 }), null);
 assert.equal(getReceiptQuantityHint({ quantity: 2 }), 2);
+const quantityReceiptText = 'DAYCARE %20 *54.50\n2 ad X 43.25\nSUT %1 *86.50\n2 ad X 1.00\nALISVERIS POSETI %20 *2.00\nTOPLAM KDV *26.14\nODENECEK KDV DAHIL TUTAR *143.00';
+const wrongQuantities = [{ name: 'DAYCARE', quantity: 1, lineTotal: 54.5 }, { name: 'SUT', quantity: 1, lineTotal: 86.5 }, { name: 'ALISVERIS POSETI', quantity: 1, lineTotal: 2 }];
+assert.equal(receiptTotalsMatch(143, wrongQuantities), true);
+assert.equal(getReceiptQuantityIssues(quantityReceiptText, wrongQuantities).length, 2);
+assert.equal(getReceiptQuantityIssues(quantityReceiptText, wrongQuantities.map((item, index) => ({ ...item, quantity: index === 0 ? 1 : 2 }))).length, 0);
 assert.deepEqual(resolveReceiptItems([null, { name: 'Ekmek', price: 20, quantity: 1, lineTotal: 20 }], '', 20).map((item) => item.name), ['Ekmek']);
 
 const receiptMembers = [{ id: 38 }, { id: 39 }, { id: 40 }];

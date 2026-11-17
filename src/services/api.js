@@ -398,14 +398,15 @@ export const scheduledChargesApi = {
 
 // ---------------- RECEIPTS ----------------
 export const receiptsApi = {
-  scan: async ({ houseId, image }) => {
+  scan: async ({ houseId, image, image2 }) => {
     const fd = new FormData();
     fd.append('HouseId', Number(houseId));
     fd.append('Image', image);
+    if (image2) fd.append('Image2', image2);
 
     return api.post('/Receipts/Scan', fd, {
       headers: { 'Content-Type': 'multipart/form-data' },
-      timeout: 60000,
+      timeout: image2 ? 120000 : 60000,
     });
   },
   getByHouse: (houseId) => api.get(`/Receipts/ByHouse/${houseId}`),

@@ -16,6 +16,7 @@ import eventBus from '../shared/events/bus';
 import {
   calculateItemsTotal,
   extractDetectedTotalFromRawText,
+  getReceiptQuantityIssues,
   isMeaningfulReceiptItem,
   normalizeReceiptItems,
   normalizeResolvedItems,
@@ -28,7 +29,7 @@ import {
   buildReceiptAssignment,
   getMemberIds,
   getReceiptItemParticipantIds,
-  getReceiptParticipantSummary,
+  toggleReceiptParticipant,
 } from '../utils/receiptAssignments';
 import { normalizeExpenseCategoryKey } from '../constants/ExpenseEnums';
 import { getReadableReceiptItemName, getReceiptStoreName, getReceiptTitle } from '../utils/receiptPresentation';
@@ -82,6 +83,7 @@ function FisDetayiInner({ route, navigation }) {
   const [editingIndex, setEditingIndex] = useState(null);
   const [draftItem, setDraftItem] = useState(null);
   const [editingShares, setEditingShares] = useState(false);
+  const [editingNewItem, setEditingNewItem] = useState(false);
   const [shareDraft, setShareDraft] = useState([]);
   const [scanFailure, setScanFailure] = useState('');
   const [imageFrame, setImageFrame] = useState({ width: 0, height: 260 });
@@ -187,6 +189,9 @@ function FisDetayiInner({ route, navigation }) {
   const imageUri = receipt?.imageUrl
     ? (receipt.imageUrl.startsWith('http') ? receipt.imageUrl : `${BASE_URL}${receipt.imageUrl}`)
     : null;
+  const secondImageUri = receipt?.secondImageUrl
+    ? (receipt.secondImageUrl.startsWith('http') ? receipt.secondImageUrl : `${BASE_URL}${receipt.secondImageUrl}`)
+    : null;
 
   const patchItem = (index, next) => {
     if (!canEdit) return;
@@ -197,20 +202,17 @@ function FisDetayiInner({ route, navigation }) {
 
   const addItem = () => {
     if (!canEdit) return;
-    setItems((prev) => [
-      ...prev,
-      {
-        name: '',
-        price: 0,
-        quantity: 1,
-        lineTotal: 0,
-        isAssigned: false,
-        isShared: true,
-        personalUserId: null,
-        participantUserIds: getMemberIds(members),
-        sortOrder: prev.length,
-      },
-    ]);
+    const participantUserIds = getMemberIds(members);
+    setItems((prev) => [{
+      name: '', price: 0, quantity: 1, lineTotal: 0,
+      isAssigned: false, isShared: true, personalUserId: null,
+      participantUserIds, sortOrder: 0,
+    }, ...prev].map((item, index) => ({ ...item, sortOrder: index })));
+    setEditingIndex(0);
+    setEditingNewItem(true);
+    setDraftItem({ name: '', originalName: '', price: '0', quantity: '1',
+      originalLineTotal: 0, lineTotal: '', participantUserIds, shareUnits: [] });
+    setEditingShares(false);
   };
 
   const removeItem = (index) => {
@@ -220,12 +222,28 @@ function FisDetayiInner({ route, navigation }) {
       .map((item, itemIndex) => ({ ...item, sortOrder: itemIndex })));
   };
 
+  const selectItemParticipant = (index, memberId) => {
+    if (!canEdit) return;
+    setItems((current) => current.map((item, itemIndex) => {
+      if (index !== itemIndex) return item;
+      const assignment = memberId == null
+        ? buildReceiptAssignment(getMemberIds(members), members)
+        : toggleReceiptParticipant(item, memberId, members);
+      return {
+        ...item,
+        ...assignment,
+        shareUnits: normalizeShareUnits(item.shareUnits, assignment.participantUserIds),
+      };
+    }));
+  };
+
   const openEditor = (index) => {
     if (!canEdit) return;
     const source = items[index];
     if (!source) return;
 
     setEditingIndex(index);
+    setEditingNewItem(false);
     setDraftItem({
       name: source.name ?? '',
       originalName: source.name ?? '',
@@ -244,6 +262,12 @@ function FisDetayiInner({ route, navigation }) {
     setEditingIndex(null);
     setDraftItem(null);
     setEditingShares(false);
+    setEditingNewItem(false);
+  };
+
+  const cancelEditor = () => {
+    if (editingNewItem) removeItem(0);
+    closeEditor();
   };
 
   const saveEditor = () => {
@@ -258,15 +282,17 @@ function FisDetayiInner({ route, navigation }) {
       return;
     }
 
-    const quantity = toNumber(draftItem.quantity, 1) || 1;
+    const quantity = toNumber(draftItem.quantity);
+    if (!(quantity > 0 && quantity <= 1000)) {
+      Alert.alert('Miktar gerekli', 'Miktar sıfırdan büyük ve en fazla 1000 olmalı.');
+      return;
+    }
     const lineTotal = parseMoneyInput(draftItem.lineTotal);
     if (lineTotal <= 0) {
       Alert.alert('Tutar gerekli', 'Kalem için geçerli bir tutar gir.');
       return;
     }
-    const price = Math.abs(lineTotal - draftItem.originalLineTotal) < 0.005
-      ? toNumber(draftItem.price)
-      : Number((lineTotal / quantity).toFixed(2));
+    const price = Number((lineTotal / quantity).toFixed(2));
 
     patchItem(editingIndex, {
       name: String(draftItem.name || '').trim(),
@@ -366,8 +392,8 @@ function FisDetayiInner({ route, navigation }) {
   };
 
   const saveConvertedExpense = async () => {
-    if (hasTotalMismatch) {
-      Alert.alert('Tutarlar uyuşmuyor', 'Fiş toplamını ve kalemleri kontrol edip eşitle.');
+    if (hasTotalMismatch || quantityIssues.length) {
+      Alert.alert('Fişi kontrol et', quantityIssues.length ? 'Fişteki adet satırları kalem miktarlarıyla uyuşmuyor. Miktarları düzelt.' : 'Fiş toplamını ve kalemleri kontrol edip eşitle.');
       return;
     }
     if (!payerUserId) {
@@ -383,8 +409,8 @@ function FisDetayiInner({ route, navigation }) {
   };
 
   const convertToExpense = async () => {
-    if (hasTotalMismatch) {
-      Alert.alert('Tutarlar uyuşmuyor', 'Fiş toplamını ve kalemleri kontrol edip eşitle. Eksik tutar otomatik olarak kimseye paylaştırılmaz.');
+    if (hasTotalMismatch || quantityIssues.length) {
+      Alert.alert('Fişi kontrol et', quantityIssues.length ? 'Fişteki adet satırları kalem miktarlarıyla uyuşmuyor. Miktarları düzelt.' : 'Fiş toplamını ve kalemleri kontrol edip eşitle. Eksik tutar otomatik olarak kimseye paylaştırılmaz.');
       return;
     }
     if (!payerUserId) {
@@ -415,8 +441,8 @@ function FisDetayiInner({ route, navigation }) {
   };
 
   const confirmConvertToExpense = () => {
-    if (hasTotalMismatch) {
-      Alert.alert('Tutarlar uyuşmuyor', 'Fiş toplamını ve kalemleri kontrol edip eşitle. Eksik tutar otomatik olarak kimseye paylaştırılmaz.');
+    if (hasTotalMismatch || quantityIssues.length) {
+      Alert.alert('Fişi kontrol et', quantityIssues.length ? 'Fişteki adet satırları kalem miktarlarıyla uyuşmuyor. Miktarları düzelt.' : 'Fiş toplamını ve kalemleri kontrol edip eşitle. Eksik tutar otomatik olarak kimseye paylaştırılmaz.');
       return;
     }
     Alert.alert(
@@ -459,6 +485,7 @@ function FisDetayiInner({ route, navigation }) {
   const detectedTotal = toNumber(receipt?.detectedTotalAmount);
   const total = detectedTotal > 0 ? detectedTotal : explicitTotal;
   const hasTotalMismatch = !receiptTotalsMatch(detectedTotal, items);
+  const quantityIssues = getReceiptQuantityIssues(receipt?.rawOcrText, items);
   const memberIds = getMemberIds(members);
   const subsetTotal = items
     .filter((item) => getReceiptItemParticipantIds(item, members).length !== memberIds.length)
@@ -516,12 +543,6 @@ function FisDetayiInner({ route, navigation }) {
     items
       .filter((item) => item && typeof item === 'object')
       .map((item, index) => ({ item, index }))
-      .sort((a, b) => {
-        const topA = a.item?.boxTop ?? Number.MAX_SAFE_INTEGER;
-        const topB = b.item?.boxTop ?? Number.MAX_SAFE_INTEGER;
-        if (topA !== topB) return topA - topB;
-        return a.index - b.index;
-      })
   ), [items]);
   const quantityHint = getReceiptQuantityHint(draftItem);
   if (loading) {
@@ -586,6 +607,14 @@ function FisDetayiInner({ route, navigation }) {
               <Text style={styles.missingAmountText}>
                 Okunan fiş toplamı {detectedTotal.toLocaleString(getLocale(), { style: 'currency', currency: 'TRY' })}, kalemlerin toplamı {explicitTotal.toLocaleString(getLocale(), { style: 'currency', currency: 'TRY' })}.
                 Eksik veya fazla okunan kalemleri düzeltmeden harcamaya dönüştüremezsin; hiçbir fark otomatik paylaştırılmaz.
+              </Text>
+            </View>
+          ) : null}
+          {quantityIssues.length ? (
+            <View style={styles.missingAmountCard}>
+              <Text style={styles.missingAmountTitle}>Miktarları kontrol et</Text>
+              <Text style={styles.missingAmountText}>
+                Fişte {quantityIssues.length} adet/miktar satırı kalemlerle uyuşmuyor. Kaleme dokunup miktarı düzeltmeden harcamaya dönüştüremezsin.
               </Text>
             </View>
           ) : null}
@@ -671,6 +700,12 @@ function FisDetayiInner({ route, navigation }) {
                 </PanGestureHandler>
               </View>
             </PinchGestureHandler>
+            {secondImageUri ? (
+              <View style={styles.secondPhoto}>
+                <Text style={styles.secondPhotoLabel}>Fişin alt kısmı</Text>
+                <Image source={{ uri: secondImageUri }} style={styles.secondPhotoImage} resizeMode="contain" />
+              </View>
+            ) : null}
           </>
         ) : null}
 
@@ -686,9 +721,7 @@ function FisDetayiInner({ route, navigation }) {
 
           {visibleItems.map(({ item, index }) => {
             const participantIds = getReceiptItemParticipantIds(item, members);
-            const participantSummary = hasCustomShareUnits(item.shareUnits)
-              ? `${getReceiptParticipantSummary(participantIds, members)} · ${shareUnitsSummary(item.shareUnits, members)}`
-              : getReceiptParticipantSummary(participantIds, members);
+            const allParticipantsSelected = memberIds.length > 0 && memberIds.every((id) => participantIds.includes(id));
             const quantity = toNumber(item.quantity, 1) || 1;
             const unitPrice = toNumber(item.price);
             const lineTotal = toNumber(item.lineTotal);
@@ -716,20 +749,42 @@ function FisDetayiInner({ route, navigation }) {
                   </View>
                 </TouchableOpacity>
 
-                <View style={styles.itemFooter}>
-                  <TouchableOpacity style={[styles.assignmentButton, { flex: 1 }]} onPress={() => openEditor(index)} disabled={!canEdit} activeOpacity={0.82}>
-                    <View style={styles.assignmentIcon}>
-                      <Ionicons name="people-outline" size={18} color={theme.colors.primary[700]} />
-                    </View>
-                    <View style={styles.assignmentBody}>
-                      <Text style={styles.assignmentLabel}>Paylaşım</Text>
-                      <Text style={styles.assignmentValue} numberOfLines={2}>{participantSummary}</Text>
-                    </View>
-                  </TouchableOpacity>
-                  {canEdit ? (
-                    <TouchableOpacity style={styles.deleteItemButton} onPress={() => removeItem(index)} accessibilityLabel="Kalemi sil">
-                      <Ionicons name="trash-outline" size={18} color={theme.colors.error[600]} />
+                <View style={styles.itemParticipants}>
+                  <View style={styles.itemParticipantsHeader}>
+                    <Text style={styles.itemParticipantsLabel}>Kimin için?</Text>
+                    {canEdit ? (
+                      <TouchableOpacity onPress={() => removeItem(index)} accessibilityLabel="Kalemi sil">
+                        <Ionicons name="trash-outline" size={18} color={theme.colors.error[600]} />
+                      </TouchableOpacity>
+                    ) : null}
+                  </View>
+                  <View style={styles.itemParticipantChips}>
+                    <TouchableOpacity
+                      style={[styles.itemParticipantChip, allParticipantsSelected && styles.itemParticipantChipActive]}
+                      onPress={() => selectItemParticipant(index, null)}
+                      disabled={!canEdit}
+                      accessibilityLabel={`${getReadableReceiptItemName(item.name)} tüm ev için`}
+                    >
+                      <Text style={[styles.itemParticipantChipText, allParticipantsSelected && styles.itemParticipantChipTextActive]}>Ortak</Text>
                     </TouchableOpacity>
+                    {members.map((member) => {
+                      const selected = participantIds.includes(member.id);
+                      return (
+                        <TouchableOpacity
+                          key={String(member.id)}
+                          style={[styles.itemParticipantChip, selected && styles.itemParticipantChipActive]}
+                          onPress={() => selectItemParticipant(index, member.id)}
+                          disabled={!canEdit}
+                          accessibilityLabel={`${getReadableReceiptItemName(item.name)} ${member.fullName} için`}
+                          testID={`receipt-item-${index}-participant-${member.id}`}
+                        >
+                          <Text style={[styles.itemParticipantChipText, selected && styles.itemParticipantChipTextActive]}>{member.fullName}</Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                  {hasCustomShareUnits(item.shareUnits) ? (
+                    <Text style={styles.itemShareSummary}>{shareUnitsSummary(item.shareUnits, members)}</Text>
                   ) : null}
                 </View>
               </View>
@@ -801,11 +856,11 @@ function FisDetayiInner({ route, navigation }) {
 
       <View pointerEvents="none" style={[styles.statusBarGuard, { height: insets.top }]} />
 
-      <Modal visible={editingIndex != null && !!draftItem} transparent animationType="slide" onRequestClose={closeEditor}>
+      {editingIndex != null && draftItem ? <Modal visible transparent animationType="fade" onRequestClose={cancelEditor} statusBarTranslucent>
         <View style={styles.modalRoot}>
-          <Pressable style={styles.modalBackdrop} onPress={closeEditor} accessibilityLabel="Düzenlemeyi kapat" testID="receipt-editor-backdrop" />
-          <KeyboardAvoidingView pointerEvents="box-none" behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalKeyboard}>
-            <View style={[styles.modalSheet, { maxHeight: windowHeight * 0.7, paddingBottom: insets.bottom + 12 }]}>
+          <Pressable style={styles.modalBackdrop} onPress={cancelEditor} accessibilityLabel="Düzenlemeyi kapat" testID="receipt-editor-backdrop" />
+          <KeyboardAvoidingView pointerEvents="box-none" behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalKeyboard}>
+            <View style={[styles.modalSheet, { maxHeight: windowHeight * 0.76 }]}>
               {editingShares ? (
                 <ShareUnitsPicker
                   members={members}
@@ -852,9 +907,17 @@ function FisDetayiInner({ route, navigation }) {
                 value={draftItem?.lineTotal ?? ''}
                 onChangeText={(value) => setDraftItem((prev) => ({ ...prev, lineTotal: formatMoneyInput(value) }))}
               />
+              <Text style={styles.quantityLabel}>Miktar</Text>
+              <TextInput
+                style={styles.input}
+                keyboardType="decimal-pad"
+                value={draftItem?.quantity ?? '1'}
+                onChangeText={(value) => setDraftItem((prev) => ({ ...prev, quantity: value.replace(/[^0-9.,]/g, '') }))}
+                accessibilityLabel="Kalem miktarı"
+              />
               {quantityHint != null ? (
                 <Text style={styles.quantityHint}>
-                  {getLocale().startsWith('en') ? `Quantity on receipt: ${quantityHint}` : `Fişteki miktar: ${quantityHint}`}
+                  {getLocale().startsWith('en') ? 'Unit price' : 'Birim fiyat'}: {(parseMoneyInput(draftItem?.lineTotal) / quantityHint).toLocaleString(getLocale(), { style: 'currency', currency: 'TRY' })}
                 </Text>
               ) : null}
               <MemberSelectionCard
@@ -898,7 +961,7 @@ function FisDetayiInner({ route, navigation }) {
               />
 
               <View style={styles.modalActions}>
-                <TouchableOpacity style={styles.modalSecondaryButton} onPress={closeEditor}>
+                <TouchableOpacity style={styles.modalSecondaryButton} onPress={cancelEditor}>
                   <Text style={styles.modalSecondaryButtonText}>Vazgeç</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.modalPrimaryButton} onPress={saveEditor}>
@@ -909,7 +972,7 @@ function FisDetayiInner({ route, navigation }) {
             </View>
           </KeyboardAvoidingView>
         </View>
-      </Modal>
+      </Modal> : null}
 
     </View>
   );
@@ -1109,6 +1172,18 @@ const makeStyles = (theme) => StyleSheet.create({
   filterButtonText: { color: theme.colors.text.primary, fontWeight: '700', textAlign: 'center' },
   filterButtonTextActive: { color: theme.colors.primary[700] },
   itemCard: { backgroundColor: theme.colors.surface, borderRadius: 8, padding: 12, borderWidth: 1, borderColor: theme.colors.neutral[200], marginBottom: 10 },
+  itemParticipants: { borderTopWidth: 1, borderColor: theme.colors.neutral[200], marginTop: 12, paddingTop: 12 },
+  itemParticipantsHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
+  itemParticipantsLabel: { color: theme.colors.text.secondary, fontSize: 12, fontWeight: '700' },
+  itemParticipantChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  itemParticipantChip: { minHeight: 38, paddingHorizontal: 12, justifyContent: 'center', borderRadius: 20, borderWidth: 1, borderColor: theme.colors.neutral[300], backgroundColor: theme.colors.background },
+  itemParticipantChipActive: { borderColor: theme.colors.primary[600], backgroundColor: theme.colors.primary[50] },
+  itemParticipantChipText: { color: theme.colors.text.primary, fontSize: 13, fontWeight: '500' },
+  itemParticipantChipTextActive: { color: theme.colors.primary[700], fontWeight: '700' },
+  itemShareSummary: { color: theme.colors.text.secondary, fontSize: 12, marginTop: 8 },
+  secondPhoto: { height: 280, marginBottom: 14, backgroundColor: theme.colors.neutral[100], borderRadius: 8, overflow: 'hidden' },
+  secondPhotoLabel: { color: theme.colors.text.secondary, fontSize: 12, fontWeight: '700', padding: 8 },
+  secondPhotoImage: { flex: 1, width: '100%' },
   itemFooter: { flexDirection: 'row', alignItems: 'center', borderTopWidth: 1, borderColor: theme.colors.neutral[200] },
   deleteItemButton: { width: 44, height: 48, alignItems: 'center', justifyContent: 'center' },
   originalName: { color: theme.colors.text.secondary, fontSize: 12, marginBottom: 8 },
@@ -1239,15 +1314,16 @@ const makeStyles = (theme) => StyleSheet.create({
   primaryButtonText: { color: theme.colors.text.onPrimary, fontWeight: '900' },
   deleteReceiptButton: { paddingVertical: 14, alignItems: 'center', marginTop: 6 },
   deleteReceiptButtonText: { color: theme.colors.error[700], fontWeight: '800' },
-  modalRoot: { flex: 1, backgroundColor: 'rgba(0,0,0,0.42)' },
+  modalRoot: { flex: 1, justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.42)' },
   modalBackdrop: { ...StyleSheet.absoluteFillObject },
-  modalKeyboard: { position: 'absolute', left: 0, right: 0, bottom: 0 },
-  modalSheet: { flexShrink: 1, backgroundColor: theme.colors.surface, paddingHorizontal: 16, paddingTop: 18, borderTopLeftRadius: 8, borderTopRightRadius: 8, borderWidth: 1, borderColor: theme.colors.neutral[200] },
+  modalKeyboard: { flex: 1, justifyContent: 'center', paddingHorizontal: 16 },
+  modalSheet: { flexShrink: 1, backgroundColor: theme.colors.surface, paddingHorizontal: 16, paddingVertical: 18, borderRadius: 8, borderWidth: 1, borderColor: theme.colors.neutral[200] },
   modalScroll: { flexGrow: 0, flexShrink: 1 },
   modalContent: { paddingBottom: 12 },
   modalTitle: { color: theme.colors.text.primary, fontSize: 18, fontWeight: '900', marginBottom: 6 },
   modalHint: { color: theme.colors.text.secondary, lineHeight: 18, marginBottom: 12 },
   quantityHint: { color: theme.colors.text.secondary, fontSize: 12, textAlign: 'center', marginTop: -6, marginBottom: 12 },
+  quantityLabel: { color: theme.colors.text.secondary, fontSize: 12, fontWeight: '700', marginBottom: 6 },
   modalActions: { flexDirection: 'row', gap: 10, marginTop: 8 },
   modalSecondaryButton: { flex: 1, minHeight: 48, alignItems: 'center', justifyContent: 'center', borderRadius: 14, borderWidth: 1, borderColor: theme.colors.neutral[200] },
   modalSecondaryButtonText: { color: theme.colors.text.primary, fontWeight: '800' },
