@@ -388,6 +388,7 @@ export default function AddExpenseScreen({ navigation, route }) {
 
       const receipt = response?.data;
       if (receipt?.id) {
+        setScanningReceipt(false);
         navigation.navigate('FisDetayi', { receiptId: receipt.id, houseId: activeHouseId, initialReceipt: receipt });
       } else {
         showToast('Fiş yüklendi ama detay açılamadı.', 'error');
@@ -694,7 +695,7 @@ export default function AddExpenseScreen({ navigation, route }) {
           ) : (
             <View style={styles.receiptActions}>
               <TouchableOpacity style={styles.receiptPrimaryButton} onPress={openCamera} disabled={scanningReceipt} activeOpacity={0.9}>
-                {scanningReceipt ? <ActivityIndicator color={theme.colors.text.onPrimary} /> : <Text style={styles.receiptPrimaryButtonText}>Kamerayı Aç</Text>}
+                <Text style={styles.receiptPrimaryButtonText}>Kamerayı Aç</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.receiptSecondaryButton} onPress={openGallery} disabled={scanningReceipt} activeOpacity={0.9}>
                 <Text style={styles.receiptSecondaryButtonText}>Galeriden Seç</Text>
@@ -717,13 +718,13 @@ export default function AddExpenseScreen({ navigation, route }) {
         <Toast visible={toast.visible} message={toast.message} type={toast.type} onHide={hideToast} />
       </KeyboardAwareScreen>
 
-      {scanningReceipt ? (
+      <Modal visible={scanningReceipt} transparent animationType="fade" statusBarTranslucent onRequestClose={() => {}}>
         <View style={styles.scanOverlay} accessibilityViewIsModal>
           <Image source={require('../assets/mark-white.png')} style={styles.scanBrandMark} resizeMode="contain" />
           <ActivityIndicator size="small" color="#fff" style={styles.scanSpinner} />
           <Text style={styles.scanTitle}>{scanStage === 'preparing' ? 'Fotoğraf hazırlanıyor' : 'Fiş taranıyor'}</Text>
         </View>
-      ) : null}
+      </Modal>
 
       <Modal visible={shareEditorVisible} transparent animationType="slide" onRequestClose={() => setShareEditorVisible(false)}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={[styles.shareModalBackdrop, { paddingTop: insets.top + 8 }]}>
