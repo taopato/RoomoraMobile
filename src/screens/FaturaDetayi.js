@@ -15,6 +15,7 @@ import Toast from '../components/Toast';
 
 import { Alert, Text } from '../shared/i18n';
 import { getLocale } from '../shared/i18n/runtime';
+import { parseApiDate } from '../shared/format/date';
 
 import { TouchableOpacity } from '../shared/i18n';
 
@@ -26,7 +27,7 @@ const formatAmount = (amount) => new Intl.NumberFormat(getLocale(), {
 
 const formatDate = (value) => {
   if (!value) return 'Belirtilmedi';
-  const date = new Date(value);
+  const date = parseApiDate(value);
   if (Number.isNaN(date.getTime())) return 'Belirtilmedi';
   return date.toLocaleDateString(getLocale(), { day: '2-digit', month: 'long', year: 'numeric' });
 };

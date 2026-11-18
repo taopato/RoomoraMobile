@@ -1,4 +1,5 @@
 import { getLocale } from '../shared/i18n/runtime.js';
+import { parseApiDate } from '../shared/format/date.js';
 // src/constants/ExpenseEnums.js
 
 export const ExpenseCategory = {
@@ -169,7 +170,7 @@ export const formatAmount = (amount) =>
 export const formatDate = (dateString) => {
   if (!dateString) return 'Tarih yok';
   try {
-    return new Date(dateString).toLocaleDateString(getLocale());
+    return parseApiDate(dateString).toLocaleDateString(getLocale());
   } catch {
     return 'Geçersiz tarih';
   }
@@ -210,7 +211,7 @@ export const normalizeExpense = (raw = {}) => {
 };
 
 export const ymOf = (dateString) => {
-  const d = new Date(dateString);
+  const d = parseApiDate(dateString);
   if (Number.isNaN(d.getTime())) return '';
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 };

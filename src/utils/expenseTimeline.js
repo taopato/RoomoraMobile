@@ -1,7 +1,8 @@
 import { getReceiptStoreName } from './receiptPresentation.js';
+import { parseApiDate } from '../shared/format/date.js';
 
 const validDate = (value) => {
-  const date = value ? new Date(value) : null;
+  const date = value ? parseApiDate(value) : null;
   return date && Number.isFinite(date.getTime()) ? date : null;
 };
 

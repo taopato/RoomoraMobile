@@ -40,6 +40,7 @@ import { selectParticipant } from '../utils/participantSelection';
 
 import { Alert, Text, TextInput } from '../shared/i18n';
 import { getLocale } from '../shared/i18n/runtime';
+import { parseApiDate } from '../shared/format/date';
 
 import { TouchableOpacity } from '../shared/i18n';
 
@@ -74,6 +75,7 @@ function FisDetayiInner({ route, navigation }) {
 
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const convertingRef = useRef(false);
   const [receipt, setReceipt] = useState(null);
   const [totalInput, setTotalInput] = useState('');
   const [items, setItems] = useState([]);
@@ -131,7 +133,10 @@ function FisDetayiInner({ route, navigation }) {
       const hasMeaninglessSavedItems = normalizedItems.some((item) => !isMeaningfulReceiptItem(item));
       const receiptIsConverted = String(receiptData?.status ?? '').toLowerCase() === 'converted'
         || Number(receiptData?.status) === 3;
-      const shouldReparse = !receiptIsConverted
+      // Kullanıcının kaydettiği taslak yeniden okunursa kalemleri ve kişi atamaları silinir
+      const receiptIsReviewed = String(receiptData?.status ?? '').toLowerCase() === 'reviewed'
+        || Number(receiptData?.status) === 2;
+      const shouldReparse = !receiptIsConverted && !receiptIsReviewed
         && !normalizedItems.some((item) => hasCustomShareUnits(item.shareUnits)) && (
         normalizedItems.length === 0
         || normalizedItems.every((item) => toNumber(item.lineTotal) <= 0)
@@ -418,12 +423,17 @@ function FisDetayiInner({ route, navigation }) {
       return;
     }
 
+    // Çift dokunuşta fiş iki kez dönüştürülmeye çalışılmasın
+    if (convertingRef.current) return;
+    convertingRef.current = true;
     const saved = await saveDraft({ silent: true });
     if (!saved) {
+      convertingRef.current = false;
       Alert.alert('Hata', 'Dönüşüm öncesi fiş kaydedilemedi.');
       return;
     }
 
+    let converted = false;
     setSaving(true);
     try {
       await receiptsApi.convertToExpense(receiptId, {
@@ -431,12 +441,16 @@ function FisDetayiInner({ route, navigation }) {
         note: getReceiptTitle(receipt),
         category,
       });
+      converted = true;
       Alert.alert('Başarılı', 'Fiş harcamaya dönüştürüldü.');
       navigation.navigate('MainTabs', { screen: 'TumHarcamalar' });
     } catch {
       Alert.alert('Hata', 'Fiş harcamaya dönüştürülemedi.');
     } finally {
-      setSaving(false);
+      if (!converted) {
+        convertingRef.current = false;
+        setSaving(false);
+      }
     }
   };
 
@@ -570,9 +584,9 @@ function FisDetayiInner({ route, navigation }) {
         <View style={styles.summaryCard}>
           <Text style={styles.summaryTitle}>{getReceiptTitle(receipt, getLocale())}</Text>
           <Text style={styles.summarySub}>
-            {getLocale().startsWith('en') ? 'Receipt date' : 'Fiş tarihi'}: {receipt?.receiptDate ? new Date(receipt.receiptDate).toLocaleDateString(getLocale()) : '-'}
+            {getLocale().startsWith('en') ? 'Receipt date' : 'Fiş tarihi'}: {receipt?.receiptDate ? parseApiDate(receipt.receiptDate).toLocaleDateString(getLocale()) : '-'}
           </Text>
-          {receipt?.createdAt ? <Text style={styles.summarySub}>{getLocale().startsWith('en') ? 'Added' : 'Eklendi'}: {new Date(receipt.createdAt).toLocaleDateString(getLocale())}</Text> : null}
+          {receipt?.createdAt ? <Text style={styles.summarySub}>{getLocale().startsWith('en') ? 'Added' : 'Eklendi'}: {parseApiDate(receipt.createdAt).toLocaleDateString(getLocale())}</Text> : null}
           <Text style={styles.summaryAmount}>
             {total.toLocaleString(getLocale(), { style: 'currency', currency: 'TRY' })}
           </Text>

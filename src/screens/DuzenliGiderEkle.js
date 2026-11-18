@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, StyleSheet, Modal, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -47,6 +47,7 @@ export default function DuzenliGiderEkle({ navigation, route }) {
 
   const [customMonths, setCustomMonths] = useState('');
   const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
 
   useEffect(() => {
     if (!activeHouseId) {
@@ -110,7 +111,10 @@ export default function DuzenliGiderEkle({ navigation, route }) {
   };
 
   const onSave = async () => {
-    if (saving) return;
+    // Çift dokunuşta plan iki kez oluşturulmasın
+    if (saving || savingRef.current) return;
+    savingRef.current = true;
+    let saved = false;
     try {
       if (!payerUserId) return Alert.alert('Hata', 'Ödeyecek kişiyi seçin.');
       const dueDayNum = Number(selectedDate.getDate());
@@ -212,11 +216,15 @@ export default function DuzenliGiderEkle({ navigation, route }) {
 
       eventBus.emit('expenses:updated', { houseId: activeHouseId });
       if (mode === 'recurring') eventBus.emit('scheduled-charges:updated', { houseId: activeHouseId });
+      saved = true;
       navigation.goBack();
     } catch (error) {
       Alert.alert('Hata', error?.response?.data?.message || error?.message || 'Kaydedilemedi');
     } finally {
-      setSaving(false);
+      if (!saved) {
+        savingRef.current = false;
+        setSaving(false);
+      }
     }
   };
 

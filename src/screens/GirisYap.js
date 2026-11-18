@@ -7,7 +7,8 @@ import * as Google from 'expo-auth-session/providers/google';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
-import { useAuth } from '../context/AuthContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { favoriteHouseStorageKey, useAuth } from '../context/AuthContext';
 import { authApi, houseApi } from '../services/api';
 import { useCommonStyles } from '../shared/ui/CommonStyles';
 import { useTheme } from '../shared/theme/ThemeProvider';
@@ -215,7 +216,8 @@ const GirisYap = ({ navigation, route }) => {
     if (joinedHouseId) {
       try {
         const houseResponse = await houseApi.getById(joinedHouseId);
-        await setDefaultHouseId(joinedHouseId, houseResponse?.data?.name || houseResponse?.data?.data?.name);
+        const house = houseResponse?.data?.data ?? houseResponse?.data;
+        await setDefaultHouseId(joinedHouseId, house?.name, house?.groupType || 'Home');
       } catch {
         await setDefaultHouseId(joinedHouseId);
       }
@@ -224,6 +226,8 @@ const GirisYap = ({ navigation, route }) => {
 
   const ensureDefaultHouse = async (userId) => {
     if (!userId) return;
+    // Kayıtlı favori ev veya az önce katılınan davet evi varsa ezme
+    if (await AsyncStorage.getItem(favoriteHouseStorageKey(userId)).catch(() => null)) return;
     try {
       const response = await houseApi.getUserHouses(userId);
       const raw = response?.data?.data ?? response?.data ?? [];
@@ -232,7 +236,7 @@ const GirisYap = ({ navigation, route }) => {
       const houseId = firstHouse?.id ?? firstHouse?.Id;
       const houseName = firstHouse?.name ?? firstHouse?.Name;
       if (houseId) {
-        await setDefaultHouseId(houseId, houseName);
+        await setDefaultHouseId(houseId, houseName, firstHouse?.groupType ?? firstHouse?.GroupType ?? 'Home');
       }
     } catch (error) {
       console.error('Varsayilan ev secilemedi:', error?.response?.data || error?.message || error);

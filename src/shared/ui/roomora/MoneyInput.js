@@ -27,7 +27,11 @@ export default function MoneyInput({
           testID={testID}
           style={[styles.input, Platform.OS === 'android' && styles.androidInput, Platform.OS === 'web' && styles.webInput]}
           value={value}
-          onChangeText={onChangeText}
+          onChangeText={(text) => {
+            // Silmede binlik ayıracı ondalık sanılmasın
+            const groupSeparator = getLocale() === 'en-US' ? ',' : '.';
+            onChangeText?.(text.length < String(value ?? '').length ? text.split(groupSeparator).join('') : text);
+          }}
           placeholder={placeholder}
           placeholderTextColor={theme.colors.text.disabled}
           keyboardType="decimal-pad"

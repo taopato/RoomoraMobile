@@ -17,6 +17,7 @@ import {
 } from '../shared/ui/roomora/CanonicalUI';
 
 import { Text } from '../shared/i18n';
+import { parseApiDate } from '../shared/format/date';
 
 const periods = [
   { key: 'month', label: 'Bu ay' },
@@ -40,7 +41,7 @@ export default function HarcamaOzeti({ navigation }) {
       : period === 'three'
         ? new Date(now.getFullYear(), now.getMonth() - 2, 1)
         : null;
-    return data.expenses.filter((item) => !start || new Date(item.date || item.createdAt || 0) >= start);
+    return data.expenses.filter((item) => !start || parseApiDate(item.date || item.createdAt || 0) >= start);
   }, [data.expenses, period]);
 
   const breakdown = useMemo(() => {

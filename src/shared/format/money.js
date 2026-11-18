@@ -12,7 +12,10 @@ export const formatMoneyInput = (value) => {
   if (lastComma >= 0 && lastDot >= 0) {
     decimalIndex = Math.max(lastComma, lastDot);
   } else if (lastComma >= 0) {
-    decimalIndex = lastComma;
+    // İngilizcede virgül binlik ayıracıdır; yalnızca tek virgül + en fazla 2 hane ondalık sayılır
+    const digitsAfterComma = raw.slice(lastComma + 1).replace(/\D/g, '').length;
+    const commaCount = (raw.match(/,/g) || []).length;
+    if (getActiveLanguage() !== 'en' || (commaCount === 1 && digitsAfterComma <= 2)) decimalIndex = lastComma;
   } else if (lastDot >= 0) {
     const digitsAfterDot = raw.slice(lastDot + 1).replace(/\D/g, '').length;
     if (dotCount === 1 && digitsAfterDot <= 2) decimalIndex = lastDot;
@@ -29,6 +32,13 @@ export const formatMoneyInput = (value) => {
   if (decimalIndex < 0) return groupedInteger;
   const decimals = raw.slice(decimalIndex + 1).replace(/\D/g, '').slice(0, 2);
   return `${groupedInteger}${decimalSeparator}${decimals}`;
+};
+
+// Silmede binlik ayıracı ondalık sanılmasın
+export const formatMoneyEdit = (next, previous) => {
+  const text = String(next ?? '');
+  const groupSeparator = getActiveLanguage() === 'en' ? ',' : '.';
+  return formatMoneyInput(text.length < String(previous ?? '').length ? text.split(groupSeparator).join('') : text);
 };
 
 export const parseMoneyInput = (value) => {

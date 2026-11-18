@@ -11,7 +11,7 @@ import { money, PageHeader } from '../shared/ui/roomora/CanonicalUI';
 import Toast from '../components/Toast';
 import { toExpenseCategory } from '../constants/ExpenseEnums';
 import { CATEGORY_ID_TO_KEY } from '../utils/expenseClassifier';
-import { formatMoneyInput, parseMoneyInput } from '../shared/format/money';
+import { formatMoneyEdit, formatMoneyInput, parseMoneyInput } from '../shared/format/money';
 import { selectParticipant } from '../utils/participantSelection';
 import KeyboardAwareScreen from '../shared/ui/KeyboardAwareScreen';
 import MoneyInput from '../shared/ui/roomora/MoneyInput';
@@ -81,6 +81,7 @@ export default function AddExpenseScreen({ navigation, route }) {
   const [shareDraft, setShareDraft] = useState([]);
   const [shareEditorVisible, setShareEditorVisible] = useState(false);
   const [loading, setLoading] = useState(false);
+  const savingRef = useRef(false);
   const [showPersonal, setShowPersonal] = useState(false);
   const [personal, setPersonal] = useState({});
   const [scanningReceipt, setScanningReceipt] = useState(false);
@@ -337,9 +338,14 @@ export default function AddExpenseScreen({ navigation, route }) {
       shareUnits: hasCustomShareUnits(shareUnits) ? normalizeShareUnits(shareUnits, participantIds) : [],
     };
 
+    // Çift dokunuşta aynı harcama iki kez kaydedilmesin
+    if (savingRef.current) return;
+    savingRef.current = true;
+    let saved = false;
     try {
       setLoading(true);
       await expensesApi.create(payload);
+      saved = true;
       try {
         const bus = (await import('../shared/events/bus')).default;
         bus.emit('expenses:updated', { houseId: activeHouseId });
@@ -350,7 +356,11 @@ export default function AddExpenseScreen({ navigation, route }) {
       console.error('Harcama kaydi hatasi:', error?.response?.data || error?.message);
       showToast('Kayıt sırasında bir hata oluştu.', 'error');
     } finally {
-      setLoading(false);
+      // Başarıda ekrandan çıkılana kadar buton kapalı kalsın
+      if (!saved) {
+        savingRef.current = false;
+        setLoading(false);
+      }
     }
   };
 
@@ -612,7 +622,7 @@ export default function AddExpenseScreen({ navigation, route }) {
                       value={personal[String(member.id)] || ''}
                       onChangeText={(value) => setPersonal((prev) => ({
                         ...prev,
-                        [String(member.id)]: formatMoneyInput(value),
+                        [String(member.id)]: formatMoneyEdit(value, prev[String(member.id)]),
                       }))}
                     />
                   ) : (

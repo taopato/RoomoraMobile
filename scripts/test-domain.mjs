@@ -8,7 +8,7 @@ import {
   toCanonicalTurkishIban,
   toTurkishMobileE164,
 } from '../src/shared/validation/profileValidation.js';
-import { formatMoneyInput, parseMoneyInput } from '../src/shared/format/money.js';
+import { formatMoneyEdit, formatMoneyInput, parseMoneyInput } from '../src/shared/format/money.js';
 import { normalizeExpenseCategoryKey } from '../src/constants/ExpenseEnums.js';
 import { getTokenUserId, isTokenExpired, normalizeAuthUser } from '../src/shared/auth/session.js';
 import { getPaymentOutcome } from '../src/shared/finance/paymentOutcome.js';
@@ -26,6 +26,7 @@ import { getReadableReceiptItemName, getReceiptStoreName, getReceiptTitle } from
 import { allocateShareUnits, hasCustomShareUnits, normalizeShareUnits, shareUnitsSummary } from '../src/utils/shareUnits.js';
 import { getLocale, setActiveLanguage, translate } from '../src/shared/i18n/runtime.js';
 import { compareVersions, getRequiredUpdate } from '../src/shared/version/requiredUpdate.js';
+import { parseApiDate } from '../src/shared/format/date.js';
 
 setActiveLanguage('tr');
 
@@ -73,6 +74,10 @@ const timelineExpenses = attachReceiptDates([
   { id: 11, date: '2026-09-01T12:00:00Z', _raw: { kayitTarihi: '2026-09-01T12:00:00Z' } },
 ], [{ convertedExpenseId: 11, receiptDate: '2026-09-01T12:00:00Z', createdAt: '2026-10-29T12:00:00Z' }]);
 assert.equal(sortExpensesByTimeline(timelineExpenses)[0].id, 11);
+assert.equal(parseApiDate('2026-11-17T22:00:00').toISOString(), '2026-11-17T22:00:00.000Z');
+assert.equal(parseApiDate('2026-11-17T22:00:00.1234567').toISOString(), '2026-11-17T22:00:00.123Z');
+assert.equal(parseApiDate('2026-11-17T22:00:00+03:00').toISOString(), '2026-11-17T19:00:00.000Z');
+assert.equal(getTimelineDate({ _raw: { kayitTarihi: '2026-11-17T22:00:00' } }).toISOString(), '2026-11-17T22:00:00.000Z');
 assert.equal(sortExpensesByTimeline(timelineExpenses, 'expense')[0].id, 10);
 assert.equal(getTimelineDate(timelineExpenses[1], 'added').toISOString(), '2026-10-29T12:00:00.000Z');
 assert.equal(getTimelineDate(timelineExpenses[1], 'expense').toISOString(), '2026-09-01T12:00:00.000Z');
@@ -104,6 +109,18 @@ assert.equal(formatMoneyInput('1234567,89'), '1.234.567,89');
 assert.equal(formatMoneyInput('1.234.567,89'), '1.234.567,89');
 assert.equal(parseMoneyInput('1.234.567,89'), 1234567.89);
 assert.equal(parseMoneyInput('850'), 850);
+
+const typeMoney = (keys, start = '') => [...keys].reduce((value, key) => formatMoneyEdit(value + key, value), start);
+assert.equal(typeMoney('12500'), '12.500');
+assert.equal(formatMoneyEdit('12.50', '12.500'), '1.250');
+assert.equal(parseMoneyInput(formatMoneyInput('12,50')), 12.5);
+assert.equal(parseMoneyInput(formatMoneyInput('1.234,56')), 1234.56);
+setActiveLanguage('en');
+assert.equal(typeMoney('12500'), '12,500');
+assert.equal(formatMoneyEdit('1,25', '1,250'), '125');
+assert.equal(parseMoneyInput(formatMoneyInput('12.50')), 12.5);
+assert.equal(formatMoneyInput('12,5'), '12.5');
+setActiveLanguage('tr');
 
 assert.equal(normalizeExpenseCategoryKey('Electricity'), 'Electricity');
 assert.equal(normalizeExpenseCategoryKey(2), 'Electricity');

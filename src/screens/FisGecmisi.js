@@ -10,6 +10,7 @@ import { useTheme } from '../shared/theme/ThemeProvider';
 import { EmptyState, ListRow, LoadingState, PageHeader, Pill, SectionHeader } from '../shared/ui/roomora/CanonicalUI';
 import { Alert, Text, TouchableOpacity } from '../shared/i18n';
 import { getReceiptTitle } from '../utils/receiptPresentation';
+import { parseApiDate } from '../shared/format/date';
 
 const statusLabel = {
   Uploaded: 'Yüklendi',
@@ -55,7 +56,7 @@ function ReceiptRow({ item, houseId, navigation, onDeleted, theme, styles }) {
     <ListRow
       icon="scan-outline"
       title={getReceiptTitle(item, getLocale())}
-      subtitle={`${getLocale().startsWith('en') ? 'Receipt' : 'Fiş'}: ${item.receiptDate ? new Date(item.receiptDate).toLocaleDateString(getLocale()) : '-'}\n${getLocale().startsWith('en') ? 'Added' : 'Eklendi'}: ${item.createdAt ? new Date(item.createdAt).toLocaleDateString(getLocale()) : '-'}`}
+      subtitle={`${getLocale().startsWith('en') ? 'Receipt' : 'Fiş'}: ${item.receiptDate ? parseApiDate(item.receiptDate).toLocaleDateString(getLocale()) : '-'}\n${getLocale().startsWith('en') ? 'Added' : 'Eklendi'}: ${item.createdAt ? parseApiDate(item.createdAt).toLocaleDateString(getLocale()) : '-'}`}
       subtitleLines={2}
       amount={item.detectedTotalAmount || 0}
       badge={statusLabel[item.status] || String(item.status || 'Taslak')}

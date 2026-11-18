@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { expensesApi, houseApi, ledgerApi, receiptsApi } from '../services/api';
 import { useTheme } from '../shared/theme/ThemeProvider';
 import { EmptyState, LoadingState, PageHeader, PrimaryButton, money } from '../shared/ui/roomora/CanonicalUI';
-import { formatMoneyInput, parseMoneyInput } from '../shared/format/money';
+import { formatMoneyEdit, formatMoneyInput, parseMoneyInput } from '../shared/format/money';
 import { selectParticipant } from '../utils/participantSelection';
 import eventBus from '../shared/events/bus';
 import KeyboardAwareScreen from '../shared/ui/KeyboardAwareScreen';
@@ -18,6 +18,7 @@ import { hasCustomShareUnits, normalizeShareUnits, shareUnitsSummary } from '../
 
 import { Alert, Text, TextInput } from '../shared/i18n';
 import { getLocale } from '../shared/i18n/runtime';
+import { parseApiDate } from '../shared/format/date';
 
 import { TouchableOpacity } from '../shared/i18n';
 
@@ -256,7 +257,7 @@ export default function HarcamaDetayi({ navigation, route }) {
   const memberName = (userId) =>
     members.find((member) => member.id === Number(userId))?.fullName || `Kullanıcı ${userId}`;
   const dateRaw = pick(expense, ['postDate', 'PostDate', 'kayitTarihi', 'KayitTarihi', 'createdAt', 'CreatedAt']);
-  const date = dateRaw ? new Date(dateRaw) : null;
+  const date = dateRaw ? parseApiDate(dateRaw) : null;
   const personalItems = (Array.isArray(pick(expense, ['sahsiHarcamalar', 'SahsiHarcamalar'], []))
     ? pick(expense, ['sahsiHarcamalar', 'SahsiHarcamalar'], [])
     : [])
@@ -452,7 +453,7 @@ export default function HarcamaDetayi({ navigation, route }) {
                     value={enabled ? personal[String(member.id)] || '' : ''}
                     onChangeText={(value) => setPersonal((current) => ({
                       ...current,
-                      [String(member.id)]: formatMoneyInput(value),
+                      [String(member.id)]: formatMoneyEdit(value, current[String(member.id)]),
                     }))}
                     placeholder={enabled ? '0,00' : 'Seçilmedi'}
                     placeholderTextColor={theme.colors.text.disabled}

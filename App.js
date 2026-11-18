@@ -309,7 +309,7 @@ function ThemedStatusBar() {
 }
 
 export default function App() {
-  const [fontsLoaded] = useFonts({
+  const [fontsLoaded, fontError] = useFonts({
     HankenGrotesk_400Regular,
     HankenGrotesk_500Medium,
     HankenGrotesk_600SemiBold,
@@ -317,7 +317,8 @@ export default function App() {
     HankenGrotesk_800ExtraBold,
   });
 
-  if (!fontsLoaded) {
+  // Font yüklenemezse sistem fontuyla devam et; splash'ta takılma
+  if (!fontsLoaded && !fontError) {
     return null;
   }
 

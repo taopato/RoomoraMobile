@@ -4,11 +4,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import eventBus from '../shared/events/bus';
 import { isTokenExpired, normalizeAuthUser } from '../shared/auth/session';
 import { sessionStore } from '../shared/auth/sessionStore';
-import { authApi } from '../services/api';
-import { unregisterPushNotifications } from '../services/pushNotifications';
+import { authApi, isSessionRejected } from '../services/api';
+import { clearLocalReminders, unregisterPushNotifications } from '../services/pushNotifications';
 
 const AuthContext = createContext();
-const favoriteHouseStorageKey = (userId) => `roomora:favorite-house:${userId}`;
+export const favoriteHouseStorageKey = (userId) => `roomora:favorite-house:${userId}`;
 
 const restoreFavoriteHouse = async (nextUser) => {
   if (!nextUser?.id) return nextUser;
@@ -50,6 +50,8 @@ export const AuthProvider = ({ children }) => {
   // API 401 dönerse (token gecersiz/suresi dolmus) oturumu otomatik temizle
   useEffect(() => {
     const onUnauthorized = () => {
+      // Erişim belirteci geçersizken push kaydı silinemez; yalnızca yerel hatırlatmaları temizle
+      clearLocalReminders().catch(() => {});
       applySession(null, null);
     };
     const onRefreshed = ({ token: nextToken, user: nextUser }) => {
@@ -76,11 +78,15 @@ export const AuthProvider = ({ children }) => {
         if (isTokenExpired(storedToken)) {
           try {
             storedToken = await authApi.refreshSession();
-          } catch {
-            await sessionStore.clearTokens();
-            await AsyncStorage.removeItem('user');
-            applySession(null, null);
-            return;
+          } catch (refreshError) {
+            if (isSessionRejected(refreshError)) {
+              await sessionStore.clearTokens();
+              await AsyncStorage.removeItem('user');
+              clearLocalReminders().catch(() => {});
+              applySession(null, null);
+              return;
+            }
+            // Ağ/5xx hatası: oturumu koru; ilk 401'de yenileme tekrar denenir
           }
         }
 
@@ -120,8 +126,9 @@ export const AuthProvider = ({ children }) => {
 
   const login = useCallback(async (userData, authToken, refreshToken) => {
     try {
-      if (!authToken || isTokenExpired(authToken)) {
-        throw new Error('Geçersiz veya süresi dolmuş oturum belirteci.');
+      // Süre kontrolü sunucuda; cihaz saati ileri olsa da girişi engelleme
+      if (!authToken) {
+        throw new Error('Geçersiz oturum belirteci.');
       }
 
       const normalizedUser = await restoreFavoriteHouse(normalizeAuthUser(userData, authToken));

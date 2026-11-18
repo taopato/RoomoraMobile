@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -24,6 +24,7 @@ import KeyboardAwareScreen from '../../shared/ui/KeyboardAwareScreen';
 
 import { Alert, Text, TextInput } from '../../shared/i18n';
 import { getLocale } from '../../shared/i18n/runtime';
+import { parseApiDate } from '../../shared/format/date';
 
 import { TouchableOpacity } from '../../shared/i18n';
 
@@ -31,7 +32,7 @@ const unwrap = (response) => response?.data?.data ?? response?.data ?? {};
 const arrayOf = (value) => (Array.isArray(value) ? value : []);
 const numberOf = (value) => Number(value || 0);
 const dateText = (value) => value
-  ? new Date(value).toLocaleDateString(getLocale(), { day: '2-digit', month: '2-digit', year: 'numeric' })
+  ? parseApiDate(value).toLocaleDateString(getLocale(), { day: '2-digit', month: '2-digit', year: 'numeric' })
   : '-';
 
 function normalizePayment(item) {
@@ -430,6 +431,7 @@ export function PaymentReportScreen({ route, navigation }) {
   const [amount, setAmount] = useState(route?.params?.maxAmount ? formatMoneyInput(String(route.params.maxAmount)) : '');
   const [note, setNote] = useState('');
   const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
   useEffect(() => {
     if (!houseId) return;
     houseApi.getMembers(houseId).then((response) => {
@@ -461,13 +463,23 @@ export function PaymentReportScreen({ route, navigation }) {
   };
   const submit = async () => {
     if (!receiverId || numericAmount <= 0) return Alert.alert('Eksik bilgi', 'Kişi ve ödeme tutarı gereklidir.');
+    // Çift dokunuşta ödeme iki kez bildirilmesin; başarıda ekrandan çıkılana kadar buton kapalı kalır
+    if (savingRef.current) return;
+    savingRef.current = true;
+    let sent = false;
     setSaving(true);
     try {
       await paymentsApi.create({ houseId, borcluUserId: user.id, alacakliUserId: receiverId, tutar: numericAmount, note, paymentMethod: 'Cash' });
-      Alert.alert('Ödeme bildirildi', 'Karşı taraf onayladığında bakiyen güncellenecek.', [{ text: 'Tamam', onPress: () => navigation.goBack() }]);
+      sent = true;
+      Alert.alert('Ödeme bildirildi', 'Karşı taraf onayladığında bakiyen güncellenecek.', [{ text: 'Tamam', onPress: () => navigation.goBack() }], { cancelable: false });
     } catch (error) {
       Alert.alert('Ödeme bildirilemedi', error?.response?.data?.message ?? 'Lütfen tekrar deneyin.');
-    } finally { setSaving(false); }
+    } finally {
+      if (!sent) {
+        savingRef.current = false;
+        setSaving(false);
+      }
+    }
   };
   return (
     <Screen>

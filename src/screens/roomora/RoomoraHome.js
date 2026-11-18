@@ -28,11 +28,12 @@ import BrandMark from '../../components/BrandMark';
 
 import { Text } from '../../shared/i18n';
 import { getLocale } from '../../shared/i18n/runtime';
+import { parseApiDate } from '../../shared/format/date';
 
 import { TouchableOpacity } from '../../shared/i18n';
 
 const dayLabel = (date) => {
-  const value = date instanceof Date ? date : new Date(date);
+  const value = date instanceof Date ? date : parseApiDate(date);
   const today = new Date();
   const yesterday = new Date();
   yesterday.setDate(today.getDate() - 1);

@@ -1,6 +1,7 @@
 import { getLocale } from '../shared/i18n/runtime.js';
 import { NON_BILL_KEYS } from './expenseClassifier';
 import { getCategoryDisplayName, getCategoryIconName, getCategoryColor } from '../constants/ExpenseEnums';
+import { parseApiDate } from '../shared/format/date.js';
 
 export const getUTCMonthWindow = (date = new Date()) => {
   const year = date.getUTCFullYear();
@@ -34,7 +35,7 @@ const parseExpenseDate = (value) => {
     return new Date(0);
   }
 
-  const direct = new Date(rawValue);
+  const direct = parseApiDate(rawValue);
   if (Number.isFinite(direct.getTime())) {
     return direct;
   }

@@ -1,4 +1,5 @@
 import { getCategoryDisplayName } from '../constants/ExpenseEnums';
+import { parseApiDate } from '../shared/format/date.js';
 
 // Backend Domain.Enums.ExpenseCategory: Rent=0, Internet=1, Electricity=2, Water=3, Market=4, Food=5, Gas=6, Other=99.
 export const CATEGORY_ID_TO_KEY = {
@@ -152,7 +153,7 @@ export const normalizeExpense = (raw) => {
 };
 
 export const ymOf = (dateString) => {
-  const date = new Date(dateString);
+  const date = parseApiDate(dateString);
   if (Number.isNaN(date.getTime())) return '';
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 };

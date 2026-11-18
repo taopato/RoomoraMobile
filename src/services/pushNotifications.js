@@ -66,10 +66,16 @@ export async function registerPushNotifications(preferences = {}) {
 }
 
 export async function unregisterPushNotifications() {
-  await syncInactivityReminder(false);
+  await clearLocalReminders();
   const token = await AsyncStorage.getItem(TOKEN_KEY);
   if (token) await pushDevicesApi.unregister(token).catch(() => {});
   await AsyncStorage.removeItem(TOKEN_KEY);
+}
+
+// Oturum kapanınca önceki kullanıcının yerel hatırlatmaları kalmasın
+export async function clearLocalReminders() {
+  await syncInactivityReminder(false).catch(() => {});
+  await syncBillReminders([], false).catch(() => {});
 }
 
 export function syncInactivityReminder(enabled) {
@@ -118,8 +124,23 @@ export function subscribeToNotificationNavigation(onOpen) {
   return () => subscription.remove();
 }
 
-export async function syncBillReminders(plans = [], enabled = true) {
+let billReminderSync = Promise.resolve();
+
+// Eşzamanlı çağrılar sırayla çalışsın; aksi halde iptal edilemeyen kopya hatırlatmalar kalır
+export function syncBillReminders(plans = [], enabled = true) {
+  billReminderSync = billReminderSync.catch(() => {}).then(() => syncBillRemindersNow(plans, enabled));
+  return billReminderSync;
+}
+
+async function syncBillRemindersNow(plans, enabled) {
   if (Platform.OS === 'web') return;
+  let preferences = {};
+  try {
+    preferences = JSON.parse(await AsyncStorage.getItem(PREFERENCES_KEY)) || {};
+  } catch {
+    preferences = {};
+  }
+  if (preferences.bill === false) enabled = false;
   const previousRaw = await AsyncStorage.getItem(BILL_REMINDERS_KEY);
   let previous = [];
   try { previous = previousRaw ? JSON.parse(previousRaw) : []; } catch { previous = []; }

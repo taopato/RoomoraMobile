@@ -49,7 +49,8 @@ export default function DavetiyeKabul({ navigation, route }) {
     if (safeHouseId) {
       try {
         const houseResponse = await houseApi.getById(safeHouseId);
-        await setDefaultHouseId(safeHouseId, houseResponse?.data?.name || houseResponse?.data?.data?.name);
+        const house = houseResponse?.data?.data ?? houseResponse?.data;
+        await setDefaultHouseId(safeHouseId, house?.name, house?.groupType || 'Home');
       } catch {
         await setDefaultHouseId(safeHouseId);
       }

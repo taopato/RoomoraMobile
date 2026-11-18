@@ -1,6 +1,7 @@
 import React from 'react';
 import { ActivityIndicator, AppState, Linking, Platform, StyleSheet, View } from 'react-native';
 import Constants from 'expo-constants';
+import * as SplashScreen from 'expo-splash-screen';
 import BrandMark from '../../components/BrandMark';
 import { Text, TouchableOpacity } from '../i18n';
 import { useTheme } from '../theme/ThemeProvider';
@@ -41,6 +42,11 @@ export default function RequiredUpdateGate({ children }) {
     });
     return () => listener.remove();
   }, [check]);
+
+  // Güncelleme ekranında navigator hiç açılmaz; splash'ı burada kapat
+  React.useEffect(() => {
+    if (requiredUpdate) SplashScreen.hideAsync().catch(() => {});
+  }, [requiredUpdate]);
 
   if (status === 'checking') {
     return <View style={[styles.center, { backgroundColor: theme.colors.background }]}><ActivityIndicator color={theme.colors.primary[700]} /></View>;

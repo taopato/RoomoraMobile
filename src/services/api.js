@@ -57,11 +57,17 @@ api.interceptors.request.use(
 
 let refreshPromise = null;
 
+// Oturum yalnızca sunucu yenileme anahtarını reddederse veya anahtar yoksa kapanır; ağ/5xx hatasında korunur
+export const isSessionRejected = (error) => {
+  const status = error?.response?.status;
+  return status === 400 || status === 401 || error?.code === 'NO_REFRESH_TOKEN';
+};
+
 const refreshSession = async () => {
   if (!refreshPromise) {
     refreshPromise = (async () => {
       const refreshToken = await sessionStore.getRefreshToken();
-      if (!refreshToken) throw new Error('Yenileme anahtarı bulunamadı.');
+      if (!refreshToken) throw Object.assign(new Error('Yenileme anahtarı bulunamadı.'), { code: 'NO_REFRESH_TOKEN' });
       const response = await axios.post(`${BASE_URL}/Auth/Refresh`, { refreshToken }, {
         timeout: 30000,
         headers: { 'Content-Type': 'application/json' },
@@ -126,10 +132,12 @@ api.interceptors.response.use(
           error.config.headers = error.config.headers || {};
           error.config.headers.Authorization = `Bearer ${accessToken}`;
           return api.request(error.config);
-        } catch {
-          await sessionStore.clearTokens().catch(() => {});
-          await AsyncStorage.removeItem('user').catch(() => {});
-          eventBus.emit('auth:unauthorized');
+        } catch (refreshError) {
+          if (isSessionRejected(refreshError)) {
+            await sessionStore.clearTokens().catch(() => {});
+            await AsyncStorage.removeItem('user').catch(() => {});
+            eventBus.emit('auth:unauthorized');
+          }
         }
       }
     }
@@ -164,6 +172,8 @@ export const authApi = {
       // Normalize edilmiş dönüş: LoginScreen daha kolay karar verebilsin
       return { data: { token, refreshToken, user, raw } };
     } catch (err) {
+      // Sunucu yanıt verdiyse (401 vb.) gerçek hatayı göster; fetch ile tekrar deneme
+      if (err?.response) throw err;
       // Axios timeout veya XHR kaynaklı sorunlarda fetch ile fallback denemesi
       try {
         const controller = new AbortController();

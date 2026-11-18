@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, InputAccessoryView, Keyboard, Platform, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
@@ -82,6 +82,7 @@ export default function FaturaEkle({ route, navigation }) {
   const [responsibleUserId, setResponsibleUserId] = useState(Number(user?.id) || null);
   const [loading, setLoading] = useState(!initialBill);
   const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
   const [toast, setToast] = useState({ visible: false, message: '', type: 'success' });
 
   const selectedType = BILL_TYPES.find((item) => item.key === billType) || BILL_TYPES[0];
@@ -180,6 +181,10 @@ export default function FaturaEkle({ route, navigation }) {
     const paymentDueDate = `${isVariableWaterBill ? billDate : dueDate}T12:00:00`;
     const participants = participantIds.map(Number);
 
+    // Çift dokunuşta fatura iki kez kaydedilmesin
+    if (savingRef.current) return;
+    savingRef.current = true;
+    let saved = false;
     setSaving(true);
     try {
       if (isEditing) {
@@ -222,13 +227,18 @@ export default function FaturaEkle({ route, navigation }) {
         const bus = (await import('../shared/events/bus')).default;
         bus.emit('expenses:updated', { houseId });
       } catch {}
+      saved = true;
       setToast({ visible: true, message: isEditing ? 'Fatura güncellendi.' : 'Fatura kaydedildi.', type: 'success' });
       setTimeout(() => navigation.goBack(), 450);
     } catch (error) {
       const message = error?.response?.data?.message || error?.response?.data || error?.message || 'Fatura kaydedilemedi.';
       setToast({ visible: true, message: String(message), type: 'error' });
     } finally {
-      setSaving(false);
+      // Başarıda ekrandan çıkılana kadar buton kapalı kalsın
+      if (!saved) {
+        savingRef.current = false;
+        setSaving(false);
+      }
     }
   };
 

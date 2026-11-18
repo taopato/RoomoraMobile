@@ -24,6 +24,7 @@ import eventBus from '../../shared/events/bus';
 
 import { Alert, Text } from '../../shared/i18n';
 import { getLocale } from '../../shared/i18n/runtime';
+import { parseApiDate } from '../../shared/format/date';
 
 import { TouchableOpacity } from '../../shared/i18n';
 
@@ -45,8 +46,8 @@ export default function RoomoraBills({ navigation }) {
       const isPlannedPeriod = (raw.parentExpenseId ?? raw.ParentExpenseId) != null;
       if (!isPlannedPeriod) return true;
 
-      const visibleFrom = new Date(raw.postDate ?? raw.PostDate ?? item.date);
-      const dueDate = new Date(raw.dueDate ?? raw.DueDate ?? item.date);
+      const visibleFrom = parseApiDate(raw.postDate ?? raw.PostDate ?? item.date);
+      const dueDate = parseApiDate(raw.dueDate ?? raw.DueDate ?? item.date);
       if (Number.isNaN(visibleFrom.getTime()) || Number.isNaN(dueDate.getTime())) return false;
       dueDate.setHours(23, 59, 59, 999);
       return now >= visibleFrom && now <= dueDate;
