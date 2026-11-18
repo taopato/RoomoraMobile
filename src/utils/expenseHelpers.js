@@ -136,7 +136,7 @@ export const getPlanType = (item) => {
   const hasDueDay = (raw.dueDay ?? raw.DueDay ?? null) != null;
   const hasPlanStart = (raw.planStartMonth ?? raw.PlanStartMonth ?? raw.startMonth ?? raw.StartMonth ?? null) != null;
 
-  if (installmentCount > 1) return 'installment';
+  if (installmentCount >= 1) return 'installment';
   if (hasDueDay || hasPlanStart) return 'recurring';
   return 'irregular';
 };

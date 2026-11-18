@@ -88,6 +88,11 @@ const installmentExpenses = [
 ];
 assert.deepEqual(getInstallmentPlans(installmentExpenses).map((item) => item.id), [1520]);
 assert.deepEqual(deduplicateMonthlyPlans(installmentExpenses).map((item) => item.id), [1521]);
+const singleInstallmentExpenses = [
+  { id: 1530, _raw: { installmentCount: 1, parentExpenseId: null, dueDay: 1 } },
+  { id: 1531, _raw: { installmentCount: 1, parentExpenseId: 1530, installmentIndex: 1 } },
+];
+assert.deepEqual(getInstallmentPlans(singleInstallmentExpenses).map((item) => item.id), [1530]);
 assert.equal(translate('Faturalar'), 'Faturalar');
 assert.equal(getLocale(), 'tr-TR');
 setActiveLanguage('en');
