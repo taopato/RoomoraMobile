@@ -22,6 +22,7 @@ import {
 import { getContainedImageMetrics, getContainedOverlayStyle } from '../src/utils/receiptLayout.js';
 import { selectParticipant } from '../src/utils/participantSelection.js';
 import { attachReceiptDates, getTimelineDate, sortExpensesByTimeline } from '../src/utils/expenseTimeline.js';
+import { deduplicateMonthlyPlans, getInstallmentPlans } from '../src/utils/expenseHelpers.js';
 import { getReadableReceiptItemName, getReceiptStoreName, getReceiptTitle } from '../src/utils/receiptPresentation.js';
 import { allocateShareUnits, hasCustomShareUnits, normalizeShareUnits, shareUnitsSummary } from '../src/utils/shareUnits.js';
 import { getLocale, setActiveLanguage, translate } from '../src/shared/i18n/runtime.js';
@@ -81,6 +82,12 @@ assert.equal(getTimelineDate({ _raw: { kayitTarihi: '2026-11-17T22:00:00' } }).t
 assert.equal(sortExpensesByTimeline(timelineExpenses, 'expense')[0].id, 10);
 assert.equal(getTimelineDate(timelineExpenses[1], 'added').toISOString(), '2026-10-29T12:00:00.000Z');
 assert.equal(getTimelineDate(timelineExpenses[1], 'expense').toISOString(), '2026-09-01T12:00:00.000Z');
+const installmentExpenses = [
+  { id: 1520, _raw: { installmentCount: 6, parentExpenseId: null, postDate: '2026-12-01T00:00:00Z' } },
+  { id: 1521, _raw: { installmentCount: 6, parentExpenseId: 1520, installmentIndex: 1, postDate: '2026-11-26T00:00:00Z' } },
+];
+assert.deepEqual(getInstallmentPlans(installmentExpenses).map((item) => item.id), [1520]);
+assert.deepEqual(deduplicateMonthlyPlans(installmentExpenses).map((item) => item.id), [1521]);
 assert.equal(translate('Faturalar'), 'Faturalar');
 assert.equal(getLocale(), 'tr-TR');
 setActiveLanguage('en');

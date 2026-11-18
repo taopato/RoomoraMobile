@@ -35,6 +35,7 @@ export default function RoomoraBills({ navigation }) {
   const data = useRoomoraDashboard(user);
   const screenError = data.errors?.expenses || data.errors?.scheduled;
   const [filter, setFilter] = useState('all');
+  const [expandedPlanId, setExpandedPlanId] = useState(null);
   const [busyCycleId, setBusyCycleId] = useState(null);
   const styles = useMemo(() => makeStyles(theme, insets), [theme, insets]);
 
@@ -158,6 +159,50 @@ export default function RoomoraBills({ navigation }) {
                 onToggleExternal={toggleExternal}
               />
             ))}
+          </>
+        )}
+
+        {!!data.installmentPlans.length && (
+          <>
+            <SectionHeader title="Taksit Planları" />
+            {data.installmentPlans.map((plan) => {
+              const installments = data.expenses
+                .filter((item) => Number(item?._raw?.parentExpenseId ?? item?._raw?.ParentExpenseId) === Number(plan.id))
+                .sort((a, b) => Number(a?._raw?.installmentIndex ?? a?._raw?.InstallmentIndex) - Number(b?._raw?.installmentIndex ?? b?._raw?.InstallmentIndex));
+              const count = Number(plan?._raw?.installmentCount ?? plan?._raw?.InstallmentCount) || installments.length;
+              const expanded = Number(expandedPlanId) === Number(plan.id);
+              return (
+                <View key={String(plan.id)}>
+                  <ListRow
+                    icon="calendar-outline"
+                    title={getExpenseDisplayTitle(plan)}
+                    subtitle={`${count} taksit · Ayrıntılar için dokun`}
+                    amount={plan.amount}
+                    onPress={() => setExpandedPlanId(expanded ? null : plan.id)}
+                  />
+                  {expanded && installments.map((item) => {
+                    const due = item?._raw?.dueDate ?? item?._raw?.DueDate;
+                    const date = due ? new Date(due) : getItemDate(item);
+                    const index = item?._raw?.installmentIndex ?? item?._raw?.InstallmentIndex;
+                    return (
+                      <ListRow
+                        key={String(item.id)}
+                        icon="card-outline"
+                        title={`Taksit ${index || '·'}/${count}`}
+                        subtitle={Number.isNaN(date.getTime()) ? 'Tarih belirtilmedi' : date.toLocaleDateString(getLocale())}
+                        amount={item.amount}
+                        onPress={() => navigation.navigate('HarcamaDetayi', {
+                          expenseId: item.id,
+                          houseId: data.houseId,
+                          houseName: data.houseName,
+                          initialExpense: item._raw || item,
+                        })}
+                      />
+                    );
+                  })}
+                </View>
+              );
+            })}
           </>
         )}
 

@@ -1,6 +1,6 @@
 import { getLocale } from '../shared/i18n/runtime.js';
-import { NON_BILL_KEYS } from './expenseClassifier';
-import { getCategoryDisplayName, getCategoryIconName, getCategoryColor } from '../constants/ExpenseEnums';
+import { NON_BILL_KEYS } from './expenseClassifier.js';
+import { getCategoryDisplayName, getCategoryIconName, getCategoryColor } from '../constants/ExpenseEnums.js';
 import { parseApiDate } from '../shared/format/date.js';
 
 export const getUTCMonthWindow = (date = new Date()) => {
@@ -153,6 +153,10 @@ export const isParentExpense = (item) => {
 };
 
 export const isUtilityKey = (key) => !NON_BILL_KEYS.includes(key);
+
+export const getInstallmentPlans = (items) => items
+  .filter((item) => isParentExpense(item) && getPlanType(item) === 'installment')
+  .sort((a, b) => Number(b.id) - Number(a.id));
 
 export const deduplicateMonthlyPlans = (items) => {
   const seen = new Set();

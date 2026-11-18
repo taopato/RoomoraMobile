@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import { expensesApi, houseApi, paymentsApi, receiptsApi, scheduledChargesApi } from '../services/api';
 import { normalizeExpense } from '../utils/expenseClassifier';
-import { deduplicateMonthlyPlans, getItemDate, sortByDateDesc } from '../utils/expenseHelpers';
+import { deduplicateMonthlyPlans, getInstallmentPlans, getItemDate, sortByDateDesc } from '../utils/expenseHelpers';
 import { attachReceiptDates } from '../utils/expenseTimeline';
 import { syncBillReminders } from '../services/pushNotifications';
 
@@ -19,6 +19,7 @@ export default function useRoomoraDashboard(user) {
     error: '',
     errors: {},
     expenses: [],
+    installmentPlans: [],
     scheduled: [],
     pendingPayments: [],
     payable: 0,
@@ -34,6 +35,7 @@ export default function useRoomoraDashboard(user) {
         error: '',
         errors: {},
         expenses: [],
+        installmentPlans: [],
         scheduled: [],
         pendingPayments: [],
         payable: 0,
@@ -70,8 +72,10 @@ export default function useRoomoraDashboard(user) {
     };
 
     const receipts = results[4].status === 'fulfilled' ? arrayFrom(results[4].value) : [];
+    const allExpenses = arrayFrom(expenseResponse).map(normalizeExpense);
+    const installmentPlans = getInstallmentPlans(allExpenses);
     const expenses = sortByDateDesc(attachReceiptDates(
-      deduplicateMonthlyPlans(arrayFrom(expenseResponse).map(normalizeExpense)),
+      deduplicateMonthlyPlans(allExpenses),
       receipts
     ));
     const debtBody = debtResponse?.data?.data ?? debtResponse?.data ?? {};
@@ -87,6 +91,7 @@ export default function useRoomoraDashboard(user) {
       error: Object.values(errors).find(Boolean) || '',
       errors,
       expenses,
+      installmentPlans,
       scheduled,
       pendingPayments: arrayFrom(pendingResponse),
       payable: Number(mine?.payable ?? mine?.borc ?? mine?.totalDebt ?? 0),

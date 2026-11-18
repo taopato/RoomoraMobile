@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { View, StyleSheet, Modal, Platform } from 'react-native';
+import { View, StyleSheet, Modal, Platform, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
@@ -65,7 +65,7 @@ export default function DuzenliGiderEkle({ navigation, route }) {
           fullName: item.fullName ?? item.FullName ?? item.name ?? 'Bilinmeyen',
         }));
         setMembers(arr);
-        if (mode === 'recurring') setParticipants(arr.map((item) => String(item.userId)));
+        setParticipants(arr.map((item) => String(item.userId)));
         const me = arr.find((item) => String(item.userId) === String(user?.id));
         if (me) setPayerUserId(String(me.userId));
       } catch {
@@ -75,7 +75,7 @@ export default function DuzenliGiderEkle({ navigation, route }) {
   }, [activeHouseId, navigation, user?.id]);
 
   useEffect(() => {
-    if (mode === 'recurring' && participants.length === 0 && members.length > 0) {
+    if (participants.length === 0 && members.length > 0) {
       setParticipants(members.map((item) => String(item.userId)));
     }
   }, [mode, members, participants.length]);
@@ -443,9 +443,9 @@ export default function DuzenliGiderEkle({ navigation, route }) {
       </KeyboardAwareScrollView>
 
       {showDatePicker && Platform.OS === 'ios' && (
-      <Modal visible transparent animationType="fade" onRequestClose={() => setShowDatePicker(false)}>
+      <Modal visible transparent animationType="fade" onRequestClose={() => setShowDatePicker(false)} statusBarTranslucent>
         <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
+          <ScrollView style={styles.modalCard} contentContainerStyle={styles.modalCardContent} bounces={false} keyboardShouldPersistTaps="handled">
             <View style={styles.modalHandle} />
             <View style={styles.modalHeader}>
               <View>
@@ -479,7 +479,7 @@ export default function DuzenliGiderEkle({ navigation, route }) {
                 <Text style={styles.primaryBtnText}>Seç</Text>
               </TouchableOpacity>
             </View>
-          </View>
+          </ScrollView>
         </View>
       </Modal>
       )}
@@ -610,13 +610,12 @@ const makeStyles = (theme, insets) => StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalCard: {
+    maxHeight: '85%',
     backgroundColor: theme.colors.background,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    paddingHorizontal: 18,
-    paddingTop: 10,
-    paddingBottom: insets.bottom + 18,
   },
+  modalCardContent: { paddingHorizontal: 18, paddingTop: 10, paddingBottom: insets.bottom + 18 },
   modalHandle: { width: 38, height: 4, borderRadius: 2, backgroundColor: theme.colors.neutral[300], alignSelf: 'center', marginBottom: 14 },
   modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
   modalTitle: { fontSize: 19, fontWeight: '900', color: theme.colors.text.primary },
