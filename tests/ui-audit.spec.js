@@ -187,6 +187,7 @@ test('expense shares and receipt item editor open and close cleanly', async ({ p
   await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
   await page.getByText('Giderler', { exact: true }).last().click();
   await page.getByText('Yeni Harcama Ekle', { exact: true }).last().click();
+  await page.getByLabel('Kimin için seçimini aç').click();
   await page.getByText('Payları özelleştir', { exact: true }).last().click();
   await expect(page.getByLabel('Deniz Yılmaz paylaşımını düzenle')).toBeVisible();
   await page.getByLabel('Deniz Yılmaz paylaşımını düzenle').click();
@@ -207,6 +208,26 @@ test('expense shares and receipt item editor open and close cleanly', async ({ p
   await page.getByTestId('receipt-editor-backdrop').click({ position: { x: 10, y: 10 }, force: true });
   await expect(page.getByText('Kalemi düzenle', { exact: true })).toHaveCount(0);
   expect(errors).toEqual([]);
+});
+
+test('expense filters open, apply, and reset without taking over the list', async ({ page }) => {
+  await useDemoSession(page);
+  await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
+  await page.getByText('Giderler', { exact: true }).last().click();
+  await expect(page.getByTestId('expense-filters-open')).toBeVisible();
+  await expect(page.getByText('Kategori', { exact: true })).toHaveCount(0);
+  await page.getByTestId('expense-filters-open').click();
+  await expect(page.getByText('Filtreler', { exact: true })).toBeVisible();
+  await page.getByText('Market', { exact: true }).click();
+  await page.getByText('0 gideri göster', { exact: true }).click();
+  await expect(page.getByText('Filtreler', { exact: true })).toHaveCount(0);
+  await expect(page.getByText(/Market · Bu ay/)).toBeVisible();
+  await page.getByTestId('expense-filters-open').click();
+  await page.getByText('Sıfırla', { exact: true }).click();
+  await page.getByText('0 gideri göster', { exact: true }).click();
+  await expect(page.getByText(/Tümü · Bu ay/)).toBeVisible();
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  expect(overflow).toBeLessThanOrEqual(2);
 });
 
 test('account and group settings render on a narrow screen', async ({ page }, testInfo) => {
