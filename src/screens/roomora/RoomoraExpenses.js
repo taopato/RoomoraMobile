@@ -19,6 +19,8 @@ import {
 import { getCategoryDisplayName, getCategoryIconName } from '../../constants/ExpenseEnums';
 import { getExpenseDisplayTitle, getItemDate } from '../../utils/expenseHelpers';
 import { getTimelineDate, sortExpensesByTimeline } from '../../utils/expenseTimeline';
+import { ANYONE, matchesPeople, shownAmount } from '../../utils/expensePeopleFilter';
+import { houseApi } from '../../services/api';
 
 import { Text, TextInput } from '../../shared/i18n';
 import { getLocale } from '../../shared/i18n/runtime';
@@ -44,7 +46,40 @@ export default function RoomoraExpenses({ navigation }) {
   const [sortMode, setSortMode] = useState('added');
   const [search, setSearch] = useState('');
   const [visibleCount, setVisibleCount] = useState(10);
+  const [payer, setPayer] = useState(ANYONE);
+  const [beneficiary, setBeneficiary] = useState(ANYONE);
+  const [members, setMembers] = useState([]);
   const styles = useMemo(() => makeStyles(theme, insets), [theme, insets]);
+
+  useEffect(() => {
+    setPayer(ANYONE);
+    setBeneficiary(ANYONE);
+    if (!data.houseId) { setMembers([]); return undefined; }
+    let alive = true;
+    houseApi.getMembers(data.houseId).then((res) => {
+      const raw = res?.data?.data || res?.data || [];
+      const list = (Array.isArray(raw) ? raw : [])
+        .map((member) => ({
+          id: Number(member.userId ?? member.user?.id ?? member.id),
+          fullName: member.fullName ?? member.name ?? member.user?.fullName ?? '',
+        }))
+        .filter((member) => Number.isFinite(member.id));
+      if (alive) setMembers(list);
+    }).catch(() => { if (alive) setMembers([]); });
+    return () => { alive = false; };
+  }, [data.houseId]);
+
+  // Kişi çipleri: önce "Ben", sonra diğer üyeler (ilk adlarıyla)
+  const people = useMemo(() => {
+    const me = Number(user?.id);
+    const named = members.map((member) => ({
+      id: member.id,
+      label: member.id === me ? 'Ben' : (String(member.fullName).trim().split(/\s+/)[0] || 'Üye'),
+    }));
+    return [...named.filter((item) => item.id === me), ...named.filter((item) => item.id !== me)];
+  }, [members, user?.id]);
+  const personName = (id) => people.find((item) => item.id === Number(id))?.label || '';
+  const peopleActive = payer !== ANYONE || beneficiary !== ANYONE;
 
   useEffect(() => {
     setFilter('all');
@@ -75,11 +110,16 @@ export default function RoomoraExpenses({ navigation }) {
     const haystack = `${getExpenseDisplayTitle(item)} ${item.payerName || ''}`.toLocaleLowerCase('tr-TR');
     return matchesFilter
       && matchesPeriod
+      && matchesPeople(item, payer, beneficiary)
       && haystack.includes(search.trim().toLocaleLowerCase('tr-TR'));
-  }), sortMode), [data.expenses, filter, period, search, sortMode]);
+  }), sortMode), [data.expenses, filter, period, search, sortMode, payer, beneficiary]);
   const visibleItems = items.slice(0, visibleCount);
 
-  const total = items.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+  const total = items.reduce((sum, item) => sum + shownAmount(item, beneficiary), 0);
+  const en = getLocale().startsWith('en');
+  const peopleSummary = !peopleActive ? '' : en
+    ? `${payer === ANYONE ? 'Anyone' : personName(payer)} → ${beneficiary === ANYONE ? 'anyone' : personName(beneficiary)}`
+    : `${payer === ANYONE ? 'Herkes' : personName(payer)} → ${beneficiary === ANYONE ? 'herkes' : personName(beneficiary)} için`;
   const openCreate = () => {
     if (!data.houseId) {
       navigation.navigate('GrupListesi', { redirectTo: 'HarcamaEkle' });
@@ -98,11 +138,11 @@ export default function RoomoraExpenses({ navigation }) {
         <PageHeader title="Giderler" subtitle={data.houseName} />
 
         <View style={styles.totalCard}>
-          <Text style={styles.totalLabel}>{isTrip ? 'Görüntülenen gezi gideri' : 'Bu ay görüntülenen gider'}</Text>
+          <Text style={styles.totalLabel}>{beneficiary !== ANYONE ? 'Seçilen kişinin payı' : isTrip ? 'Görüntülenen gezi gideri' : 'Bu ay görüntülenen gider'}</Text>
           <View style={styles.totalRow}>
             <View>
           <Text style={styles.totalValue}>{screenError ? '—' : money(total)}</Text>
-              <Text style={styles.totalSub}>{items.length} işlem</Text>
+              <Text style={styles.totalSub}>{items.length} işlem{peopleSummary ? ` · ${peopleSummary}` : ''}</Text>
             </View>
             <View style={styles.totalIcon}>
               <Ionicons name="wallet-outline" size={28} color={theme.colors.primary[700]} />
@@ -138,6 +178,35 @@ export default function RoomoraExpenses({ navigation }) {
           ))}
         </ScrollView>
 
+        {people.length > 1 ? (
+          <View style={styles.peopleCard}>
+            <View style={styles.peopleHeader}>
+              <Text style={styles.peopleTitle}>Kişiye göre</Text>
+              {peopleActive ? (
+                <TouchableOpacity onPress={() => { setPayer(ANYONE); setBeneficiary(ANYONE); setVisibleCount(10); }}>
+                  <Text style={styles.peopleClear}>Temizle</Text>
+                </TouchableOpacity>
+              ) : null}
+            </View>
+            {[['Ödeyen', payer, setPayer], ['Kimin için', beneficiary, setBeneficiary]].map(([label, value, setValue]) => (
+              <View key={label} style={styles.peopleRow}>
+                <Text style={styles.peopleLabel}>{label}</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.peoplePills}>
+                  <Pill label="Herkes" active={value === ANYONE} onPress={() => { setValue(ANYONE); setVisibleCount(10); }} />
+                  {people.map((person) => (
+                    <Pill
+                      key={person.id}
+                      label={person.label}
+                      active={Number(value) === person.id}
+                      onPress={() => { setValue(person.id); setVisibleCount(10); }}
+                    />
+                  ))}
+                </ScrollView>
+              </View>
+            ))}
+          </View>
+        ) : null}
+
         <View style={styles.periodRow}>
           <Pill label="Bu Ay" active={period === 'month'} onPress={() => { setPeriod('month'); setVisibleCount(10); }} />
           <Pill label="Son 30 Gün" active={period === '30days'} onPress={() => { setPeriod('30days'); setVisibleCount(10); }} />
@@ -165,7 +234,7 @@ export default function RoomoraExpenses({ navigation }) {
         ) : items.length === 0 ? (
           <EmptyState
             icon="wallet-outline"
-            title={search || filter !== 'all' ? 'Eşleşen harcama yok' : 'Henüz gider yok'}
+            title={search || filter !== 'all' || peopleActive ? 'Eşleşen harcama yok' : 'Henüz gider yok'}
             description="İlk ortak harcamayı eklediğinde burada görünecek."
             action="Harcama Ekle"
             onAction={openCreate}
@@ -178,8 +247,8 @@ export default function RoomoraExpenses({ navigation }) {
             subtitleLines={item.receiptUploadedAt ? 2 : 1}
             subtitle={item.receiptUploadedAt
               ? `${getLocale().startsWith('en') ? 'Receipt' : 'Fiş'}: ${getItemDate(item).toLocaleDateString(getLocale())}\n${getLocale().startsWith('en') ? 'Added' : 'Eklendi'}: ${getTimelineDate(item, 'added').toLocaleDateString(getLocale())}`
-              : `${getTimelineDate(item, sortMode).toLocaleDateString(getLocale())}${item.payerName ? ` · ${item.payerName} ödedi` : ''}`}
-            amount={item.amount}
+              : `${getTimelineDate(item, sortMode).toLocaleDateString(getLocale())}${item.payerName ? ` · ${item.payerName} ödedi` : ''}${beneficiary !== ANYONE ? ` · ${en ? 'Total' : 'Toplam'} ${money(item.amount)}` : ''}`}
+            amount={shownAmount(item, beneficiary)}
             onPress={() => navigation.navigate('HarcamaDetayi', {
               expenseId: item.id,
               houseId: data.houseId,
@@ -222,6 +291,21 @@ const makeStyles = (theme, insets) => StyleSheet.create({
   },
   filters: { gap: 8, paddingVertical: 14 },
   periodRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 14 },
+  peopleCard: {
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: theme.colors.neutral[200],
+    backgroundColor: theme.colors.surface,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 14,
+  },
+  peopleHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
+  peopleTitle: { color: theme.colors.text.primary, fontFamily: theme.typography.semibold, fontSize: 14 },
+  peopleClear: { color: theme.colors.primary[700], fontFamily: theme.typography.semibold, fontSize: 13, paddingVertical: 4 },
+  peopleRow: { marginTop: 8 },
+  peopleLabel: { color: theme.colors.text.secondary, fontFamily: theme.typography.medium, fontSize: 12, marginBottom: 6 },
+  peoplePills: { gap: 8 },
   sortRow: { marginBottom: 16 },
   sortLabel: { color: theme.colors.text.secondary, fontFamily: theme.typography.medium, fontSize: 12, marginBottom: 8 },
   sortOptions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },

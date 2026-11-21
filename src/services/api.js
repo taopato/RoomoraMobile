@@ -324,6 +324,7 @@ export const quickExpenseTemplatesApi = {
 export const pushDevicesApi = {
   register: (body) => api.post('/PushDevices', body),
   unregister: (token) => api.delete('/PushDevices', { params: { token } }),
+  test: () => api.post('/PushDevices/test', null, { timeout: 30000 }),
 };
 
 // ---------------- LEDGER ----------------

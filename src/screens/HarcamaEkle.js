@@ -7,7 +7,7 @@ import * as ImageManipulator from 'expo-image-manipulator';
 import { useAuth } from '../context/AuthContext';
 import { houseApi, expensesApi, receiptsApi, quickExpenseTemplatesApi } from '../services/api';
 import { useTheme } from '../shared/theme/ThemeProvider';
-import { money, PageHeader } from '../shared/ui/roomora/CanonicalUI';
+import { LoadingState, money, PageHeader } from '../shared/ui/roomora/CanonicalUI';
 import Toast from '../components/Toast';
 import { toExpenseCategory } from '../constants/ExpenseEnums';
 import { CATEGORY_ID_TO_KEY } from '../utils/expenseClassifier';
@@ -730,9 +730,7 @@ export default function AddExpenseScreen({ navigation, route }) {
 
       <Modal visible={scanningReceipt} transparent animationType="fade" statusBarTranslucent onRequestClose={() => {}}>
         <View style={styles.scanOverlay} accessibilityViewIsModal>
-          <Image source={require('../assets/mark-white.png')} style={styles.scanBrandMark} resizeMode="contain" />
-          <ActivityIndicator size="small" color="#fff" style={styles.scanSpinner} />
-          <Text style={styles.scanTitle}>{scanStage === 'preparing' ? 'Fotoğraf hazırlanıyor' : 'Fiş taranıyor'}</Text>
+          <LoadingState label={scanStage === 'preparing' ? 'Fotoğraf hazırlanıyor' : 'Fiş taranıyor'} />
         </View>
       </Modal>
 
@@ -866,10 +864,7 @@ const makeStyles = (theme) => StyleSheet.create({
     borderColor: theme.colors.neutral[200],
   },
   receiptGhostButtonText: { color: theme.colors.text.primary, fontWeight: '700' },
-  scanOverlay: { ...StyleSheet.absoluteFillObject, zIndex: 50, elevation: 50, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(18,24,29,0.84)' },
-  scanBrandMark: { width: 118, height: 118 },
-  scanSpinner: { marginTop: 8 },
-  scanTitle: { color: '#fff', fontFamily: theme.typography?.bold, fontSize: 15, marginTop: 10 },
+  scanOverlay: { ...StyleSheet.absoluteFillObject, zIndex: 50, elevation: 50, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.background },
   label: { fontFamily: theme.typography?.semibold, fontSize: 14, color: theme.colors.text.primary, marginBottom: 8 },
   input: {
     borderWidth: 1,

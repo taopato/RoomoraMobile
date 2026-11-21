@@ -25,6 +25,7 @@ import { attachReceiptDates, getTimelineDate, sortExpensesByTimeline } from '../
 import { deduplicateMonthlyPlans, getInstallmentPlans } from '../src/utils/expenseHelpers.js';
 import { getReadableReceiptItemName, getReceiptStoreName, getReceiptTitle } from '../src/utils/receiptPresentation.js';
 import { allocateShareUnits, hasCustomShareUnits, normalizeShareUnits, shareUnitsSummary } from '../src/utils/shareUnits.js';
+import { ANYONE, matchesPeople, normalizeParticipants, shownAmount } from '../src/utils/expensePeopleFilter.js';
 import { getLocale, setActiveLanguage, translate } from '../src/shared/i18n/runtime.js';
 import { compareVersions, getRequiredUpdate } from '../src/shared/version/requiredUpdate.js';
 import { parseApiDate } from '../src/shared/format/date.js';
@@ -292,5 +293,18 @@ const rightEdgeOverlay = getContainedOverlayStyle({
 }, receiptMetrics);
 assert.ok(rightEdgeOverlay.left + rightEdgeOverlay.width <= receiptMetrics.offsetX + receiptMetrics.renderedWidth);
 assert.ok(rightEdgeOverlay.top + rightEdgeOverlay.height <= receiptMetrics.offsetY + receiptMetrics.renderedHeight);
+
+const peopleExpenses = [
+  { id: 1, amount: 90, payerId: 1, participants: normalizeParticipants([{ userId: 1, amount: 30 }, { userId: 2, amount: 30 }, { userId: 3, amount: 30 }]) },
+  { id: 2, amount: 50, payerId: 1, participants: normalizeParticipants([{ UserId: 1, Amount: 50 }]) },
+  { id: 3, amount: 40, payerId: 2, participants: normalizeParticipants([{ userId: 1, amount: 20 }, { userId: 2, amount: 20 }, { userId: 3, amount: 0 }]) },
+];
+assert.deepEqual(peopleExpenses.filter((item) => matchesPeople(item, 1, 2)).map((item) => item.id), [1]);
+assert.deepEqual(peopleExpenses.filter((item) => matchesPeople(item, ANYONE, 3)).map((item) => item.id), [1]);
+assert.deepEqual(peopleExpenses.filter((item) => matchesPeople(item, 2, ANYONE)).map((item) => item.id), [3]);
+assert.equal(peopleExpenses.filter((item) => matchesPeople(item)).length, 3);
+assert.equal(shownAmount(peopleExpenses[0], 2), 30);
+assert.equal(shownAmount(peopleExpenses[0], ANYONE), 90);
+assert.equal(peopleExpenses[2].participants.length, 2);
 
 console.log('Roomora domain tests passed.');

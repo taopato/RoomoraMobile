@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Switch, View } from 'react-native';
+import { ActivityIndicator, Linking, ScrollView, StyleSheet, Switch, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,9 +7,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../shared/theme/ThemeProvider';
 import BrandMark from '../components/BrandMark';
 import TakoswareCredit from '../components/TakoswareCredit';
-import { registerPushNotifications, syncBillReminders, syncInactivityReminder } from '../services/pushNotifications';
+import { registerPushNotifications, syncBillReminders, syncInactivityReminder, testPushNotifications } from '../services/pushNotifications';
+import { getLocale } from '../shared/i18n/runtime';
 
-import { Text } from '../shared/i18n';
+import { Alert, Text } from '../shared/i18n';
 
 import { TouchableOpacity } from '../shared/i18n';
 
@@ -65,8 +66,45 @@ function ScreenShell({ navigation, title, children }) {
   );
 }
 
+const pushTestMessage = (result, en) => {
+  if (result.ok) {
+    return en
+      ? ['Sent', 'A test notification was sent to this phone. If it does not appear on the lock screen, check Settings > Notifications > Roomora on the phone.']
+      : ['Gönderildi', 'Bu telefona deneme bildirimi gönderildi. Kilit ekranında görünmüyorsa telefonun Ayarlar > Bildirimler > Roomora bölümünü kontrol et.'];
+  }
+  const texts = {
+    device: ['Gerçek telefon gerekli', 'Telefon bildirimleri simülatörde ve web sürümünde çalışmaz.', 'Real phone needed', 'Phone notifications do not work in a simulator or on the web.'],
+    permission: ['Bildirim izni kapalı', 'Roomora için bildirim izni verilmemiş. Telefon ayarlarından açabilirsin.', 'Notifications are off', 'Roomora is not allowed to send notifications. You can turn them on in the phone settings.'],
+    token: ['Telefon kaydı alınamadı', 'Bildirim anahtarı alınamadı. Uygulamayı kapatıp açtıktan sonra tekrar dene.', 'Phone not registered', 'Could not get a notification key. Close and reopen the app, then try again.'],
+    register: ['Sunucuya kaydedilemedi', 'Telefonun sunucuya kaydedilemedi. İnternet bağlantını kontrol edip tekrar dene.', 'Could not register', 'The phone could not be registered with the server. Check the connection and try again.'],
+    noDevice: ['Kayıtlı telefon yok', 'Hesabına kayıtlı telefon bulunamadı. Çıkış yapıp tekrar giriş yap.', 'No phone registered', 'No phone is registered to your account. Sign out and sign in again.'],
+    expo: ['Bildirim iletilemedi', 'Bildirim servisinden hata döndü. Bu kodu destek ekibine ilet:', 'Notification not delivered', 'The notification service returned an error. Send this code to support:'],
+  }[result.reason] || ['Bildirim denenemedi', '', 'Test failed', ''];
+  const detail = result.detail ? ` ${result.detail}` : '';
+  return en ? [texts[2], texts[3] + detail] : [texts[0], texts[1] + detail];
+};
+
 export function NotificationSettingsScreen({ navigation }) {
   const [values, setValues] = useState(notificationDefaults);
+  const [testing, setTesting] = useState(false);
+
+  const runPushTest = async () => {
+    if (testing) return;
+    setTesting(true);
+    let result;
+    try {
+      result = await testPushNotifications();
+    } catch (error) {
+      result = { ok: false, reason: 'expo', detail: error?.response?.status || error?.message || '' };
+    } finally {
+      setTesting(false);
+    }
+    const [title, message] = pushTestMessage(result, getLocale().startsWith('en'));
+    const buttons = result.reason === 'permission'
+      ? [{ text: 'Vazgeç', style: 'cancel' }, { text: 'Ayarları aç', onPress: () => Linking.openSettings().catch(() => {}) }]
+      : [{ text: 'Tamam' }];
+    Alert.alert(title, message, buttons);
+  };
 
   useEffect(() => {
     AsyncStorage.getItem('notification_preferences')
@@ -114,6 +152,21 @@ export function NotificationSettingsScreen({ navigation }) {
               </View>
             ))}
           </View>
+          <TouchableOpacity
+            testID="notification-test"
+            style={styles.testButton}
+            onPress={runPushTest}
+            disabled={testing}
+            activeOpacity={0.85}
+          >
+            {testing
+              ? <ActivityIndicator color={theme.colors.primary[600]} />
+              : <Ionicons name="notifications-outline" size={20} color={theme.colors.primary[700]} />}
+            <View style={styles.rowCopy}>
+              <Text style={styles.rowTitle}>{testing ? 'Deneme bildirimi gönderiliyor...' : 'Telefon bildirimini dene'}</Text>
+              <Text style={styles.rowDesc}>Kilit ekranına bildirim gelip gelmediğini kontrol eder</Text>
+            </View>
+          </TouchableOpacity>
         </ScrollView>
       )}
     </ScreenShell>
@@ -214,6 +267,7 @@ const makeStyles = (theme, insets) => StyleSheet.create({
   settingRow: { minHeight: 76, flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 },
   switchColumn: { width: 54, alignSelf: 'stretch', alignItems: 'flex-end', justifyContent: 'center' },
   divider: { borderTopWidth: 1, borderTopColor: theme.colors.neutral[200] },
+  testButton: { minHeight: 72, marginTop: 16, borderRadius: 12, borderWidth: 1, borderColor: theme.colors.primary[100], backgroundColor: theme.colors.surface, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 12 },
   rowCopy: { flex: 1, minWidth: 0, justifyContent: 'center' },
   rowTitle: { color: theme.colors.text.primary, fontFamily: theme.typography?.bold, fontSize: 15 },
   rowDesc: { color: theme.colors.text.secondary, fontFamily: theme.typography?.regular, fontSize: 12, marginTop: 3, lineHeight: 17 },

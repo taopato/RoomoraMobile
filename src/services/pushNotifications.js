@@ -65,6 +65,28 @@ export async function registerPushNotifications(preferences = {}) {
   return token;
 }
 
+// Ayarlardaki deneme: izin, cihaz kaydı ve Expo/Apple teslim sonucunu tek mesajda anlatır
+export async function testPushNotifications() {
+  if (Platform.OS === 'web' || !Device.isDevice) return { ok: false, reason: 'device' };
+  const permission = await Notifications.getPermissionsAsync();
+  if (permission.status !== 'granted') {
+    const asked = await Notifications.requestPermissionsAsync();
+    if (asked.status !== 'granted') return { ok: false, reason: 'permission' };
+  }
+  try {
+    const token = await registerPushNotifications();
+    if (!token) return { ok: false, reason: 'token' };
+  } catch (error) {
+    return { ok: false, reason: 'register', detail: error?.response?.status || error?.message || '' };
+  }
+  const response = await pushDevicesApi.test();
+  const devices = Array.isArray(response?.data?.devices) ? response.data.devices : [];
+  if (devices.length === 0) return { ok: false, reason: 'noDevice' };
+  const current = devices.find((device) => device.platform === Platform.OS) || devices[0];
+  if (current.status === 'error') return { ok: false, reason: 'expo', detail: current.error || '' };
+  return { ok: true, status: current.status, devices: devices.length };
+}
+
 export async function unregisterPushNotifications() {
   await clearLocalReminders();
   const token = await AsyncStorage.getItem(TOKEN_KEY);

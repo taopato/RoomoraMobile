@@ -1,5 +1,6 @@
 import { getCategoryDisplayName } from '../constants/ExpenseEnums.js';
 import { parseApiDate } from '../shared/format/date.js';
+import { normalizeParticipants } from './expensePeopleFilter.js';
 
 // Backend Domain.Enums.ExpenseCategory: Rent=0, Internet=1, Electricity=2, Water=3, Market=4, Food=5, Gas=6, Other=99.
 export const CATEGORY_ID_TO_KEY = {
@@ -138,6 +139,8 @@ export const normalizeExpense = (raw) => {
     amount,
     date: dateStr,
     payerName: raw?.odeyenKullaniciAdi,
+    payerId: Number(raw?.odeyenUserId ?? raw?.OdeyenUserId) || null,
+    participants: normalizeParticipants(raw?.participants ?? raw?.Participants),
     recorderName: raw?.kaydedenKullaniciAdi,
     key,
     kind,
