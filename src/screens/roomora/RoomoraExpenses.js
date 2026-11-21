@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { Modal, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
@@ -49,6 +49,7 @@ export default function RoomoraExpenses({ navigation }) {
   const [payer, setPayer] = useState(ANYONE);
   const [beneficiary, setBeneficiary] = useState(ANYONE);
   const [members, setMembers] = useState([]);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const styles = useMemo(() => makeStyles(theme, insets), [theme, insets]);
 
   useEffect(() => {
@@ -80,6 +81,9 @@ export default function RoomoraExpenses({ navigation }) {
   }, [members, user?.id]);
   const personName = (id) => people.find((item) => item.id === Number(id))?.label || '';
   const peopleActive = payer !== ANYONE || beneficiary !== ANYONE;
+  const activeFilterCount = Number(filter !== 'all') + Number(peopleActive && payer !== ANYONE)
+    + Number(beneficiary !== ANYONE) + Number(period !== (isTrip ? 'all' : 'month'))
+    + Number(sortMode !== 'added');
 
   useEffect(() => {
     setFilter('all');
@@ -152,74 +156,26 @@ export default function RoomoraExpenses({ navigation }) {
 
         <PrimaryButton label="Yeni Harcama Ekle" icon="add" onPress={openCreate} />
 
-        <View style={styles.search}>
-          <Ionicons name="search-outline" size={20} color={theme.colors.text.secondary} />
-          <TextInput
-            value={search}
-            onChangeText={setSearch}
-            placeholder="Harcamalarda ara"
-            placeholderTextColor={theme.colors.neutral[400]}
-            style={styles.searchInput}
-          />
-        </View>
-
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.filters}
-        >
-          {filters.map((item) => (
-            <Pill
-              key={item.key}
-              label={item.label}
-              active={filter === item.key}
-              onPress={() => setFilter(item.key)}
+        <View style={styles.searchRow}>
+          <View style={styles.search}>
+            <Ionicons name="search-outline" size={20} color={theme.colors.text.secondary} />
+            <TextInput
+              value={search}
+              onChangeText={setSearch}
+              placeholder="Harcamalarda ara"
+              placeholderTextColor={theme.colors.neutral[400]}
+              style={styles.searchInput}
             />
-          ))}
-        </ScrollView>
-
-        {people.length > 1 ? (
-          <View style={styles.peopleCard}>
-            <View style={styles.peopleHeader}>
-              <Text style={styles.peopleTitle}>Kişiye göre</Text>
-              {peopleActive ? (
-                <TouchableOpacity onPress={() => { setPayer(ANYONE); setBeneficiary(ANYONE); setVisibleCount(10); }}>
-                  <Text style={styles.peopleClear}>Temizle</Text>
-                </TouchableOpacity>
-              ) : null}
-            </View>
-            {[['Ödeyen', payer, setPayer], ['Kimin için', beneficiary, setBeneficiary]].map(([label, value, setValue]) => (
-              <View key={label} style={styles.peopleRow}>
-                <Text style={styles.peopleLabel}>{label}</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.peoplePills}>
-                  <Pill label="Herkes" active={value === ANYONE} onPress={() => { setValue(ANYONE); setVisibleCount(10); }} />
-                  {people.map((person) => (
-                    <Pill
-                      key={person.id}
-                      label={person.label}
-                      active={Number(value) === person.id}
-                      onPress={() => { setValue(person.id); setVisibleCount(10); }}
-                    />
-                  ))}
-                </ScrollView>
-              </View>
-            ))}
           </View>
-        ) : null}
-
-        <View style={styles.periodRow}>
-          <Pill label="Bu Ay" active={period === 'month'} onPress={() => { setPeriod('month'); setVisibleCount(10); }} />
-          <Pill label="Son 30 Gün" active={period === '30days'} onPress={() => { setPeriod('30days'); setVisibleCount(10); }} />
-          <Pill label="Tüm Zamanlar" active={period === 'all'} onPress={() => { setPeriod('all'); setVisibleCount(10); }} />
+          <TouchableOpacity style={styles.filterButton} onPress={() => setFiltersOpen(true)} accessibilityLabel="Gider filtrelerini aç" testID="expense-filters-open">
+            <Ionicons name="options-outline" size={22} color={theme.colors.primary[700]} />
+            {activeFilterCount > 0 ? <Text style={styles.filterCount}>{activeFilterCount}</Text> : null}
+          </TouchableOpacity>
         </View>
-
-        <View style={styles.sortRow}>
-          <Text style={styles.sortLabel}>Sırala</Text>
-          <View style={styles.sortOptions}>
-            <Pill label="Eklenme tarihi" active={sortMode === 'added'} onPress={() => { setSortMode('added'); setVisibleCount(10); }} />
-            <Pill label="Harcama tarihi" active={sortMode === 'expense'} onPress={() => { setSortMode('expense'); setPeriod('all'); setVisibleCount(10); }} />
-          </View>
-        </View>
+        <Text style={styles.filterSummary} numberOfLines={1}>
+          {filters.find((entry) => entry.key === filter)?.label || 'Tümü'} · {period === 'month' ? 'Bu ay' : period === '30days' ? 'Son 30 gün' : 'Tüm zamanlar'}
+          {peopleActive ? ` · ${peopleSummary}` : ''} · {sortMode === 'added' ? 'Eklenme tarihi' : 'Harcama tarihi'}
+        </Text>
 
         <SectionHeader
           title="Harcama Geçmişi"
@@ -263,6 +219,53 @@ export default function RoomoraExpenses({ navigation }) {
           </TouchableOpacity>
         ) : null}
       </ScrollView>
+      <Modal visible={filtersOpen} transparent animationType="slide" statusBarTranslucent onRequestClose={() => setFiltersOpen(false)}>
+        <View style={styles.modalRoot}>
+          <Pressable style={styles.modalBackdrop} onPress={() => setFiltersOpen(false)} accessibilityLabel="Filtreleri kapat" />
+          <View style={styles.modalSheet}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Filtreler</Text>
+              <TouchableOpacity onPress={() => setFiltersOpen(false)} accessibilityLabel="Filtreleri kapat">
+                <Ionicons name="close" size={24} color={theme.colors.text.primary} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView contentContainerStyle={styles.modalContent} keyboardShouldPersistTaps="handled">
+              <Text style={styles.filterLabel}>Kategori</Text>
+              <View style={styles.filterOptions}>{filters.map((entry) => (
+                <Pill key={entry.key} label={entry.label} active={filter === entry.key} onPress={() => { setFilter(entry.key); setVisibleCount(10); }} />
+              ))}</View>
+              {people.length > 1 ? ([['Ödeyen', payer, setPayer], ['Kimin için', beneficiary, setBeneficiary]].map(([label, value, setValue]) => (
+                <View key={label}>
+                  <Text style={styles.filterLabel}>{label}</Text>
+                  <View style={styles.filterOptions}>
+                    <Pill label="Herkes" active={value === ANYONE} onPress={() => { setValue(ANYONE); setVisibleCount(10); }} />
+                    {people.map((person) => <Pill key={person.id} label={person.label} active={Number(value) === person.id} onPress={() => { setValue(person.id); setVisibleCount(10); }} />)}
+                  </View>
+                </View>
+              ))) : null}
+              <Text style={styles.filterLabel}>Dönem</Text>
+              <View style={styles.filterOptions}>
+                {[['month', 'Bu Ay'], ['30days', 'Son 30 Gün'], ['all', 'Tüm Zamanlar']].map(([value, label]) => (
+                  <Pill key={value} label={label} active={period === value} onPress={() => { setPeriod(value); setVisibleCount(10); }} />
+                ))}
+              </View>
+              <Text style={styles.filterLabel}>Sıralama</Text>
+              <View style={styles.filterOptions}>
+                <Pill label="Eklenme tarihi" active={sortMode === 'added'} onPress={() => { setSortMode('added'); setVisibleCount(10); }} />
+                <Pill label="Harcama tarihi" active={sortMode === 'expense'} onPress={() => { setSortMode('expense'); setVisibleCount(10); }} />
+              </View>
+            </ScrollView>
+            <View style={[styles.modalFooter, { paddingBottom: Math.max(insets.bottom, 12) }]}>
+              <TouchableOpacity onPress={() => { setFilter('all'); setPayer(ANYONE); setBeneficiary(ANYONE); setPeriod(isTrip ? 'all' : 'month'); setSortMode('added'); }}>
+                <Text style={styles.resetText}>Sıfırla</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.applyButton} onPress={() => setFiltersOpen(false)}>
+                <Text style={styles.applyText}>{items.length} gideri göster</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -270,7 +273,9 @@ export default function RoomoraExpenses({ navigation }) {
 const makeStyles = (theme, insets) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.background },
   content: { paddingTop: insets.top + 6, paddingHorizontal: 18, paddingBottom: 32 },
+  searchRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 },
   search: {
+    flex: 1,
     height: 48,
     borderRadius: 8,
     borderWidth: 1,
@@ -280,8 +285,22 @@ const makeStyles = (theme, insets) => StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 14,
     gap: 10,
-    marginTop: 10,
   },
+  filterButton: { height: 48, minWidth: 48, paddingHorizontal: 9, borderRadius: 8, borderWidth: 1, borderColor: theme.colors.neutral[200], backgroundColor: theme.colors.surface, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 3 },
+  filterCount: { color: theme.colors.primary[700], fontSize: 12, fontFamily: theme.typography.bold },
+  filterSummary: { color: theme.colors.text.secondary, fontSize: 12, marginTop: 9, marginBottom: 16 },
+  modalRoot: { flex: 1, justifyContent: 'flex-end' },
+  modalBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(10, 29, 45, 0.42)' },
+  modalSheet: { maxHeight: '82%', backgroundColor: theme.colors.background, borderTopLeftRadius: 8, borderTopRightRadius: 8 },
+  modalHeader: { minHeight: 56, paddingHorizontal: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 1, borderBottomColor: theme.colors.neutral[200] },
+  modalTitle: { color: theme.colors.text.primary, fontSize: 18, fontFamily: theme.typography.bold },
+  modalContent: { paddingHorizontal: 18, paddingBottom: 24 },
+  filterLabel: { color: theme.colors.text.secondary, fontSize: 13, fontFamily: theme.typography.semibold, marginTop: 18, marginBottom: 9 },
+  filterOptions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  modalFooter: { paddingHorizontal: 18, paddingTop: 12, flexDirection: 'row', alignItems: 'center', gap: 16, borderTopWidth: 1, borderTopColor: theme.colors.neutral[200] },
+  resetText: { color: theme.colors.primary[700], fontFamily: theme.typography.semibold },
+  applyButton: { flex: 1, minHeight: 44, borderRadius: 8, backgroundColor: theme.colors.primary[600], alignItems: 'center', justifyContent: 'center' },
+  applyText: { color: theme.colors.text.onPrimary, fontFamily: theme.typography.bold },
   searchInput: {
     flex: 1,
     color: theme.colors.text.primary,

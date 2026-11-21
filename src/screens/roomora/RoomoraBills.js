@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../shared/theme/ThemeProvider';
@@ -19,7 +20,7 @@ import { BILL_KEYS } from '../../utils/expenseClassifier';
 import { getCategoryIconName } from '../../constants/ExpenseEnums';
 import { getExpenseDisplayTitle, getItemDate } from '../../utils/expenseHelpers';
 import ScheduledChargeCard from '../../components/ScheduledChargeCard';
-import { scheduledChargesApi } from '../../services/api';
+import { expensesApi, ledgerApi, scheduledChargesApi } from '../../services/api';
 import eventBus from '../../shared/events/bus';
 
 import { Alert, Text } from '../../shared/i18n';
@@ -37,6 +38,8 @@ export default function RoomoraBills({ navigation }) {
   const [filter, setFilter] = useState('all');
   const [expandedPlanId, setExpandedPlanId] = useState(null);
   const [busyCycleId, setBusyCycleId] = useState(null);
+  const [installmentStatus, setInstallmentStatus] = useState({});
+  const [busyInstallmentId, setBusyInstallmentId] = useState(null);
   const styles = useMemo(() => makeStyles(theme, insets), [theme, insets]);
 
   const now = new Date();
@@ -91,6 +94,51 @@ export default function RoomoraBills({ navigation }) {
       setBusyCycleId(null);
     }
   };
+
+  const togglePlan = async (planId, installments) => {
+    if (Number(expandedPlanId) === Number(planId)) {
+      setExpandedPlanId(null);
+      return;
+    }
+    setExpandedPlanId(planId);
+    const results = await Promise.allSettled(installments.map((item) => ledgerApi.byExpense(item.id)));
+    setInstallmentStatus((current) => {
+      const next = { ...current };
+      results.forEach((result, index) => {
+        const id = installments[index].id;
+        if (result.status !== 'fulfilled') {
+          next[id] = 'unknown';
+          return;
+        }
+        const response = result.value?.data?.data ?? result.value?.data;
+        const lines = Array.isArray(response) ? response : [];
+        next[id] = lines.some((line) => Number(line.paidAmount ?? line.PaidAmount) > 0) &&
+          lines.every((line) => Number(line.paidAmount ?? line.PaidAmount) >= Number(line.amount ?? line.Amount) - 0.01)
+          ? 'paid' : 'open';
+      });
+      return next;
+    });
+  };
+
+  const removeInstallment = (item) => Alert.alert(
+    'Taksiti sil',
+    'Yalnızca bu taksit silinecek. Ödeme kaydı varsa işlem engellenir.',
+    [
+      { text: 'Vazgeç', style: 'cancel' },
+      { text: 'Sil', style: 'destructive', onPress: async () => {
+        setBusyInstallmentId(item.id);
+        try {
+          await expensesApi.remove(item.id);
+          eventBus.emit('expenses:updated', { houseId: data.houseId });
+          await data.refresh();
+        } catch (error) {
+          Alert.alert('Silinemedi', error?.response?.data?.message || 'Ödeme kaydı olan taksit silinemez.');
+        } finally {
+          setBusyInstallmentId(null);
+        }
+      } },
+    ]
+  );
 
   return (
     <View style={styles.screen}>
@@ -176,20 +224,21 @@ export default function RoomoraBills({ navigation }) {
                   <ListRow
                     icon="calendar-outline"
                     title={getExpenseDisplayTitle(plan)}
-                    subtitle={`${count} taksit · Ayrıntılar için dokun`}
+                    subtitle={`${count} taksit · Ayrıntıları göster`}
                     amount={plan.amount}
-                    onPress={() => setExpandedPlanId(expanded ? null : plan.id)}
+                    onPress={() => togglePlan(plan.id, installments)}
                   />
                   {expanded && installments.map((item) => {
                     const due = item?._raw?.dueDate ?? item?._raw?.DueDate;
                     const date = due ? new Date(due) : getItemDate(item);
                     const index = item?._raw?.installmentIndex ?? item?._raw?.InstallmentIndex;
+                    const status = installmentStatus[item.id];
                     return (
+                      <View key={String(item.id)} style={styles.installmentRow}>
                       <ListRow
-                        key={String(item.id)}
-                        icon="card-outline"
+                        icon={status === 'paid' ? 'checkmark-circle-outline' : 'card-outline'}
                         title={`Taksit ${index || '·'}/${count}`}
-                        subtitle={Number.isNaN(date.getTime()) ? 'Tarih belirtilmedi' : date.toLocaleDateString(getLocale())}
+                        subtitle={`${Number.isNaN(date.getTime()) ? 'Tarih belirtilmedi' : date.toLocaleDateString(getLocale())}${status === 'paid' ? ' · Paylar ödendi' : status === 'open' ? ' · Ödeme bekliyor' : ''}`}
                         amount={item.amount}
                         onPress={() => navigation.navigate('HarcamaDetayi', {
                           expenseId: item.id,
@@ -198,6 +247,19 @@ export default function RoomoraBills({ navigation }) {
                           initialExpense: item._raw || item,
                         })}
                       />
+                      <View style={styles.installmentActions}>
+                        <TouchableOpacity style={styles.installmentAction} onPress={() => navigation.navigate('HarcamaDuzenle', {
+                          expenseId: item.id, houseId: data.houseId, houseName: data.houseName, initialExpense: item._raw || item,
+                        })} accessibilityLabel={`Taksit ${index} düzenle`}>
+                          <Ionicons name="create-outline" size={17} color={theme.colors.primary[700]} />
+                          <Text style={styles.installmentActionText}>Düzenle</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.installmentAction} disabled={busyInstallmentId === item.id || status === 'paid'} onPress={() => removeInstallment(item)} accessibilityLabel={`Taksit ${index} sil`}>
+                          <Ionicons name="trash-outline" size={17} color={theme.colors.error[700]} />
+                          <Text style={styles.installmentDeleteText}>Sil</Text>
+                        </TouchableOpacity>
+                      </View>
+                      </View>
                     );
                   })}
                 </View>
@@ -281,4 +343,9 @@ const makeStyles = (theme, insets) => StyleSheet.create({
     fontSize: 14,
   },
   filters: { gap: 8, paddingVertical: 14 },
+  installmentRow: { marginLeft: 14, marginBottom: 8, borderLeftWidth: 2, borderLeftColor: theme.colors.primary[100], paddingLeft: 8 },
+  installmentActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 16, marginTop: -4, paddingBottom: 8 },
+  installmentAction: { minHeight: 36, flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 8 },
+  installmentActionText: { color: theme.colors.primary[700], fontFamily: theme.typography.semibold, fontSize: 13 },
+  installmentDeleteText: { color: theme.colors.error[700], fontFamily: theme.typography.semibold, fontSize: 13 },
 });

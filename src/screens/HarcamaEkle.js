@@ -7,7 +7,7 @@ import * as ImageManipulator from 'expo-image-manipulator';
 import { useAuth } from '../context/AuthContext';
 import { houseApi, expensesApi, receiptsApi, quickExpenseTemplatesApi } from '../services/api';
 import { useTheme } from '../shared/theme/ThemeProvider';
-import { LoadingState, money, PageHeader } from '../shared/ui/roomora/CanonicalUI';
+import { money, PageHeader } from '../shared/ui/roomora/CanonicalUI';
 import Toast from '../components/Toast';
 import { toExpenseCategory } from '../constants/ExpenseEnums';
 import { CATEGORY_ID_TO_KEY } from '../utils/expenseClassifier';
@@ -80,6 +80,7 @@ export default function AddExpenseScreen({ navigation, route }) {
   const [shareUnits, setShareUnits] = useState([]);
   const [shareDraft, setShareDraft] = useState([]);
   const [shareEditorVisible, setShareEditorVisible] = useState(false);
+  const [expandedSelection, setExpandedSelection] = useState(null);
   const [loading, setLoading] = useState(false);
   const savingRef = useRef(false);
   const [showPersonal, setShowPersonal] = useState(false);
@@ -509,29 +510,35 @@ export default function AddExpenseScreen({ navigation, route }) {
         </View>
 
         <View style={styles.selectionCard}>
-          <View style={styles.selectionIcon}><Ionicons name="cart-outline" size={21} color={theme.colors.primary[700]} /></View>
-          <View style={styles.selectionBody}><Text style={styles.selectionLabel}>Kategori</Text><Text style={styles.selectionValue}>{QUICK_EXPENSES.find((item) => item.key === categoryKey)?.label || 'Seç'}</Text></View>
-          <View style={[styles.chips, styles.selectionChips]}>
+          <TouchableOpacity style={styles.selectionHeader} onPress={() => setExpandedSelection(expandedSelection === 'category' ? null : 'category')} accessibilityLabel="Kategori seçimini aç">
+            <View style={styles.selectionIcon}><Ionicons name="cart-outline" size={19} color={theme.colors.primary[700]} /></View>
+            <View style={styles.selectionBody}><Text style={styles.selectionLabel}>Kategori</Text><Text style={styles.selectionValue}>{QUICK_EXPENSES.find((item) => item.key === categoryKey)?.label || 'Seç'}</Text></View>
+            <Ionicons name={expandedSelection === 'category' ? 'chevron-up' : 'chevron-down'} size={19} color={theme.colors.text.secondary} />
+          </TouchableOpacity>
+          {expandedSelection === 'category' ? <View style={[styles.chips, styles.selectionChips]}>
             {QUICK_EXPENSES.map((option) => {
               const active = categoryKey === option.key;
               return (
                 <TouchableOpacity
                   key={option.key}
                   style={[styles.chip, active && styles.chipActive]}
-                  onPress={() => setCategoryKey(option.key)}
+                  onPress={() => { setCategoryKey(option.key); setExpandedSelection(null); }}
                   activeOpacity={0.8}
                 >
                   <Text style={[styles.chipText, active && styles.chipTextActive]}>{option.label}</Text>
                 </TouchableOpacity>
               );
             })}
-          </View>
+          </View> : null}
         </View>
 
         <View style={styles.selectionCard}>
-          <View style={styles.selectionIcon}><Ionicons name="person-outline" size={21} color={theme.colors.primary[700]} /></View>
-          <View style={styles.selectionBody}><Text style={styles.selectionLabel}>Ödeyen</Text><Text style={styles.selectionValue}>{members.find((member) => String(member.id) === String(payerId))?.fullName || 'Seç'}</Text></View>
-          <View style={[styles.chips, styles.selectionChips]}>
+          <TouchableOpacity style={styles.selectionHeader} onPress={() => setExpandedSelection(expandedSelection === 'payer' ? null : 'payer')} accessibilityLabel="Ödeyen seçimini aç">
+            <View style={styles.selectionIcon}><Ionicons name="person-outline" size={19} color={theme.colors.primary[700]} /></View>
+            <View style={styles.selectionBody}><Text style={styles.selectionLabel}>Ödeyen</Text><Text style={styles.selectionValue}>{members.find((member) => String(member.id) === String(payerId))?.fullName || 'Seç'}</Text></View>
+            <Ionicons name={expandedSelection === 'payer' ? 'chevron-up' : 'chevron-down'} size={19} color={theme.colors.text.secondary} />
+          </TouchableOpacity>
+          {expandedSelection === 'payer' ? <View style={[styles.chips, styles.selectionChips]}>
             {members.map((member) => {
               const active = String(member.id) === String(payerId);
               return (
@@ -539,25 +546,26 @@ export default function AddExpenseScreen({ navigation, route }) {
                   key={String(member.id)}
                   accessibilityLabel={`${member.fullName} ödeyen kişi`}
                   style={[styles.chip, active && styles.chipActive]}
-                  onPress={() => setPayerId(String(member.id))}
+                  onPress={() => { setPayerId(String(member.id)); setExpandedSelection(null); }}
                   activeOpacity={0.8}
                 >
                   <Text style={[styles.chipText, active && styles.chipTextActive]}>{member.fullName}</Text>
                 </TouchableOpacity>
               );
             })}
-          </View>
+          </View> : null}
         </View>
 
         <View style={styles.selectionCard}>
-          <View style={styles.selectionIcon}><Ionicons name="people-outline" size={21} color={theme.colors.primary[700]} /></View>
-          <View style={styles.selectionBody}>
-            <Text style={styles.selectionLabel}>Kimin için?</Text>
-            <Text style={styles.selectionValue}>
-              {hasCustomShareUnits(shareUnits) ? 'Özel paylaşım' : allSelected ? 'Ortak' : `${participantIds.length} kişi · Eşit`}
-            </Text>
-          </View>
-          <View style={[styles.chips, styles.selectionChips]}>
+          <TouchableOpacity style={styles.selectionHeader} onPress={() => setExpandedSelection(expandedSelection === 'participants' ? null : 'participants')} accessibilityLabel="Kimin için seçimini aç">
+            <View style={styles.selectionIcon}><Ionicons name="people-outline" size={19} color={theme.colors.primary[700]} /></View>
+            <View style={styles.selectionBody}>
+              <Text style={styles.selectionLabel}>Kimin için?</Text>
+              <Text style={styles.selectionValue}>{hasCustomShareUnits(shareUnits) ? 'Özel paylaşım' : allSelected ? 'Ortak' : `${participantIds.length} kişi · Eşit`}</Text>
+            </View>
+            <Ionicons name={expandedSelection === 'participants' ? 'chevron-up' : 'chevron-down'} size={19} color={theme.colors.text.secondary} />
+          </TouchableOpacity>
+          {expandedSelection === 'participants' ? <><View style={[styles.chips, styles.selectionChips]}>
             <TouchableOpacity
               style={[styles.chip, allSelected && styles.chipActive]}
               onPress={selectAllParticipants}
@@ -592,7 +600,7 @@ export default function AddExpenseScreen({ navigation, route }) {
             <Text style={styles.shareCustomSummary} numberOfLines={2}>
               {shareUnitsSummary(normalizeShareUnits(shareUnits, participantIds), members)}
             </Text>
-          ) : null}
+          ) : null}</> : null}
         </View>
 
         <TouchableOpacity style={styles.toggle} onPress={() => setShowPersonal((prev) => !prev)} activeOpacity={0.8}>
@@ -730,7 +738,11 @@ export default function AddExpenseScreen({ navigation, route }) {
 
       <Modal visible={scanningReceipt} transparent animationType="fade" statusBarTranslucent onRequestClose={() => {}}>
         <View style={styles.scanOverlay} accessibilityViewIsModal>
-          <LoadingState label={scanStage === 'preparing' ? 'Fotoğraf hazırlanıyor' : 'Fiş taranıyor'} />
+          <View style={styles.scanStatus}>
+            <Image source={require('../assets/mark-white.png')} style={styles.scanMark} resizeMode="contain" />
+            <ActivityIndicator size="large" color="#fff" />
+            <Text style={styles.scanTitle}>{scanStage === 'preparing' ? 'Fotoğraf hazırlanıyor' : 'Fiş taranıyor'}</Text>
+          </View>
         </View>
       </Modal>
 
@@ -793,8 +805,9 @@ const makeStyles = (theme) => StyleSheet.create({
   content: { paddingHorizontal: 20, paddingBottom: 36 },
   card: { backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.neutral[200], padding: 16, borderRadius: 8, marginBottom: 12 },
   fieldBlock: { marginBottom: 12 },
-  selectionCard: { backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.neutral[200], padding: 14, borderRadius: 8, marginBottom: 10, flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 10 },
-  selectionIcon: { width: 38, height: 38, borderRadius: 19, backgroundColor: theme.colors.primary[50], alignItems: 'center', justifyContent: 'center' },
+  selectionCard: { backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.neutral[200], padding: 10, borderRadius: 8, marginBottom: 7 },
+  selectionHeader: { minHeight: 45, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  selectionIcon: { width: 32, height: 32, borderRadius: 16, backgroundColor: theme.colors.primary[50], alignItems: 'center', justifyContent: 'center' },
   selectionBody: { flex: 1, minWidth: 110 },
   selectionLabel: { color: theme.colors.text.secondary, fontFamily: theme.typography.medium, fontSize: 12 },
   selectionValue: { color: theme.colors.text.primary, fontFamily: theme.typography.semibold, fontSize: 15, marginTop: 2 },
@@ -864,13 +877,18 @@ const makeStyles = (theme) => StyleSheet.create({
     borderColor: theme.colors.neutral[200],
   },
   receiptGhostButtonText: { color: theme.colors.text.primary, fontWeight: '700' },
-  scanOverlay: { ...StyleSheet.absoluteFillObject, zIndex: 50, elevation: 50, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.background },
+  scanOverlay: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(9, 20, 30, 0.72)' },
+  scanStatus: { alignItems: 'center', justifyContent: 'center', gap: 10 },
+  scanMark: { width: 58, height: 58 },
+  scanTitle: { color: '#fff', fontFamily: theme.typography?.semibold, fontSize: 15 },
   label: { fontFamily: theme.typography?.semibold, fontSize: 14, color: theme.colors.text.primary, marginBottom: 8 },
   input: {
     borderWidth: 1,
     borderColor: theme.colors.neutral[300],
     borderRadius: 8,
-    padding: 12,
+    paddingHorizontal: 12,
+    paddingVertical: Platform.OS === 'android' ? 9 : 11,
+    textAlignVertical: 'center',
     fontSize: 16,
     backgroundColor: theme.colors.surface,
     color: theme.colors.text.primary,
@@ -878,7 +896,7 @@ const makeStyles = (theme) => StyleSheet.create({
   noteInput: { height: 80, textAlignVertical: 'top' },
   hint: { marginTop: 6, color: theme.colors.text.secondary, fontSize: 12 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  selectionChips: { width: '100%' },
+  selectionChips: { width: '100%', paddingTop: 10 },
   shareCustomize: { width: '100%', minHeight: 40, flexDirection: 'row', alignItems: 'center', gap: 7, paddingHorizontal: 2 },
   shareCustomizeText: { flex: 1, color: theme.colors.primary[700], fontWeight: '700', fontSize: 13 },
   shareCustomSummary: { width: '100%', color: theme.colors.text.secondary, fontSize: 12, lineHeight: 18 },

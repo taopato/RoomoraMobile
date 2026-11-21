@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Image, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, Image, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { PanGestureHandler, PinchGestureHandler, State as GestureState } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -577,8 +577,7 @@ function FisDetayiInner({ route, navigation }) {
         keyboardShouldPersistTaps="handled"
       >
         <PageHeader
-          title={editConverted ? 'Fiş Harcamasını Düzenle' : (isConverted ? 'Fiş Detayı' : 'Fiş Tarama Sonucu')}
-          subtitle={editConverted ? 'Kalemleri, tarihi ve paylaşımı güncelle' : (isConverted ? 'Kaydedilmiş fiş' : 'Bilgileri kontrol edip kaydet')}
+          title={editConverted ? 'Fişi Düzenle' : (isConverted ? 'Fiş Detayı' : 'Fişi Kontrol Et')}
           onBack={() => navigation.goBack()}
         />
         <View style={styles.summaryCard}>
@@ -586,7 +585,6 @@ function FisDetayiInner({ route, navigation }) {
           <Text style={styles.summarySub}>
             {getLocale().startsWith('en') ? 'Receipt date' : 'Fiş tarihi'}: {receipt?.receiptDate ? parseApiDate(receipt.receiptDate).toLocaleDateString(getLocale()) : '-'}
           </Text>
-          {receipt?.createdAt ? <Text style={styles.summarySub}>{getLocale().startsWith('en') ? 'Added' : 'Eklendi'}: {parseApiDate(receipt.createdAt).toLocaleDateString(getLocale())}</Text> : null}
           <Text style={styles.summaryAmount}>
             {total.toLocaleString(getLocale(), { style: 'currency', currency: 'TRY' })}
           </Text>
@@ -870,7 +868,7 @@ function FisDetayiInner({ route, navigation }) {
 
       <View pointerEvents="none" style={[styles.statusBarGuard, { height: insets.top }]} />
 
-      {editingIndex != null && draftItem ? <Modal visible transparent animationType="fade" onRequestClose={cancelEditor} statusBarTranslucent>
+      {editingIndex != null && draftItem ? <Modal visible transparent animationType="fade" onRequestClose={cancelEditor} statusBarTranslucent navigationBarTranslucent hardwareAccelerated>
         <View style={styles.modalRoot}>
           <Pressable style={styles.modalBackdrop} onPress={cancelEditor} accessibilityLabel="Düzenlemeyi kapat" testID="receipt-editor-backdrop" />
           <KeyboardAvoidingView pointerEvents="box-none" behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalKeyboard}>
@@ -893,14 +891,18 @@ function FisDetayiInner({ route, navigation }) {
                   }}
                   theme={theme}
                 />
-              ) : <KeyboardAwareScreen
+              ) : <ScrollView
                 style={styles.modalScroll}
                 keyboardShouldPersistTaps="handled"
                 keyboardDismissMode="interactive"
                 contentContainerStyle={styles.modalContent}
               >
-              <Text style={styles.modalTitle}>Kalemi düzenle</Text>
-              <Text style={styles.modalHint}>Ürün bilgilerini ve tutarı paylaşacak kişileri güncelleyebilirsin.</Text>
+              <View style={styles.modalHeading}>
+                <Text style={styles.modalTitle}>{editingNewItem ? 'Kalem ekle' : 'Kalemi düzenle'}</Text>
+                <TouchableOpacity onPress={cancelEditor} accessibilityLabel="Kalem düzenlemeyi kapat" testID="receipt-editor-close">
+                  <Ionicons name="close" size={24} color={theme.colors.text.primary} />
+                </TouchableOpacity>
+              </View>
               {draftItem?.originalName ? <Text style={styles.originalName}>Fişteki ad: {draftItem.originalName}</Text> : null}
               {draftItem?.originalName && getReadableReceiptItemName(draftItem.originalName) !== draftItem.originalName ? (
                 <TouchableOpacity style={styles.nameSuggestion} onPress={() => setDraftItem((prev) => ({ ...prev, name: getReadableReceiptItemName(prev.originalName) }))}>
@@ -982,7 +984,7 @@ function FisDetayiInner({ route, navigation }) {
                   <Text style={styles.modalPrimaryButtonText}>Kaydet</Text>
                 </TouchableOpacity>
               </View>
-              </KeyboardAwareScreen>}
+              </ScrollView>}
             </View>
           </KeyboardAvoidingView>
         </View>
@@ -1107,12 +1109,12 @@ const makeStyles = (theme) => StyleSheet.create({
   },
   convertedNoticeTitle: { color: theme.colors.success[700], fontWeight: '700', fontSize: 13 },
   convertedNoticeText: { color: theme.colors.text.secondary, fontSize: 12 },
-  summaryCard: { backgroundColor: theme.colors.primary[50], borderRadius: 8, padding: 16, borderWidth: 1, borderColor: theme.colors.primary[100], marginTop: 14, marginBottom: 14 },
-  summaryTitle: { color: theme.colors.text.primary, fontWeight: '900', fontSize: 18 },
+  summaryCard: { backgroundColor: theme.colors.primary[50], borderRadius: 8, padding: 12, borderWidth: 1, borderColor: theme.colors.primary[100], marginTop: 8, marginBottom: 10 },
+  summaryTitle: { color: theme.colors.text.primary, fontWeight: '800', fontSize: 16 },
   summarySub: { color: theme.colors.text.secondary, marginTop: 4 },
-  summaryAmount: { color: theme.colors.primary[700], fontWeight: '900', fontSize: 22, marginTop: 10 },
+  summaryAmount: { color: theme.colors.primary[700], fontWeight: '900', fontSize: 20, marginTop: 6 },
   totalCorrection: { marginTop: 14 },
-  summaryMetaRow: { flexDirection: 'row', gap: 16, marginTop: 14, paddingTop: 12, borderTopWidth: 1, borderColor: theme.colors.primary[100] },
+  summaryMetaRow: { flexDirection: 'row', gap: 12, marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderColor: theme.colors.primary[100] },
   summaryMetaBadge: { flex: 1 },
   summaryMetaLabel: { color: theme.colors.text.secondary, fontSize: 12, fontWeight: '700', marginBottom: 4 },
   summaryMetaValue: { color: theme.colors.text.primary, fontSize: 14, fontWeight: '800' },
@@ -1333,7 +1335,8 @@ const makeStyles = (theme) => StyleSheet.create({
   modalKeyboard: { flex: 1, justifyContent: 'center', paddingHorizontal: 16 },
   modalSheet: { flexShrink: 1, backgroundColor: theme.colors.surface, paddingHorizontal: 16, paddingVertical: 18, borderRadius: 8, borderWidth: 1, borderColor: theme.colors.neutral[200] },
   modalScroll: { flexGrow: 0, flexShrink: 1 },
-  modalContent: { paddingBottom: 12 },
+  modalContent: { paddingBottom: 16 },
+  modalHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
   modalTitle: { color: theme.colors.text.primary, fontSize: 18, fontWeight: '900', marginBottom: 6 },
   modalHint: { color: theme.colors.text.secondary, lineHeight: 18, marginBottom: 12 },
   quantityHint: { color: theme.colors.text.secondary, fontSize: 12, textAlign: 'center', marginTop: -6, marginBottom: 12 },
